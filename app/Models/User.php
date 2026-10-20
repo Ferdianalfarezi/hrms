@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 #[Fillable(['nik', 'name', 'email', 'photo', 'password', 'is_active', 'is_superadmin'])]
@@ -40,11 +39,13 @@ class User extends Authenticatable
 
     /**
      * URL foto profil, atau avatar default kalau belum ada foto.
+     * Pakai asset() (ikut alamat yang sedang dibuka), bukan Storage::url() yang terkunci ke APP_URL,
+     * supaya foto tetap muncul saat aplikasi dibuka lewat IP / komputer lain.
      */
     protected function photoUrl(): Attribute
     {
         return Attribute::get(fn () => $this->photo
-            ? Storage::disk('public')->url($this->photo)
+            ? asset('storage/'.$this->photo)
             : asset('images/default-avatar.svg'));
     }
 
