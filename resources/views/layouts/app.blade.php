@@ -7,6 +7,30 @@
     <header class="topbar">
         <a href="{{ route('portal') }}" class="brand">HR System</a>
 
+        {{-- Menu modul sebaris dengan brand. --}}
+        @if (count($moduleTabs) > 1)
+            <nav class="subtabs" aria-label="Menu modul">
+                @foreach ($moduleTabs as $tab)
+                    @if ($tab['children'])
+                        {{-- Dropdown terbuka saat kursor di atas tab (atau tab difokus/ditekan di layar sentuh). --}}
+                        <div class="subtab-drop">
+                            <button type="button" @class(['subtab', 'active' => $tab['active']]) aria-haspopup="true">
+                                {{ $tab['label'] }}
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+                            <div class="subtab-menu" role="menu">
+                                @foreach ($tab['children'] as $child)
+                                    <a href="{{ $child['url'] }}" role="menuitem" @class(['active' => $child['active']])>{{ $child['label'] }}</a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <a href="{{ $tab['url'] }}" @class(['subtab', 'active' => $tab['active']])>{{ $tab['label'] }}</a>
+                    @endif
+                @endforeach
+            </nav>
+        @endif
+
         <nav class="tabs" aria-label="Menu utama">
             <div class="tabs-inner">
                 @foreach ($navTabs as $tab)
@@ -31,29 +55,6 @@
                  class="avatar" style="width: 38px; height: 38px; border: 2px solid #fff;">
         </div>
     </header>
-
-    @if (count($moduleTabs) > 1)
-        <nav class="subtabs" aria-label="Menu modul">
-            @foreach ($moduleTabs as $tab)
-                @if ($tab['children'])
-                    {{-- Dropdown terbuka saat kursor di atas tab (atau tab difokus/ditekan di layar sentuh). --}}
-                    <div class="subtab-drop">
-                        <button type="button" @class(['subtab', 'active' => $tab['active']]) aria-haspopup="true">
-                            {{ $tab['label'] }}
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                        </button>
-                        <div class="subtab-menu" role="menu">
-                            @foreach ($tab['children'] as $child)
-                                <a href="{{ $child['url'] }}" role="menuitem" @class(['active' => $child['active']])>{{ $child['label'] }}</a>
-                            @endforeach
-                        </div>
-                    </div>
-                @else
-                    <a href="{{ $tab['url'] }}" @class(['subtab', 'active' => $tab['active']])>{{ $tab['label'] }}</a>
-                @endif
-            @endforeach
-        </nav>
-    @endif
     </div>
 
     @if (session('status'))

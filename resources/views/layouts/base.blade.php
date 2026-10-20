@@ -43,15 +43,25 @@
             .shell { padding: 14px 16px 24px; }
         }
 
-        /* Navbar lengket: menutup lebar shell (padding dibalik dengan margin negatif) dan memburamkan isi di belakangnya. */
+        /* Navbar lengket bergaya glassmorphism: panel kaca mengambang yang memburamkan isi halaman di belakangnya. */
         .app-nav {
-            position: sticky; top: 0; z-index: 30; margin: -18px -32px 24px; padding: 18px 32px 0;
-            background: rgba(226, 234, 249, .82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-            box-shadow: 0 1px 0 var(--line), 0 8px 24px rgba(30, 64, 175, .06);
+            position: sticky; top: 12px; z-index: 30; margin: 0 -12px 24px; padding: 14px 20px 0; border-radius: 22px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .34));
+            backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, .7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 1px 2px rgba(15, 35, 80, .04), 0 12px 32px rgba(30, 64, 175, .12);
         }
         .app-nav > .topbar:last-child { margin-bottom: 0; padding-bottom: 14px; }
+        /* Elemen di dalam navbar ikut transparan supaya kacanya terasa menyatu. */
+        .app-nav .brand, .app-nav .tabs-inner, .app-nav .icon-btn {
+            background: rgba(255, 255, 255, .5); border-color: rgba(255, 255, 255, .8);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+        }
+        .app-nav .icon-btn:hover { background: rgba(255, 255, 255, .9); }
+        /* Dropdown menu tetap solid supaya isi halaman di belakangnya tidak mengganggu. */
+        .app-nav .subtab-menu { background: #fff; box-shadow: 0 12px 32px rgba(30, 64, 175, .18); }
         @media (max-width: 720px) {
-            .app-nav { margin: -14px -16px 20px; padding: 14px 16px 0; }
+            .app-nav { top: 8px; margin: 0 -6px 20px; padding: 12px 14px 0; border-radius: 18px; }
         }
 
         /* Topbar dengan tab */
@@ -85,7 +95,11 @@
         }
 
         /* Tab menu modul (baris kedua) */
-        .subtabs { display: flex; flex-wrap: wrap; gap: 0 24px; margin: -8px 0 0; position: relative; z-index: 20; }
+        /* Sebaris dengan brand di topbar. */
+        .subtabs { display: flex; align-items: center; gap: 0 22px; margin-left: 8px; position: relative; z-index: 20; }
+        @media (max-width: 900px) {
+            .subtabs { order: 4; flex-basis: 100%; flex-wrap: wrap; margin-left: 0; }
+        }
         .subtab { padding: 10px 2px; font-size: 14px; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
         .subtab:hover { color: var(--text); }
         .subtab.active { color: var(--navy); border-bottom-color: var(--navy); font-weight: 600; }
@@ -220,6 +234,50 @@
 
         /* Progress bar Turbo saat pindah halaman */
         .turbo-progress-bar { height: 3px; background: var(--primary); }
+
+        /* Halaman login (dipakai juga untuk salinan di animasi terbelah) */
+        .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+        .login-shell {
+            width: 100%; max-width: 880px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border-radius: 30px;
+            background: linear-gradient(180deg, var(--shell-top), var(--shell-bottom)); border: 1px solid #fff;
+            box-shadow: 0 30px 80px rgba(30, 55, 110, .18);
+        }
+        .login-hero {
+            background: linear-gradient(160deg, var(--primary), var(--navy-deep)); color: #fff; padding: 36px;
+            display: flex; flex-direction: column; justify-content: space-between; gap: 32px; position: relative; overflow: hidden;
+        }
+        .login-hero::after { content: ""; position: absolute; width: 320px; height: 320px; border-radius: 50%; right: -120px; bottom: -120px;
+                             border: 40px solid rgba(255, 255, 255, .08); }
+        .login-hero .brand { color: #fff; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); align-self: flex-start; }
+        .login-hero h2 { font-size: 30px; font-weight: 500; letter-spacing: -.02em; line-height: 1.2; }
+        .login-form { padding: 40px 36px; }
+        @media (max-width: 720px) { .login-shell { grid-template-columns: 1fr; } .login-hero { padding: 28px; } .login-form { padding: 28px; } }
+
+        /* Animasi setelah login: halaman login terbelah dua dari tengah, lalu halaman tujuan "masuk" (sedikit membesar). */
+        .door { position: fixed; inset: 0; z-index: 100; display: flex; pointer-events: none; overflow: hidden; }
+        .door-leaf {
+            position: relative; flex: 1; height: 100%; overflow: hidden;
+            animation: door-open .85s cubic-bezier(.5, 0, .15, 1) .12s forwards;
+        }
+        /* Tiap belahan berisi salinan utuh halaman login selebar layar; kiri menampilkan separuh kiri, kanan separuh kanan. */
+        .door-copy {
+            position: absolute; top: 0; width: 200%; height: 100%; overflow: hidden;
+            background:
+                radial-gradient(1200px 600px at 0% 0%, rgba(147, 180, 245, .35), transparent 60%),
+                radial-gradient(900px 500px at 100% 100%, rgba(120, 160, 240, .25), transparent 60%),
+                linear-gradient(160deg, #e4ecfa 0%, #dbe5f7 50%, #e2eafa 100%);
+        }
+        .door-left { --door-x: -100%; }
+        .door-left .door-copy { left: 0; }
+        .door-right { --door-x: 100%; }
+        .door-right .door-copy { right: 0; }
+        @keyframes door-open { to { transform: translateX(var(--door-x)); } }
+        .door ~ * { animation: door-enter .9s cubic-bezier(.2, .7, .2, 1) .12s backwards; }
+        @keyframes door-enter { from { transform: scale(.94); opacity: .4; } }
+        @media (prefers-reduced-motion: reduce) {
+            .door { display: none; }
+            .door ~ * { animation: none; }
+        }
     </style>
 
     {{-- Turbo: pindah menu & submit form tanpa reload penuh (hanya isi <body> yang diganti). --}}
@@ -309,6 +367,14 @@
     <style>
         @yield('styles')
     </style>
+    @if (session('door') && auth()->check())
+        <div class="door" id="door" aria-hidden="true" inert>
+            <div class="door-leaf door-left"><div class="door-copy">@include('auth._card', ['preview' => true])</div></div>
+            <div class="door-leaf door-right"><div class="door-copy">@include('auth._card', ['preview' => true])</div></div>
+        </div>
+        {{-- Dibuang setelah selesai, supaya tidak ikut tersimpan di cache Turbo dan terputar lagi saat tombol Back. --}}
+        <script>setTimeout(function () { var door = document.getElementById('door'); if (door) door.remove(); }, 1100);</script>
+    @endif
     @yield('body')
     @stack('scripts')
 </body>

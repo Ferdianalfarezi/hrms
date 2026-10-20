@@ -34,6 +34,9 @@ class PortalController extends Controller
         }
 
         if ($applications->count() === 1) {
+            // Animasi pintu setelah login ikut dibawa ke halaman modul.
+            $request->session()->reflash();
+
             return redirect()->to($applications->first()->homeUrl());
         }
 

@@ -50,7 +50,8 @@ class LoginController extends Controller
         RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
 
-        return redirect()->route('portal');
+        // Penanda sekali pakai: halaman berikutnya memutar animasi pintu terbuka (lihat layouts.base).
+        return redirect()->route('portal')->with('door', true);
     }
 
     public function destroy(Request $request): RedirectResponse
