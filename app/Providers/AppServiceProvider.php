@@ -28,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
         // Boleh mengelola data master modul: super admin, atau role "admin" di modul tersebut.
         Gate::define('manage-module', fn (User $user, string $module) => $user->isModuleAdmin($module));
 
+        // Daily & Cross Patrol (SMS): Admin SMS (semua departemen) dan Admin Departemen SMS (departemennya saja).
+        Gate::define('sms-patrol', fn (User $user) => $user->canAccessApplication('sms')
+            && ($user->isModuleAdmin('sms') || $user->isDepartmentAdmin('sms')));
+
         Gate::policy(Karyawan::class, KaryawanPolicy::class);
 
         View::composer('layouts.app', function ($view) {

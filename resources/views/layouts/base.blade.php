@@ -28,6 +28,8 @@
             --shadow: 0 1px 2px rgba(15, 35, 80, .04), 0 12px 32px rgba(30, 64, 175, .08);
         }
         * { box-sizing: border-box; }
+        /* Atribut hidden selalu menang, walaupun elemennya punya display: flex/grid dari CSS lain. */
+        [hidden] { display: none !important; }
         html, body { margin: 0; }
         body {
             font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

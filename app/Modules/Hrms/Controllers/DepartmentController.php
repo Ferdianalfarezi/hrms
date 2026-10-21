@@ -4,6 +4,9 @@ namespace App\Modules\Hrms\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Sms\Models\CrossPatrol;
+use App\Modules\Sms\Models\DailyPatrol;
+use App\Modules\Sms\Models\Kecelakaan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -58,6 +61,14 @@ class DepartmentController extends Controller
         if ($total = $department->karyawans()->count()) {
             return redirect()->route('hrms.departments.index')
                 ->with('error', "Departemen {$department->name} masih dipakai {$total} karyawan, pindahkan dulu karyawannya sebelum menghapus.");
+        }
+
+        $smsData = DailyPatrol::where('department_id', $department->id)->count()
+            + CrossPatrol::where('department_id', $department->id)->count()
+            + Kecelakaan::where('department_id', $department->id)->count();
+        if ($smsData) {
+            return redirect()->route('hrms.departments.index')
+                ->with('error', "Departemen {$department->name} masih dipakai {$smsData} data Daily/Cross Patrol & Kecelakaan (SMS), jadi tidak bisa dihapus.");
         }
 
         $department->delete();

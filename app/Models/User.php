@@ -118,15 +118,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Departemen yang dipegang user sebagai "Admin Departemen" HRMS, atau null.
+     * Departemen yang dipegang user sebagai "Admin Departemen" di modul ini (default HRMS), atau null.
      */
-    public function managedDepartmentId(): ?int
+    public function managedDepartmentId(string $code = 'hrms'): ?int
     {
-        if ($this->isModuleAdmin('hrms')) {
+        if ($this->isModuleAdmin($code)) {
             return null;
         }
 
-        $application = $this->applications()->active()->where('code', 'hrms')->first();
+        $application = $this->applications()->active()->where('code', $code)->first();
         if (! $application || Role::find($application->pivot->role_id)?->code !== 'dept_admin') {
             return null;
         }
@@ -136,9 +136,9 @@ class User extends Authenticatable
         return $departmentId === null ? null : (int) $departmentId;
     }
 
-    public function isDepartmentAdmin(): bool
+    public function isDepartmentAdmin(string $code = 'hrms'): bool
     {
-        return ! $this->isModuleAdmin('hrms') && $this->roleFor('hrms')?->code === 'dept_admin';
+        return ! $this->isModuleAdmin($code) && $this->roleFor($code)?->code === 'dept_admin';
     }
 
     /**

@@ -208,7 +208,6 @@
         @endforeach
     </div>
 </section>
-
 <section class="dash-grid">
     {{-- Profil user yang login --}}
     <div @class(['card', 'profile-card', 'a-profile', 'no-photo' => ! $viewer->photo]) style="background-image: url('{{ $viewer->photo_url }}'); --i: 0;">
@@ -272,19 +271,22 @@
                 <h2 class="card-title">{{ $composition['title'] }}</h2>
                 <b data-count>{{ $composition['value'] }}</b>
             </div>
-            @php($segments = collect($composition['segments'])->filter(fn ($segment) => $segment['count'] > 0)->values())
-            {{-- Satu bar proporsional + legenda, supaya tidak meluber walau kartu sempit. --}}
-            <div class="stackbar">
-                @foreach ($segments as $segment)
-                    <span class="tone-{{ $segment['tone'] }}" style="flex: {{ $segment['count'] }}; --j: {{ $loop->index }};" title="{{ $segment['label'] }}: {{ $segment['count'] }}"></span>
-                @endforeach
-            </div>
-            <div class="legend">
+            {{-- Segmen bernilai 0 disembunyikan, kecuali ditandai "always". "text" menggantikan angka + satuan di legenda. --}}
+            @php($segments = collect($composition['segments'])->filter(fn ($segment) => ($segment['always'] ?? false) || $segment['count'] > 0)->values())
+            {{-- Satu bar proporsional + legenda, supaya tidak meluber walau kartu sempit. "bar" => false menyembunyikan bar. --}}
+            @if ($composition['bar'] ?? true)
+                <div class="stackbar">
+                    @foreach ($segments as $segment)
+                        <span class="tone-{{ $segment['tone'] }}" style="flex: {{ $segment['count'] }}; --j: {{ $loop->index }};" title="{{ $segment['label'] }}: {{ $segment['count'] }}"></span>
+                    @endforeach
+                </div>
+            @endif
+            <div class="legend" @unless ($composition['bar'] ?? true) style="margin-top: 16px;" @endunless>
                 @foreach ($segments as $segment)
                     <div class="legend-row" style="--j: {{ $loop->index }};">
                         <i class="dot tone-{{ $segment['tone'] }}"></i>
                         <span class="legend-label">{{ $segment['label'] }}</span>
-                        <span class="legend-value">{{ number_format($segment['count'], 0, ',', '.') }} {{ $composition['unit'] }}</span>
+                        <span class="legend-value">{{ $segment['text'] ?? number_format($segment['count'], 0, ',', '.').' '.$composition['unit'] }}</span>
                     </div>
                 @endforeach
             </div>
@@ -293,6 +295,10 @@
             @endif
         </div>
 
+        {{-- Kartu bawah kolom kanan: modul bisa menggantinya lewat @section('side-bottom') (mis. SMS: grafik temuan patrol). --}}
+        @hasSection('side-bottom')
+            @yield('side-bottom')
+        @else
         {{-- Daftar orang --}}
         <div class="card team-card" style="--i: 4;">
             <div class="card-head">
@@ -318,8 +324,13 @@
                 <div class="muted small">{{ $people['empty'] }}</div>
             @endforelse
         </div>
+        @endif
     </div>
 
+    {{-- Baris bawah: modul bisa menggantinya lewat @section('grid-bottom') (mis. SMS: grafik kecelakaan). --}}
+    @hasSection('grid-bottom')
+        @yield('grid-bottom')
+    @else
     {{-- Informasi akun --}}
     <div class="card a-info" style="padding-top: 6px; padding-bottom: 6px; --i: 5;">
         <details class="acc" open>
@@ -384,6 +395,7 @@
         </div>
         <div class="muted small" style="margin-top: 10px;">{{ $calendar['caption'] }}</div>
     </div>
+    @endif
 </section>
 @endsection
 

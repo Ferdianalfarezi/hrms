@@ -24,7 +24,8 @@ class ApplicationSeeder extends Seeder
                 'name' => 'SMS',
                 'description' => 'Modul SMS',
                 'sort_order' => 2,
-                'roles' => ['admin' => 'Admin SMS', 'staff' => 'Staff SMS'],
+                // dept_admin mengisi Daily Patrol untuk departemen (area) yang dipilihkan untuknya.
+                'roles' => ['admin' => 'Admin SMS', 'staff' => 'Staff SMS', 'dept_admin' => 'Admin Departemen'],
             ],
         ];
 

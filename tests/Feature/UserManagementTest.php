@@ -220,10 +220,12 @@ class UserManagementTest extends TestCase
         User::factory()->create(['name' => 'Rekan Baru']);
 
         // Dashboard SMS berbasis akun login; dashboard HRMS berbasis data karyawan (lihat HrmsDashboardTest).
+        // Kartu "User Terbaru" di SMS sudah diganti grafik temuan Daily Patrol.
         $this->actingAs($this->admin)->get('/sms')
             ->assertOk()
             ->assertSee('Selamat datang')
-            ->assertSee('Rekan Baru')
+            ->assertSee('Temuan Daily Patrol')
+            ->assertDontSee('Rekan Baru')
             ->assertSee(route('hrms.dashboard'))
             ->assertSee(route('admin.users.index'));
     }
