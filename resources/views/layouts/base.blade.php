@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'HR System') · {{ config('app.name') }}</title>
-    {{-- Favicon ikut tema browser: HRms.png untuk tema terang, "HRms 2.png" untuk tema gelap. --}}
+    {{-- Favicon ikut tema browser: "HRms 2.png" (tulisan hitam) untuk tema terang, HRms.png (tulisan putih) untuk tema gelap. --}}
     {{-- ?v= memaksa browser mengambil ulang ikon (favicon di-cache sangat lama); naikkan angkanya kalau logo diganti. --}}
-    <link rel="icon" type="image/png" href="{{ asset('images/HRms.png') }}?v=2" media="(prefers-color-scheme: light)">
-    <link rel="icon" type="image/png" href="{{ asset('images/'.rawurlencode('HRms 2.png')) }}?v=2" media="(prefers-color-scheme: dark)">
-    <link rel="apple-touch-icon" href="{{ asset('images/HRms.png') }}?v=2">
+    <link rel="icon" type="image/png" href="{{ asset('images/'.rawurlencode('HRms 2.png')) }}?v=3" media="(prefers-color-scheme: light)">
+    <link rel="icon" type="image/png" href="{{ asset('images/HRms.png') }}?v=3" media="(prefers-color-scheme: dark)">
+    <link rel="apple-touch-icon" href="{{ asset('images/'.rawurlencode('HRms 2.png')) }}?v=3">
     @stack('head')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
