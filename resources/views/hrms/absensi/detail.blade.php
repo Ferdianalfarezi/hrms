@@ -76,7 +76,7 @@
             <a href="{{ route('hrms.absensi.detail', ['tanggal' => $next]) }}" title="Hari berikutnya">&rsaquo;</a>
         </span>
         <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal laporan">
-        <a href="{{ route('hrms.absensi.detail.export', ['tanggal' => $tanggal->toDateString()]) }}" class="btn btn-ghost btn-sm">Export Excel</a>
+        <a href="{{ route('hrms.absensi.detail.export', ['tanggal' => $tanggal->toDateString()]) }}" class="btn btn-ghost btn-sm" data-turbo="false">Export Excel</a>
         <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
     </form>
 </div>

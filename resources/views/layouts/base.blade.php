@@ -235,6 +235,25 @@
         /* Progress bar Turbo saat pindah halaman */
         .turbo-progress-bar { height: 3px; background: var(--primary); }
 
+        /* Layar memuat: halaman diburamkan dengan spinner di tengah, hanya muncul kalau pindah halaman agak lama. */
+        .page-loading {
+            position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+            background: rgba(228, 236, 250, .45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            opacity: 0; transition: opacity .2s ease-out; cursor: progress;
+        }
+        .page-loading.show { opacity: 1; }
+        .page-loading-box {
+            display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 28px; border-radius: var(--radius);
+            background: rgba(255, 255, 255, .92); border: 1px solid #fff; box-shadow: 0 20px 48px rgba(30, 64, 175, .18);
+            font-size: 13px; font-weight: 600; color: var(--muted);
+        }
+        .spinner {
+            width: 38px; height: 38px; border-radius: 50%; border: 4px solid var(--soft); border-top-color: var(--primary);
+            animation: spin .8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+
         /* Halaman login (dipakai juga untuk salinan di animasi terbelah) */
         .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
         .login-shell {
@@ -288,6 +307,49 @@
         document.addEventListener('turbo:before-cache', function () {
             document.querySelectorAll('dialog[open]').forEach(function (dialog) { dialog.close(); });
         });
+
+        // Layar memuat saat pindah menu / submit form lewat Turbo. Baru muncul setelah 300 ms,
+        // jadi pindah halaman yang cepat tidak berkedip; hilang begitu halaman baru tampil.
+        window.hrLoading = window.hrLoading || (function () {
+            var timer = null;
+
+            function show() {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    if (document.getElementById('page-loading')) return;
+                    var el = document.createElement('div');
+                    el.id = 'page-loading';
+                    el.className = 'page-loading';
+                    el.setAttribute('role', 'status');
+                    el.setAttribute('aria-live', 'polite');
+                    el.innerHTML = '<div class="page-loading-box"><span class="spinner" aria-hidden="true"></span><span>Memuat...</span></div>';
+                    document.body.appendChild(el);
+                    requestAnimationFrame(function () { el.classList.add('show'); });
+                }, 300);
+            }
+
+            function hide() {
+                clearTimeout(timer);
+                timer = null;
+                var el = document.getElementById('page-loading');
+                if (el) el.remove();
+            }
+
+            document.addEventListener('turbo:visit', show);
+            document.addEventListener('turbo:submit-start', show);
+            document.addEventListener('turbo:render', hide);
+            document.addEventListener('turbo:load', hide);
+            document.addEventListener('turbo:fetch-request-error', hide);
+            // Jangan ikut tersimpan di cache Turbo, dan bersihkan kalau halaman dipulihkan dari cache browser (tombol Back).
+            document.addEventListener('turbo:before-cache', hide);
+            window.addEventListener('pageshow', hide);
+            // Form yang gagal (mis. error validasi) tidak boleh meninggalkan layar memuat.
+            document.addEventListener('turbo:submit-end', function (event) {
+                if (!event.detail.success) hide();
+            });
+
+            return { show: show, hide: hide };
+        })();
 
         // Toast notifikasi: animasi masuk hanya sekali, toast yang sudah ditutup tidak muncul lagi dari cache Turbo,
         // dan daftar toast dicek ulang ke server tiap 15 detik supaya notifikasi baru muncul tanpa refresh.

@@ -99,6 +99,8 @@
     $prev = $tanggal->copy()->subDay()->toDateString();
     $next = $tanggal->copy()->addDay()->toDateString();
     $keepFilters = array_filter(['department' => $department, 'group' => $group]);
+    // Kelas kolom tanggal dihitung sekali per hari, bukan per sel.
+    $days = $days->map(fn (array $day) => [...$day, 'tdClass' => 'day'.($day['weekend'] ? ' sun' : '').($day['selected'] ? ' sel' : '')]);
 @endphp
 
 <div class="abs-head">
@@ -193,7 +195,7 @@
 </dialog>
 
 <div class="abs-wrap" id="abs-wrap">
-    <table class="abs" id="abs-table">
+    <table class="abs" id="abs-table" data-month="{{ $tanggal->format('Y-m') }}">
         <thead>
             <tr>
                 <th class="c-no" rowspan="2">No</th>
@@ -219,41 +221,50 @@
         </thead>
         <tbody>
             @forelse ($karyawans as $karyawan)
-                @php($rowMarks = $marks[$karyawan->id] ?? [])
                 <tr data-row="{{ $karyawan->id }}" data-search="{{ \Illuminate\Support\Str::lower($karyawan->nik.' '.$karyawan->nama) }}">
                     <td class="c-no muted">{{ $loop->iteration }}</td>
                     <td class="c-nik">{{ $karyawan->nik }}</td>
                     <td class="c-nama" title="{{ $karyawan->nama }}">{{ $karyawan->nama }}</td>
                     <td class="c-group">{{ $karyawan->group ?? '-' }}</td>
                     <td class="c-bagian">{{ $karyawan->department?->name ?? '-' }}</td>
-                    @foreach ($days as $day)
-                        @php($mark = $rowMarks[$day['day']] ?? null)
-                        @php($salahInput = $mark && isset($hadirMesin[$karyawan->id][$day['date']]) && ! ($kodes[$mark['kode']]['hadir'] ?? false))
-                        @php($tone = $mark && ! $salahInput ? ($kodes[$mark['kode']]['tone'] ?? null) : null)
-                        @php($tanpaKet = ! $mark && isset($tanpaKeterangan[$karyawan->id][$day['date']]))
-                        @php($label = $mark ? ($kodes[$mark['kode']]['label'] ?? $mark['kode']) : null)
-                        @php($title = match (true) {
-                            $salahInput => 'Hadir di mesin absen · admin input '.$label.', cek ulang',
-                            $mark !== null => $label.($mark['keterangan'] ? ' · '.$mark['keterangan'] : ''),
-                            $tanpaKet => 'Tidak masuk · belum ada keterangan',
-                            default => 'Masuk',
-                        })
-                        {{-- Admin Departemen hanya mengisi hari kerja (Senin - Jumat). --}}
-                        @php($cellEditable = $canEdit && ($isAdmin || ! $day['weekend']))
-                        <td @class(['day', 'sun' => $day['weekend'], 'sel' => $day['selected']])>
-                            <button type="button"
-                                    @class(['cell', 'editable' => $cellEditable, 'k k-'.$tone => $tone !== null, 'tanpa-ket' => $tanpaKet, 'present' => $tone === null && ! $tanpaKet && ($day['worked'] || $salahInput)])
-                                    data-day="{{ $day['day'] }}" data-date="{{ $day['date'] }}" @if ($day['worked']) data-worked @endif @if (isset($tanpaKeterangan[$karyawan->id][$day['date']])) data-tanpa-ket @endif @if (isset($hadirMesin[$karyawan->id][$day['date']])) data-hadir-mesin @endif
-                                    data-kode="{{ $mark['kode'] ?? '' }}" data-ket="{{ $mark['keterangan'] ?? '' }}"
-                                    title="{{ $title }}"
-                                    @disabled(! $cellEditable)>{{ $mark['kode'] ?? '' }}</button>
-                        </td>
-                    @endforeach
+                    @php
+                        // Sel tanggal dirakit sebagai string ringkas (tanpa spasi & atribut kosong): ratusan karyawan x 31 hari
+                        // membuat HTML belasan MB kalau ditulis dengan Blade biasa, dan itu yang bikin halaman lama terbuka.
+                        // Tanggal lengkap sel dihitung di JS dari data-month tabel + data-day.
+                        $rowMarks = $marks[$karyawan->id] ?? [];
+                        $selectedMark = $rowMarks[$tanggal->day] ?? null;
+                        $cells = '';
+                        foreach ($days as $day) {
+                            $date = $day['date'];
+                            $mark = $rowMarks[$day['day']] ?? null;
+                            $hadirDiMesin = isset($hadirMesin[$karyawan->id][$date]);
+                            $mesinTanpaKet = isset($tanpaKeterangan[$karyawan->id][$date]);
+                            $salahInput = $mark && $hadirDiMesin && ! ($kodes[$mark['kode']]['hadir'] ?? false);
+                            $tone = $mark && ! $salahInput ? ($kodes[$mark['kode']]['tone'] ?? null) : null;
+                            $tanpaKet = ! $mark && $mesinTanpaKet;
+                            $label = $mark ? ($kodes[$mark['kode']]['label'] ?? $mark['kode']) : null;
+                            $title = match (true) {
+                                $salahInput => 'Hadir di mesin absen · admin input '.$label.', cek ulang',
+                                $mark !== null => $label.($mark['keterangan'] ? ' · '.$mark['keterangan'] : ''),
+                                $tanpaKet => 'Tidak masuk · belum ada keterangan',
+                                default => 'Masuk',
+                            };
+                            // Admin Departemen hanya mengisi hari kerja (Senin - Jumat).
+                            $cellEditable = $canEdit && ($isAdmin || ! $day['weekend']);
+                            $cellClass = 'cell'.($cellEditable ? ' editable' : '').($tone !== null ? ' k k-'.$tone : '')
+                                .($tanpaKet ? ' tanpa-ket' : '').($tone === null && ! $tanpaKet && ($day['worked'] || $salahInput) ? ' present' : '');
+
+                            $cells .= '<td class="'.$day['tdClass'].'"><button type="button" class="'.$cellClass.'" data-day="'.$day['day'].'"'
+                                .($day['worked'] ? ' data-worked' : '').($mesinTanpaKet ? ' data-tanpa-ket' : '').($hadirDiMesin ? ' data-hadir-mesin' : '')
+                                .($mark ? ' data-kode="'.e($mark['kode']).'"'.($mark['keterangan'] ? ' data-ket="'.e($mark['keterangan']).'"' : '') : '')
+                                .' title="'.e($title).'"'.($cellEditable ? '' : ' disabled').'>'.e($mark['kode'] ?? '').'</button></td>';
+                        }
+                    @endphp
+                    {!! $cells !!}
                     @foreach ($kodes as $kode => $info)
                         <td class="sum zero" data-sum="{{ $kode }}">0</td>
                     @endforeach
                     <td class="sum zero" data-sum="total">0</td>
-                    @php($selectedMark = $rowMarks[$tanggal->day] ?? null)
                     <td class="c-ket" data-ket-selected>{{ $selectedMark['keterangan'] ?? '' }}</td>
                 </tr>
             @empty
@@ -442,11 +453,12 @@
             activeCell = cell;
             var row = cell.closest('tr');
             form.elements.karyawan_id.value = row.dataset.row;
-            form.elements.tanggal.value = cell.dataset.date;
+            var isoDate = table.dataset.month + '-' + String(cell.dataset.day).padStart(2, '0');
+            form.elements.tanggal.value = isoDate;
             form.elements.keterangan.value = cell.dataset.ket || '';
             form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.checked = radio.value === (cell.dataset.kode || ''); });
             document.getElementById('abs-modal-title').textContent = row.querySelector('.c-nama').textContent;
-            var date = new Date(cell.dataset.date + 'T00:00:00');
+            var date = new Date(isoDate + 'T00:00:00');
             document.getElementById('abs-modal-sub').textContent = 'NIK ' + row.querySelector('.c-nik').textContent + ' · '
                 + date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
             error.hidden = true;

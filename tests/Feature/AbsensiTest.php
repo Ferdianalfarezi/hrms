@@ -71,7 +71,8 @@ class AbsensiTest extends TestCase
             ->assertSee('Laporan Absensi Harian')
             ->assertSee('Kamis, 15 Oktober 2026')
             ->assertSee('id="selected-day"', false)
-            ->assertSee('data-date="2026-10-31"', false)   // 31 hari di Oktober
+            ->assertSee('data-month="2026-10"', false)
+            ->assertSee('data-day="31"', false)   // 31 hari di Oktober
             ->assertSee('Andi PSD')
             ->assertSee('Budi PWD');
     }
@@ -150,7 +151,8 @@ class AbsensiTest extends TestCase
             ->assertSee('Kamis, 03 September 2026')
             ->assertSee('data-kode="CT"', false)
             ->assertDontSee('data-kode="A"', false)          // tanda Oktober tidak ikut
-            ->assertDontSee('data-date="2026-09-31"', false); // September 30 hari
+            ->assertSee('data-month="2026-09"', false)
+            ->assertDontSee('data-day="31"', false); // September 30 hari
 
         // Tanggal tidak valid kembali ke hari ini.
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=bukan-tanggal')->assertSee('Kamis, 15 Oktober 2026');
