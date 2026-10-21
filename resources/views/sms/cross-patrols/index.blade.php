@@ -201,7 +201,7 @@
         <iframe id="print-frame" title="Preview print"></iframe>
     </div>
     <div class="modal-foot">
-        <span class="muted small" style="margin-right: auto;">Kertas A4 portrait · 9 kotak per halaman</span>
+        <span class="muted small" style="margin-right: auto;">Kertas A4 portrait · maksimal 25 kotak per halaman</span>
         <button type="button" class="btn btn-ghost" data-close>Batal</button>
         <button type="button" class="btn" id="print-go" disabled>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>

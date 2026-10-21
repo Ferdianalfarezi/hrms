@@ -158,9 +158,9 @@ class CrossPatrolTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), '<div class="opt on">CLOSE</div>'));
     }
 
-    public function test_print_without_selection_uses_filters_and_paginates_nine_per_sheet(): void
+    public function test_print_without_selection_uses_filters_and_paginates_twenty_five_per_sheet(): void
     {
-        foreach (range(1, 10) as $i) {
+        foreach (range(1, 26) as $i) {
             $this->patrol($this->psd, ['finding' => "Temuan Zona5 {$i}", 'zona' => 5]);
         }
         $this->patrol($this->psd, ['finding' => 'Temuan zona lain', 'zona' => 2]);
@@ -169,9 +169,9 @@ class CrossPatrolTest extends TestCase
             ->assertOk()
             ->assertDontSee('Temuan zona lain');
 
-        $this->assertSame(10, substr_count($response->getContent(), 'class="card"'));
+        $this->assertSame(26, substr_count($response->getContent(), 'class="card"'));
         $this->assertSame(2, substr_count($response->getContent(), 'class="sheet"'));
-        $this->assertStringContainsString('<span class="num">10</span>', $response->getContent());
+        $this->assertStringContainsString('<span class="num">26</span>', $response->getContent());
     }
 
     public function test_export_excel_follows_form_layout(): void

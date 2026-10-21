@@ -25,7 +25,7 @@ class CrossPatrolController extends Controller
 {
     use ScopesPatrolToDepartment;
 
-    /** Batas kotak sekali cetak (± 56 halaman A4) supaya browser tidak berat. */
+    /** Batas kotak sekali cetak (20 halaman A4) supaya browser tidak berat. */
     private const PRINT_LIMIT = 500;
 
     public function index(Request $request): View
@@ -86,7 +86,9 @@ class CrossPatrolController extends Controller
 
         return view('sms.cross-patrols.print', [
             'patrols' => $query->orderBy('tanggal')->orderBy('id')->limit(self::PRINT_LIMIT)->get(),
-            'perPage' => 9,
+            // 25 kotak per lembar A4 (5 x 5).
+            'perPage' => 25,
+            'columns' => 5,
         ]);
     }
 

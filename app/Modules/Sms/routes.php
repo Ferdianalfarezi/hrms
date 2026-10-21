@@ -13,7 +13,7 @@ Route::resource('daily-patrols', DailyPatrolController::class)->only(['index', '
 
 // Cross Patrol: sama seperti Daily Patrol, plus export Excel format "Form Temuan Safety Patrol".
 Route::get('cross-patrols/export', [CrossPatrolController::class, 'export'])->name('cross-patrols.export');
-// Halaman cetak kartu temuan (A4, 9 kotak per halaman), ditampilkan di modal preview lewat iframe.
+// Halaman cetak kartu temuan (A4, maksimal 25 kotak per halaman), ditampilkan di modal preview lewat iframe.
 Route::get('cross-patrols/print', [CrossPatrolController::class, 'print'])->name('cross-patrols.print');
 Route::resource('cross-patrols', CrossPatrolController::class)->only(['index', 'store', 'update', 'destroy']);
 

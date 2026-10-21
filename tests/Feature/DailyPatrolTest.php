@@ -81,6 +81,8 @@ class DailyPatrolTest extends TestCase
             ->assertOk()
             ->assertSee('Daily Patrol')
             ->assertSee('Temuan PSD')
+            ->assertSee('Ringan') // resiko S ditampilkan dalam bahasa Indonesia
+            ->assertDontSee('Small')
             ->assertDontSee('Temuan PWD');
 
         $this->actingAs($this->deptAdmin($this->psd))->get('/sms')

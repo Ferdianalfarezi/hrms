@@ -82,7 +82,7 @@
                             <span class="sub">{{ $patrol->department?->name ?? '-' }} · Plant {{ $patrol->plant }}</span>
                         </td>
                         <td>
-                            <span class="risk risk-{{ $resikoTone[$patrol->resiko] ?? 'orange' }}" title="{{ $resikos[$patrol->resiko]['label'] ?? '' }}">{{ $patrol->resiko }}</span>
+                            <span class="risk risk-{{ $resikoTone[$patrol->resiko] ?? 'orange' }}">{{ $patrol->resikoLabel() }}</span>
                         </td>
                         <td class="nowrap">{{ $patrol->target->format('d M Y') }}</td>
                         <td>
@@ -114,7 +114,7 @@
                                 ['Area', $patrol->department?->name],
                                 ['Plant', $patrol->plant],
                                 ['Rekomendasi', $patrol->rekomendasi, true],
-                                ['Resiko', $patrol->resiko.' - '.($resikos[$patrol->resiko]['label'] ?? '')],
+                                ['Resiko', $patrol->resikoLabel()],
                                 ['Kategori', $patrol->kategoriLabel()],
                                 ['Target', $patrol->target->translatedFormat('d F Y')],
                                 ['PIC', $patrol->pic],
@@ -214,7 +214,7 @@
                         <select id="f-resiko" name="resiko" required>
                             <option value="">-- Pilih --</option>
                             @foreach ($resikos as $kode => $info)
-                                <option value="{{ $kode }}">{{ $kode }} - {{ $info['label'] }}</option>
+                                <option value="{{ $kode }}">{{ $info['label'] }}</option>
                             @endforeach
                         </select>
                         @error('resiko') <div class="field-error">{{ $message }}</div> @enderror

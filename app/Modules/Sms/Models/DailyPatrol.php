@@ -17,11 +17,20 @@ class DailyPatrol extends Model
 
     public const STATUS_CLOSED = 'closed';
 
+    /**
+     * Tingkat resiko. Kode S/H/E (Small/Harmful/Extreme) tetap disimpan di database,
+     * yang ditampilkan ke user dalam bahasa Indonesia (sama seperti Cross Patrol).
+     */
     public const RESIKO = [
-        'S' => ['label' => 'Small', 'tone' => 'green'],
-        'H' => ['label' => 'Harmful', 'tone' => 'orange'],
-        'E' => ['label' => 'Extreme', 'tone' => 'red'],
+        'S' => ['label' => 'Ringan', 'tone' => 'green'],
+        'H' => ['label' => 'Sedang', 'tone' => 'orange'],
+        'E' => ['label' => 'Berat', 'tone' => 'red'],
     ];
+
+    public function resikoLabel(): string
+    {
+        return self::RESIKO[$this->resiko]['label'] ?? (string) $this->resiko;
+    }
 
     /** Kategori dikelompokkan seperti di dropdown: Stop 6 dan Other. */
     public const KATEGORI = [

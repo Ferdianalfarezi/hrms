@@ -5,38 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Print Cross Patrol</title>
     <style>
-        /* Satu lembar A4 portrait berisi 9 kotak (3 x 3). Ukuran pakai mm supaya hasil cetak pas. */
+        /* Satu lembar A4 portrait berisi maksimal 25 kotak (5 x 5). Ukuran pakai mm supaya hasil cetak pas. */
         @page { size: A4 portrait; margin: 0; }
         * { box-sizing: border-box; }
         html, body { margin: 0; }
         body { font-family: Arial, Helvetica, sans-serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
         .sheet {
-            width: 210mm; height: 297mm; padding: 8mm; background: #fff; overflow: hidden;
-            display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 4mm;
+            width: 210mm; height: 297mm; padding: 6mm; background: #fff; overflow: hidden;
+            display: grid; grid-template-columns: repeat({{ $columns }}, 1fr); grid-template-rows: repeat({{ (int) ceil($perPage / $columns) }}, 1fr); gap: 2.5mm;
         }
-        .card { border: 0.35mm solid #000; display: grid; grid-template-rows: 1fr 9mm 9mm 7mm; min-height: 0; }
-        .photo { position: relative; min-height: 0; padding: 1.2mm; border-bottom: 0.25mm solid #000; }
+        .card { border: 0.3mm solid #000; display: grid; grid-template-rows: 1fr 7mm 7mm 5.5mm; min-height: 0; min-width: 0; }
+        .photo { position: relative; min-height: 0; padding: 0.8mm; border-bottom: 0.2mm solid #000; }
         .photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
-        .photo .no-photo { display: grid; place-items: center; height: 100%; color: #888; font-size: 9pt; }
+        .photo .no-photo { display: grid; place-items: center; height: 100%; color: #888; font-size: 6pt; }
         .num {
-            position: absolute; top: 2mm; left: 2mm; min-width: 8mm; height: 7.5mm; padding: 0 1.5mm;
-            display: grid; place-items: center; background: #4472c4; color: #fff; font-size: 13pt; font-weight: bold;
-            border: 0.3mm solid #fff;
+            position: absolute; top: 1.3mm; left: 1.3mm; min-width: 5.5mm; height: 5mm; padding: 0 1mm;
+            display: grid; place-items: center; background: #4472c4; color: #fff; font-size: 8pt; font-weight: bold;
+            border: 0.25mm solid #fff;
         }
         .finding {
-            display: flex; align-items: center; justify-content: center; padding: 0 1.5mm; text-align: center;
-            font-size: 8.5pt; line-height: 1.15; border-bottom: 0.25mm solid #000; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; padding: 0 1mm; text-align: center;
+            font-size: 6.2pt; line-height: 1.1; border-bottom: 0.2mm solid #000; overflow: hidden;
         }
         .finding span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .row { display: grid; grid-template-columns: 1fr 0.5fr 0.5fr; font-size: 7.5pt; }
-        .row + .row { border-top: 0.25mm solid #000; }
-        .row > div { display: flex; align-items: center; padding: 0 1.2mm; min-width: 0; }
-        .row > div + div { border-left: 0.25mm solid #000; }
-        .row .date { grid-column: span 2; justify-content: center; font-size: 8.5pt; }
+        .row { display: grid; grid-template-columns: 1fr 0.55fr 0.55fr; font-size: 5.2pt; }
+        .row + .row { border-top: 0.2mm solid #000; }
+        .row > div { display: flex; align-items: center; padding: 0 0.8mm; min-width: 0; }
+        .row > div + div { border-left: 0.2mm solid #000; }
+        .row .date { grid-column: span 2; justify-content: center; font-size: 6.2pt; }
         .row .opt { justify-content: center; }
         .row .opt.on { background: #bfbfbf; }
-        .label { line-height: 1.1; }
+        .label { line-height: 1.05; }
 
         /* Layar (preview di modal): lembar abu-abu dengan bayangan, diperkecil kalau layar sempit. */
         @media screen {
