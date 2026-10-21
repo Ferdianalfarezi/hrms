@@ -8,6 +8,14 @@
                 <h2>Satu login untuk HRMS dan SMS.</h2>
                 <p style="opacity: .75; margin: 10px 0 0;">Masuk dengan NIK, sistem akan mengarahkan Anda ke modul sesuai hak akses.</p>
             </div>
+            {{-- Maskot menempel di bawah panel, kakinya terpotong. Pupil digambar terpisah supaya bisa mengikuti kursor (lihat script di layouts.base). --}}
+            <div class="mascot-frame" aria-hidden="true">
+                <div class="mascot">
+                    <img src="{{ asset('images/satpam.png') }}" alt="" draggable="false">
+                    <span class="mascot-eye" style="left: 58.52%; top: 17.97%;"><i class="mascot-pupil"></i></span>
+                    <span class="mascot-eye" style="left: 64.77%; top: 19.10%;"><i class="mascot-pupil"></i></span>
+                </div>
+            </div>
         </div>
 
         <div class="login-form">

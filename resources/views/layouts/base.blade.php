@@ -276,8 +276,23 @@
                              border: 40px solid rgba(255, 255, 255, .08); }
         .login-hero .brand { color: #fff; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); align-self: flex-start; }
         .login-hero h2 { font-size: 30px; font-weight: 500; letter-spacing: -.02em; line-height: 1.2; }
+        .login-hero > * { position: relative; z-index: 1; }
         .login-form { padding: 40px 36px; }
-        @media (max-width: 720px) { .login-shell { grid-template-columns: 1fr; } .login-hero { padding: 28px; } .login-form { padding: 28px; } }
+        /* Maskot di panel biru. Posisi mata dalam % dari ukuran gambar satpam.png. */
+        /* Bingkai memotong gambar tepat di bawah meja (58% tinggi gambar) dan menempel ke tepi bawah panel. */
+        .mascot-frame { width: 100%; max-width: 340px; align-self: center; margin: auto 0 -36px; aspect-ratio: 600 / 346; overflow: hidden; }
+        .mascot { width: 100%; position: relative; user-select: none; }
+        .mascot img { display: block; width: 100%; height: auto; filter: drop-shadow(0 18px 24px rgba(5, 15, 45, .35)); }
+        .mascot-eye { position: absolute; width: 1.7%; height: 2.5%; transform: translate(-50%, -50%); }
+        .mascot-pupil {
+            position: absolute; inset: 0; border-radius: 50%;
+            background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.75) 0 14%, transparent 18%), radial-gradient(circle at 50% 50%, #2a1d1a, #0d0909 70%);
+            transform: translate(var(--px, 0), var(--py, 0)); transition: transform .08s linear;
+            animation: mascot-blink 5s infinite;
+        }
+        @keyframes mascot-blink { 0%, 95%, 100% { scale: 1 1; } 97% { scale: 1 .1; } }
+        @media (prefers-reduced-motion: reduce) { .mascot-pupil { animation: none; transition: none; } }
+        @media (max-width: 720px) { .login-shell { grid-template-columns: 1fr; } .login-hero { padding: 28px; } .login-form { padding: 28px; } .mascot-frame { display: none; } }
 
         /* Animasi setelah login: halaman login terbelah dua dari tengah, lalu halaman tujuan "masuk" (sedikit membesar). */
         .door { position: fixed; inset: 0; z-index: 100; display: flex; pointer-events: none; overflow: hidden; }
@@ -409,6 +424,30 @@
             document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
 
             return { prepare: prepare, poll: poll };
+        })();
+
+        // Mata maskot di halaman login mengikuti kursor. Pupil bergeser maksimal sekitar separuh lebarnya ke arah kursor.
+        window.hrMascot = window.hrMascot || (function () {
+            var frame = null, mouseX = 0, mouseY = 0;
+            function update() {
+                frame = null;
+                document.querySelectorAll('.mascot-eye').forEach(function (eye) {
+                    var box = eye.getBoundingClientRect();
+                    if (!box.width) return;
+                    var dx = mouseX - (box.left + box.width / 2), dy = mouseY - (box.top + box.height / 2);
+                    var dist = Math.hypot(dx, dy) || 1;
+                    // Makin jauh kursor, makin penuh geserannya (sampai 150 px).
+                    var reach = Math.min(dist / 150, 1);
+                    var pupil = eye.firstElementChild;
+                    pupil.style.setProperty('--px', (dx / dist * reach * box.width * .55).toFixed(2) + 'px');
+                    pupil.style.setProperty('--py', (dy / dist * reach * box.height * .35).toFixed(2) + 'px');
+                });
+            }
+            document.addEventListener('mousemove', function (event) {
+                mouseX = event.clientX; mouseY = event.clientY;
+                if (!frame) frame = requestAnimationFrame(update);
+            });
+            return true;
         })();
 
         // Tombol × pada toast notifikasi: tandai sudah dibaca di server, lalu hilangkan.
