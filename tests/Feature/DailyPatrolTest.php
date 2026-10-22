@@ -262,7 +262,7 @@ class DailyPatrolTest extends TestCase
         $cross('2026-09-02');
 
         $this->actingAs($this->deptAdmin($this->psd))->get('/sms')
-            ->assertSeeInOrder(['Cross Patrol', '<b data-count>3</b>', '▲ 1 dari Sep (2)', 'Mg 1', 'Mg 5', 'Open 1', 'Close 2'], false)
+            ->assertSeeInOrder(['Cross Patrol', '<b data-count>3</b>', 'Open 1', 'Close 2', '▲ 1 dari Sep (2)', 'Mg 1', 'Mg 5'], false)
             ->assertSee('Mg 5 Sep: 1 temuan')
             ->assertSee('Mg 5 Okt: 1 temuan');
 
