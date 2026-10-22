@@ -51,6 +51,117 @@
     table.chart-table th:last-child { border-radius: 0 10px 10px 0; }
     table.chart-table td { padding: 7px 6px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text); }
     table.chart-table td.series-name { text-align: left; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+
+    /* Kartu temuan (pengganti Pertumbuhan & Jam Kerja). */
+    .temuan-status { display: flex; gap: 6px; }
+    .temuan-status span { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1.5px solid; white-space: nowrap; }
+    .temuan-status .s-open { color: #b45309; border-color: #f59e0b; background: #fffbeb; }
+    .temuan-status .s-closed { color: var(--success); border-color: #34d399; background: var(--success-bg); }
+    .temuan-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    /* Cross Patrol: batang bulan ini (biru) berdampingan dengan bulan lalu (pucat) per minggu. */
+    .cross-card { display: flex; flex-direction: column; }
+    .trend { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .trend-up { color: #b91c1c; background: #fee2e2; }
+    .trend-down { color: var(--success); background: var(--success-bg); }
+    .trend-flat { color: var(--muted); background: var(--soft-2); }
+    .cross-bars .bar-pair { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
+    .cross-bars .bar.prev { background: #b9cbef; }
+    .cross-bars .bar-col.now small { color: var(--primary); font-weight: 600; }
+    .cross-legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); }
+    .cross-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .cross-legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+@endsection
+
+@section('progress')
+    {{-- Kartu "Pertumbuhan" diganti temuan Daily Patrol hari ini + 7 hari terakhir. --}}
+    <div class="card a-progress" style="--i: 1;">
+        <div class="card-head">
+            <h2 class="card-title">Daily Patrol</h2>
+            @can('sms-patrol')
+                <a href="{{ route('sms.daily-patrols.index') }}" class="mini-btn" title="Buka Daily Patrol">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
+                </a>
+            @endcan
+        </div>
+        <div class="big-metric"><b data-count>{{ $dailyHariIni['total'] }}</b><span class="muted small">temuan<br>hari ini</span></div>
+        <div class="temuan-status">
+            <span class="s-open">Open {{ $dailyHariIni['open'] }}</span>
+            <span class="s-closed">Close {{ $dailyHariIni['closed'] }}</span>
+        </div>
+        @php($maxDaily = max(collect($dailyHariIni['bars'])->max('count'), 1))
+        <div class="bars">
+            @foreach ($dailyHariIni['bars'] as $bar)
+                <div class="bar-col" style="--j: {{ $loop->index }};">
+                    @if ($bar['highlight'])
+                        <div class="bar-bubble">{{ $bar['count'] }} temuan</div>
+                    @endif
+                    <div @class(['bar', 'zero' => $bar['count'] === 0, 'today' => $bar['highlight']])
+                         style="height: {{ $bar['count'] ? max(round($bar['count'] / $maxDaily * 100), 12) : 10 }}%;"
+                         title="{{ $bar['title'] }}: {{ $bar['count'] }} temuan"></div>
+                    <small>{{ $bar['label'] }}</small>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endsection
+
+@section('clock')
+    {{-- Kartu "Jam Kerja" diganti temuan Cross Patrol bulan ini, dibandingkan bulan lalu per minggu. --}}
+    @php($cross = $crossBulanIni)
+    @php($diff = $cross['total'] - $cross['previousTotal'])
+    <div class="card a-clock cross-card" style="--i: 2;">
+        <div class="card-head">
+            <h2 class="card-title">Cross Patrol</h2>
+            @can('sms-patrol')
+                <a href="{{ route('sms.cross-patrols.index') }}" class="mini-btn" title="Buka Cross Patrol">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
+                </a>
+            @endcan
+        </div>
+        <div class="big-metric">
+            <b data-count>{{ $cross['total'] }}</b>
+            <span class="muted small">temuan<br>{{ $cross['month'] }}</span>
+        </div>
+        @if ($cross['hasPrevious'])
+            <div>
+                <span @class(['trend', 'trend-up' => $diff > 0, 'trend-down' => $diff < 0, 'trend-flat' => $diff === 0])
+                      title="Bulan lalu ({{ $cross['previousLabel'] }}): {{ $cross['previousTotal'] }} temuan">
+                    {{ $diff > 0 ? '▲ '.$diff : ($diff < 0 ? '▼ '.abs($diff) : 'Sama') }} dari {{ $cross['previousLabel'] }} ({{ $cross['previousTotal'] }})
+                </span>
+            </div>
+        @endif
+        @php($maxCross = max(collect($cross['weeks'])->max('current'), collect($cross['weeks'])->max('previous'), 1))
+        <div class="bars cross-bars">
+            @foreach ($cross['weeks'] as $week)
+                <div @class(['bar-col', 'now' => $loop->index === $cross['currentWeek']]) style="--j: {{ $loop->index }};">
+                    <div class="bar-pair">
+                        @if ($cross['hasPrevious'])
+                            <div @class(['bar', 'prev', 'zero' => $week['previous'] === 0])
+                                 style="height: {{ $week['previous'] ? max(round($week['previous'] / $maxCross * 100), 12) : 10 }}%;"
+                                 title="{{ $week['label'] }} {{ $cross['previousLabel'] }}: {{ $week['previous'] }} temuan"></div>
+                        @endif
+                        <div @class(['bar', 'today' => $week['current'] > 0, 'zero' => $week['current'] === 0])
+                             style="height: {{ $week['current'] ? max(round($week['current'] / $maxCross * 100), 12) : 10 }}%;"
+                             title="{{ $week['label'] }} {{ $cross['currentLabel'] }}: {{ $week['current'] }} temuan"></div>
+                    </div>
+                    <small>{{ $week['label'] }}</small>
+                </div>
+            @endforeach
+        </div>
+        <div class="temuan-foot">
+            <div class="temuan-status">
+                <span class="s-open">Open {{ $cross['open'] }}</span>
+                <span class="s-closed">Close {{ $cross['closed'] }}</span>
+            </div>
+            @if ($cross['hasPrevious'])
+                <div class="cross-legend">
+                    <span><i style="--c: var(--primary);"></i>{{ $cross['currentLabel'] }}</span>
+                    <span><i style="--c: #b9cbef;"></i>{{ $cross['previousLabel'] }}</span>
+                </div>
+            @endif
+        </div>
+    </div>
 @endsection
 
 @section('grid-bottom')

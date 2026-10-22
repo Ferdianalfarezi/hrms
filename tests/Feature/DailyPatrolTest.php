@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Sms\Models\CrossPatrol;
 use App\Modules\Sms\Models\DailyPatrol;
 use App\Modules\Sms\Support\GrafikTemuanPatrol;
 use Database\Seeders\ApplicationSeeder;
@@ -230,6 +231,42 @@ class DailyPatrolTest extends TestCase
         $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload())->assertSessionHasErrors('department_id');
         $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['department_id' => $this->pwd->id]))->assertSessionHasNoErrors();
         $this->assertSame(1, DailyPatrol::where('department_id', $this->pwd->id)->where('finding', 'like', 'Tutup%')->count());
+    }
+
+    public function test_dashboard_cards_show_daily_today_and_cross_month_vs_last_month(): void
+    {
+        Carbon::setTestNow('2026-10-22 10:00:00');
+
+        $this->patrol($this->psd, ['tanggal' => '2026-10-22']);
+        $this->patrol($this->pwd, ['tanggal' => '2026-10-22', 'status' => 'closed']);
+        $this->patrol($this->psd, ['tanggal' => '2026-10-21']); // kemarin: hanya di grafik 7 hari
+
+        $cross = fn (string $tanggal, string $status = 'open') => CrossPatrol::create([
+            'tanggal' => $tanggal, 'plant' => 'Plant 1', 'zona' => 1, 'finding' => 'Temuan', 'foto' => 'cross-patrol/a.jpg',
+            'efek' => '2R', 'resiko' => 'C', 'area' => 'OBEYA', 'department_id' => $this->psd->id, 'rekomendasi' => 'Perbaiki',
+            'target' => '2026-10-30', 'pic' => 'Dedi', 'kategori' => '5r', 'patroler' => 'Miftari', 'status' => $status,
+        ]);
+
+        // Bulan lalu kosong: tidak ada pembanding.
+        $cross('2026-10-01');
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
+            ->assertDontSee('<h2 class="card-title">Pertumbuhan</h2>', false)
+            ->assertDontSee('<h2 class="card-title">Jam Kerja</h2>', false)
+            ->assertSeeInOrder(['Daily Patrol', '<b data-count>2</b>', 'hari ini', 'Open 1', 'Close 1', '2 temuan'], false)
+            ->assertSeeInOrder(['Cross Patrol', '<b data-count>1</b>', 'Oktober 2026'], false)
+            ->assertDontSee('dari Sep');
+
+        $cross('2026-10-15', 'closed');
+        $cross('2026-10-31', 'closed');
+        $cross('2026-09-30'); // bulan lalu, minggu ke-5
+        $cross('2026-09-02');
+
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')
+            ->assertSeeInOrder(['Cross Patrol', '<b data-count>3</b>', '▲ 1 dari Sep (2)', 'Mg 1', 'Mg 5', 'Open 1', 'Close 2'], false)
+            ->assertSee('Mg 5 Sep: 1 temuan')
+            ->assertSee('Mg 5 Okt: 1 temuan');
+
+        Carbon::setTestNow();
     }
 
     public function test_dashboard_chart_counts_findings_per_department_and_year(): void

@@ -220,6 +220,10 @@
         </div>
     </div>
 
+    {{-- Kartu kiri atas: modul bisa menggantinya lewat @section('progress') (mis. SMS: ringkasan temuan patrol). --}}
+    @hasSection('progress')
+        @yield('progress')
+    @else
     {{-- Grafik batang --}}
     <div class="card a-progress" style="--i: 1;">
         <div class="card-head">
@@ -246,7 +250,12 @@
             @endforeach
         </div>
     </div>
+    @endif
 
+    {{-- Kartu jam kerja: modul bisa menggantinya lewat @section('clock') (mis. SMS: grafik Cross Patrol). --}}
+    @hasSection('clock')
+        @yield('clock')
+    @else
     {{-- Jam kerja --}}
     <div class="card a-clock" style="--i: 2;">
         <div class="card-head"><h2 class="card-title">Jam Kerja</h2><span class="badge">{{ $workStart }}–{{ $workEnd }}</span></div>
@@ -263,6 +272,7 @@
         </div>
         <div class="muted small" id="clock-status" style="text-align: center;">&nbsp;</div>
     </div>
+    @endif
 
     <div class="a-side">
         {{-- Komposisi --}}
@@ -403,6 +413,8 @@
 <script>
     (function () {
         var ring = document.getElementById('clock-ring');
+        // Kartu jam kerja bisa diganti modul (mis. SMS), jadi script jam tidak dijalankan.
+        if (!ring) return;
         var circumference = 452.4;
         var start = {{ Js::from($workStart) }}.split(':'), end = {{ Js::from($workEnd) }}.split(':');
         start = start[0] * 60 + +start[1];
