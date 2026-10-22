@@ -78,3 +78,30 @@
     #photo-modal { width: min(900px, calc(100% - 32px)); background: #0f1b33; }
     #photo-modal img { display: block; width: 100%; max-height: 80vh; object-fit: contain; }
     #photo-modal .modal-close { position: absolute; top: 10px; right: 10px; }
+
+    /* Pilih karyawan (PIC / PIC Patrol / Patroler) */
+    .kp-box {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 45px; padding: 6px 8px; cursor: text;
+        background: var(--glass-strong); border: 1px solid var(--line-strong); border-radius: 12px;
+    }
+    .kp-box:focus-within { outline: 2px solid var(--primary); outline-offset: -1px; background: #fff; }
+    .kp-chips { display: contents; }
+    .kp-chip {
+        display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 4px 4px 10px; border-radius: 999px;
+        background: var(--soft); color: var(--navy); font-size: 13px; font-weight: 600; overflow-wrap: anywhere;
+    }
+    .kp-chip button {
+        width: 20px; height: 20px; flex: none; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+        background: transparent; color: var(--navy); font-size: 15px; line-height: 1;
+    }
+    .kp-chip button:hover { background: rgba(30, 58, 138, .15); }
+    .kp-box input.kp-search { flex: 1; min-width: 140px; width: auto; padding: 5px 6px; border: 0; background: transparent; outline: none; }
+    .kp-list {
+        margin-top: 4px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line-strong); border-radius: 12px;
+        background: #fff; box-shadow: 0 12px 28px rgba(15, 35, 80, .12);
+    }
+    .kp-item { display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; cursor: pointer; }
+    .kp-item b { font-size: 14px; font-weight: 600; color: var(--text); }
+    .kp-item small { font-size: 12px; color: var(--muted); }
+    .kp-item.active, .kp-item:hover { background: var(--soft-2); }
+    .kp-empty { padding: 10px 12px; font-size: 13px; color: var(--muted); }

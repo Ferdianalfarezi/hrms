@@ -50,6 +50,7 @@ class CrossPatrolController extends Controller
             'zonas' => CrossPatrol::ZONA,
             'resikos' => CrossPatrol::RESIKO,
             'kategoris' => CrossPatrol::KATEGORI,
+            'karyawans' => $access['canEdit'] ? $this->karyawanOptions() : [],
         ]);
     }
 
@@ -204,9 +205,9 @@ class CrossPatrolController extends Controller
             'department_id' => [$request->user()->isModuleAdmin('sms') ? 'required' : 'nullable', 'integer', 'exists:departments,id'],
             'rekomendasi' => ['required', 'string', 'max:2000'],
             'target' => ['required', 'date_format:Y-m-d'],
-            'pic' => ['required', 'string', 'max:255'],
+            'pic' => $this->karyawanNamesRules($patrol?->pic),
             'kategori' => ['required', Rule::in(array_keys(DailyPatrol::kategoriOptions()))],
-            'patroler' => ['required', 'string', 'max:255'],
+            'patroler' => $this->karyawanNamesRules($patrol?->patroler),
             ...($creating ? [] : [
                 'foto_perbaikan' => $this->photoRules(false),
                 'status' => ['required', Rule::in([CrossPatrol::STATUS_OPEN, CrossPatrol::STATUS_CLOSED])],
@@ -233,6 +234,6 @@ class CrossPatrolController extends Controller
         $this->ensureCanClose($request, $patrol, $data);
         unset($data['foto'], $data['foto_perbaikan']);
 
-        return $data;
+        return $this->joinNames($data, ['pic', 'patroler']);
     }
 }

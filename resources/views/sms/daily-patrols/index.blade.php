@@ -9,7 +9,7 @@
 @section('content')
 @php
     $resikoTone = collect($resikos)->map(fn ($info) => $info['tone']);
-    $fields = ['tanggal', 'finding', 'potensi_bahaya', 'department_id', 'plant', 'rekomendasi', 'resiko', 'kategori', 'target', 'pic', 'status', 'foto', 'foto_perbaikan'];
+    $fields = ['tanggal', 'finding', 'potensi_bahaya', 'department_id', 'plant', 'rekomendasi', 'resiko', 'kategori', 'target', 'pic', 'pic_patrol', 'status', 'foto', 'foto_perbaikan'];
     $keepFilters = array_filter(['q' => $search, 'status' => $status, 'department' => $department, 'page' => $patrols->currentPage() > 1 ? $patrols->currentPage() : null]);
 @endphp
 
@@ -33,7 +33,7 @@
 @endif
 
 <form method="GET" class="filters">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari finding / potensi bahaya / PIC...">
+    <input type="search" name="q" value="{{ $search }}" placeholder="Cari finding / potensi bahaya / PIC / PIC patrol...">
     <select name="status" onchange="this.form.requestSubmit()" aria-label="Status">
         <option value="">Semua status</option>
         <option value="open" @selected($status === 'open')>Open</option>
@@ -104,6 +104,7 @@
                                 'kategori' => $patrol->kategori,
                                 'target' => $patrol->target->toDateString(),
                                 'pic' => $patrol->pic,
+                                'pic_patrol' => $patrol->pic_patrol,
                                 'status' => $patrol->status,
                                 'foto_url' => $patrol->foto_url,
                                 'foto_perbaikan_url' => $patrol->foto_perbaikan_url,
@@ -118,6 +119,7 @@
                                 ['Kategori', $patrol->kategoriLabel()],
                                 ['Target', $patrol->target->translatedFormat('d F Y')],
                                 ['PIC', $patrol->pic],
+                                ['PIC Patrol', $patrol->pic_patrol],
                             ]])
                         </td>
                     </tr>
@@ -234,10 +236,9 @@
                         @error('kategori') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                 </div>
-                <div>
-                    <label for="f-pic">PIC</label>
-                    <input id="f-pic" type="text" name="pic" maxlength="255" placeholder="Mis. Hartono, Dedi, Aminudin, Danar" required>
-                    @error('pic') <div class="field-error">{{ $message }}</div> @enderror
+                <div class="grid-2">
+                    @include('sms.partials.karyawan-picker', ['name' => 'pic', 'label' => 'PIC'])
+                    @include('sms.partials.karyawan-picker', ['name' => 'pic_patrol', 'label' => 'PIC Patrol'])
                 </div>
 
                 @include('sms.partials.patrol-fix-fields')
@@ -252,5 +253,8 @@
 @endsection
 
 @push('scripts')
+    @if ($canEdit)
+        @include('sms.partials.karyawan-picker-script')
+    @endif
     @include('sms.partials.patrol-script', ['routePrefix' => 'sms.daily-patrols'])
 @endpush

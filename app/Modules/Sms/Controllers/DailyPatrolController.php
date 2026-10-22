@@ -36,7 +36,8 @@ class DailyPatrolController extends Controller
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('finding', 'like', "%{$search}%")
                 ->orWhere('potensi_bahaya', 'like', "%{$search}%")
-                ->orWhere('pic', 'like', "%{$search}%")))
+                ->orWhere('pic', 'like', "%{$search}%")
+                ->orWhere('pic_patrol', 'like', "%{$search}%")))
             ->orderByDesc('tanggal')
             ->orderByDesc('id')
             ->paginate(20)
@@ -50,6 +51,7 @@ class DailyPatrolController extends Controller
             'department' => $department,
             'resikos' => DailyPatrol::RESIKO,
             'kategoris' => DailyPatrol::KATEGORI,
+            'karyawans' => $access['canEdit'] ? $this->karyawanOptions() : [],
         ]);
     }
 
@@ -123,7 +125,8 @@ class DailyPatrolController extends Controller
             'resiko' => ['required', Rule::in(array_keys(DailyPatrol::RESIKO))],
             'kategori' => ['required', Rule::in(array_keys(DailyPatrol::kategoriOptions()))],
             'target' => ['required', 'date_format:Y-m-d'],
-            'pic' => ['required', 'string', 'max:255'],
+            'pic' => $this->karyawanNamesRules($patrol?->pic),
+            'pic_patrol' => $this->karyawanNamesRules($patrol?->pic_patrol),
             ...($creating ? [] : [
                 'foto_perbaikan' => $this->photoRules(false),
                 'status' => ['required', Rule::in([DailyPatrol::STATUS_OPEN, DailyPatrol::STATUS_CLOSED])],
@@ -140,6 +143,7 @@ class DailyPatrolController extends Controller
             'kategori' => 'kategori',
             'target' => 'target',
             'pic' => 'PIC',
+            'pic_patrol' => 'PIC patrol',
             'foto_perbaikan' => 'foto perbaikan',
             'status' => 'status',
         ]);
@@ -147,6 +151,6 @@ class DailyPatrolController extends Controller
         $this->ensureCanClose($request, $patrol, $data);
         unset($data['foto'], $data['foto_perbaikan']);
 
-        return $data;
+        return $this->joinNames($data, ['pic', 'pic_patrol']);
     }
 }

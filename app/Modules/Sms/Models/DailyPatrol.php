@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['tanggal', 'finding', 'foto', 'potensi_bahaya', 'department_id', 'plant', 'rekomendasi', 'resiko', 'kategori',
-    'target', 'pic', 'foto_perbaikan', 'status', 'closed_at', 'created_by', 'updated_by'])]
+    'target', 'pic', 'pic_patrol', 'foto_perbaikan', 'status', 'closed_at', 'created_by', 'updated_by'])]
 class DailyPatrol extends Model
 {
     public const STATUS_OPEN = 'open';

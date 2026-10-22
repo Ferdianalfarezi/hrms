@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Sms\Models\DailyPatrol;
+use App\Modules\Sms\Support\GrafikTemuanPatrol;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -27,6 +30,15 @@ class DailyPatrolTest extends TestCase
         $this->seed(ApplicationSeeder::class);
         $this->psd = Department::create(['name' => 'PSD']);
         $this->pwd = Department::create(['name' => 'PWD']);
+        $this->seedKaryawans(['Hartono', 'Dedi', 'Aminudin', 'Danar', 'Yayan R', 'Miftari']);
+    }
+
+    /** Karyawan yang dipakai sebagai pilihan PIC / patroler. */
+    private function seedKaryawans(array $names): void
+    {
+        foreach ($names as $index => $nama) {
+            Karyawan::create(['nik' => 'K'.($index + 1), 'nama' => $nama, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'department_id' => $this->psd->id]);
+        }
     }
 
     private function deptAdmin(Department $department): User
@@ -58,6 +70,7 @@ class DailyPatrolTest extends TestCase
             'kategori' => 'apparatus',
             'target' => '2026-10-19',
             'pic' => 'Hartono, Dedi, Aminudin, Danar',
+            'pic_patrol' => 'Yayan R, Miftari',
             ...$overrides,
         ];
     }
@@ -67,7 +80,7 @@ class DailyPatrolTest extends TestCase
         return DailyPatrol::create([
             'tanggal' => '2026-10-19', 'finding' => 'Temuan '.$department->name, 'foto' => 'daily-patrol/a.jpg',
             'potensi_bahaya' => 'Tergores', 'department_id' => $department->id, 'plant' => '1', 'rekomendasi' => 'Perbaiki',
-            'resiko' => 'S', 'kategori' => 'fire', 'target' => '2026-10-25', 'pic' => 'Hartono', 'status' => 'open',
+            'resiko' => 'S', 'kategori' => 'fire', 'target' => '2026-10-25', 'pic' => 'Hartono', 'pic_patrol' => 'Yayan R', 'status' => 'open',
             ...$overrides,
         ]);
     }
@@ -111,16 +124,52 @@ class DailyPatrolTest extends TestCase
         $this->assertSame('open', $patrol->status);
         $this->assertSame($this->psd->id, $patrol->department_id);
         $this->assertSame($admin->id, $patrol->created_by);
+        $this->assertSame('Hartono, Dedi, Aminudin, Danar', $patrol->pic);
+        $this->assertSame('Yayan R, Miftari', $patrol->pic_patrol);
         Storage::disk('public')->assertExists($patrol->foto);
     }
 
     public function test_validation_requires_photo_and_known_options(): void
     {
         $this->actingAs($this->deptAdmin($this->psd))
-            ->post('/sms/daily-patrols', $this->payload(['foto' => null, 'resiko' => 'X', 'kategori' => 'nope']))
-            ->assertSessionHasErrors(['foto', 'resiko', 'kategori']);
+            ->post('/sms/daily-patrols', $this->payload(['foto' => null, 'resiko' => 'X', 'kategori' => 'nope', 'pic_patrol' => '']))
+            ->assertSessionHasErrors(['foto', 'resiko', 'kategori', 'pic_patrol']);
 
         $this->assertSame(0, DailyPatrol::count());
+    }
+
+    public function test_pic_must_be_chosen_from_karyawan(): void
+    {
+        $admin = $this->deptAdmin($this->psd);
+
+        $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['pic' => 'Hartono, Orang Luar']))
+            ->assertSessionHasErrors(['pic' => 'Karyawan tidak ditemukan: Orang Luar.']);
+        $this->assertSame(0, DailyPatrol::count());
+
+        // Spasi berlebih & nama dobel dirapikan.
+        $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['pic' => ' Dedi ,Hartono, Dedi ', 'pic_patrol' => 'Miftari']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Dedi, Hartono', DailyPatrol::sole()->pic);
+    }
+
+    public function test_edit_keeps_old_free_text_pic(): void
+    {
+        $patrol = $this->patrol($this->psd, ['pic' => 'Tim Maintenance', 'pic_patrol' => null]);
+
+        $this->actingAs($this->deptAdmin($this->psd))->put("/sms/daily-patrols/{$patrol->id}", $this->payload([
+            'foto' => null, 'status' => 'open', 'pic' => 'Tim Maintenance, Dedi', 'pic_patrol' => 'Yayan R',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertSame('Tim Maintenance, Dedi', $patrol->fresh()->pic);
+        $this->assertSame('Yayan R', $patrol->fresh()->pic_patrol);
+    }
+
+    public function test_form_lists_karyawan_options(): void
+    {
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms/daily-patrols')
+            ->assertOk()
+            ->assertSee('data-karyawan-picker', false)
+            ->assertSee('Aminudin');
     }
 
     public function test_cannot_close_without_repair_photo(): void
@@ -185,13 +234,13 @@ class DailyPatrolTest extends TestCase
 
     public function test_dashboard_chart_counts_findings_per_department_and_year(): void
     {
-        \Illuminate\Support\Carbon::setTestNow('2026-10-21 10:00:00');
+        Carbon::setTestNow('2026-10-21 10:00:00');
         $this->patrol($this->psd);
         $this->patrol($this->psd, ['status' => 'closed']);
         $this->patrol($this->pwd, ['status' => 'closed']);
         $this->patrol($this->pwd, ['tanggal' => '2025-05-01']);
 
-        $chart = \App\Modules\Sms\Support\GrafikTemuanPatrol::build(\Illuminate\Support\Carbon::today());
+        $chart = GrafikTemuanPatrol::build(Carbon::today());
 
         $this->assertSame([2026, 2025], $chart['years']);
         $this->assertSame(2026, $chart['selected']);
@@ -207,7 +256,7 @@ class DailyPatrolTest extends TestCase
             ->assertSee('data-temuan=', false)
             ->assertDontSee('User Terbaru');
 
-        \Illuminate\Support\Carbon::setTestNow();
+        Carbon::setTestNow();
     }
 
     public function test_delete_removes_photos(): void

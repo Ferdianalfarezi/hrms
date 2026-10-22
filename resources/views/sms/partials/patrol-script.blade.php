@@ -142,6 +142,8 @@
                 if (!el || el.type === 'file') return;
                 el.value = (record && record[name]) || '';
             });
+            // Pilih karyawan (PIC dst.) ikut menampilkan nilai yang baru diisi.
+            form.querySelectorAll('[data-karyawan-picker]').forEach(function (picker) { if (picker._sync) picker._sync(); });
             if (!form.elements.tanggal.value) form.elements.tanggal.value = today;
             if (!statusSelect.value) statusSelect.value = 'open';
 

@@ -331,16 +331,8 @@
                     </div>
                 </div>
                 <div class="grid-2">
-                    <div>
-                        <label for="f-pic">PIC</label>
-                        <input id="f-pic" type="text" name="pic" maxlength="255" placeholder="Mis. Samri & Waluyo" required>
-                        @error('pic') <div class="field-error">{{ $message }}</div> @enderror
-                    </div>
-                    <div>
-                        <label for="f-patroler">Patroler</label>
-                        <input id="f-patroler" type="text" name="patroler" maxlength="255" placeholder="Mis. Yayan R & Miftari" required>
-                        @error('patroler') <div class="field-error">{{ $message }}</div> @enderror
-                    </div>
+                    @include('sms.partials.karyawan-picker', ['name' => 'pic', 'label' => 'PIC'])
+                    @include('sms.partials.karyawan-picker', ['name' => 'patroler', 'label' => 'Patroler'])
                 </div>
 
                 @include('sms.partials.patrol-fix-fields')
@@ -355,6 +347,9 @@
 @endsection
 
 @push('scripts')
+    @if ($canEdit)
+        @include('sms.partials.karyawan-picker-script')
+    @endif
     @include('sms.partials.patrol-script', ['routePrefix' => 'sms.cross-patrols'])
 <script>
     // Print kartu temuan: per baris (icon print) atau bulk (dicentang / semua hasil filter), lewat modal preview.

@@ -4,6 +4,8 @@ namespace App\Modules\Sms\Controllers\Concerns;
 
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Hrms\Models\Karyawan;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -135,6 +137,61 @@ trait ScopesPatrolToDepartment
             'date_format' => 'Format :attribute tidak valid.',
             'department_id.required' => 'Pilih departemen.',
         ];
+    }
+
+    /**
+     * Pilihan karyawan untuk field PIC / PIC Patrol / Patroler (dropdown multi-pilih dengan pencarian).
+     *
+     * @return list<array{nama: string, info: string}>
+     */
+    private function karyawanOptions(): array
+    {
+        return Karyawan::query()
+            ->with('department:id,name')
+            ->orderBy('nama')
+            ->get(['id', 'nik', 'nama', 'department_id'])
+            ->map(fn (Karyawan $karyawan) => [
+                'nama' => $karyawan->nama,
+                'info' => $karyawan->nik.' · '.($karyawan->department?->name ?? '-'),
+            ])
+            ->all();
+    }
+
+    /**
+     * Rule field nama karyawan (bisa lebih dari 1, dipisah koma): tiap nama harus ada di data karyawan.
+     * Nama yang sudah tersimpan di temuan (data lama yang diketik manual) tetap boleh dipertahankan saat edit.
+     */
+    private function karyawanNamesRules(?string $current): array
+    {
+        return ['required', 'string', 'max:2000', function (string $attribute, mixed $value, Closure $fail) use ($current) {
+            $names = $this->splitNames((string) $value);
+            $known = Karyawan::whereIn('nama', $names)->pluck('nama')->all();
+            $unknown = array_diff($names, $known, $this->splitNames((string) $current));
+
+            if ($unknown !== []) {
+                $fail('Karyawan tidak ditemukan: '.implode(', ', $unknown).'.');
+            }
+        }];
+    }
+
+    /**
+     * Rapikan isian nama karyawan menjadi "Nama A, Nama B" (tanpa spasi berlebih / nama dobel).
+     */
+    private function joinNames(array $data, array $fields): array
+    {
+        foreach ($fields as $field) {
+            $data[$field] = implode(', ', $this->splitNames($data[$field]));
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function splitNames(string $value): array
+    {
+        return array_values(array_unique(array_filter(array_map('trim', explode(',', $value)), 'strlen')));
     }
 
     abstract private function photoFolder(): string;

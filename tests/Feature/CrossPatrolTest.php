@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Sms\Models\CrossPatrol;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,6 +29,15 @@ class CrossPatrolTest extends TestCase
         $this->seed(ApplicationSeeder::class);
         $this->psd = Department::create(['name' => 'PSD']);
         $this->pwd = Department::create(['name' => 'PWD']);
+        $this->seedKaryawans(['Yayan S.', 'Yayan R', 'Miftari', 'Samri']);
+    }
+
+    /** Karyawan yang dipakai sebagai pilihan PIC / patroler. */
+    private function seedKaryawans(array $names): void
+    {
+        foreach ($names as $index => $nama) {
+            Karyawan::create(['nik' => 'K'.($index + 1), 'nama' => $nama, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'department_id' => $this->psd->id]);
+        }
     }
 
     private function deptAdmin(Department $department): User
@@ -53,7 +63,7 @@ class CrossPatrolTest extends TestCase
             'target' => '2026-09-30',
             'pic' => 'Yayan S.',
             'kategori' => 'electrical',
-            'patroler' => 'Yayan R & Miftari',
+            'patroler' => 'Yayan R, Miftari',
             ...$overrides,
         ];
     }
@@ -88,6 +98,7 @@ class CrossPatrolTest extends TestCase
         $patrol = CrossPatrol::sole();
         $this->assertSame('open', $patrol->status);
         $this->assertSame($this->psd->id, $patrol->department_id);
+        $this->assertSame('Yayan R, Miftari', $patrol->patroler);
 
         $this->actingAs($admin)->put("/sms/cross-patrols/{$patrol->id}", $this->payload(['foto' => null, 'status' => 'closed']))
             ->assertSessionHasErrors('foto_perbaikan');
@@ -98,6 +109,15 @@ class CrossPatrolTest extends TestCase
         ]))->assertSessionHasNoErrors();
         $this->assertSame('closed', $patrol->fresh()->status);
         $this->assertNotNull($patrol->fresh()->closed_at);
+    }
+
+    public function test_pic_and_patroler_must_be_chosen_from_karyawan(): void
+    {
+        $this->actingAs($this->deptAdmin($this->psd))
+            ->post('/sms/cross-patrols', $this->payload(['pic' => 'Samri, Bukan Karyawan', 'patroler' => '']))
+            ->assertSessionHasErrors(['pic' => 'Karyawan tidak ditemukan: Bukan Karyawan.', 'patroler']);
+
+        $this->assertSame(0, CrossPatrol::count());
     }
 
     public function test_cannot_edit_other_department(): void
