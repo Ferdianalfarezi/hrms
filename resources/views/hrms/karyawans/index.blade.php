@@ -159,6 +159,7 @@
                     <th>Jabatan</th>
                     <th class="nowrap">Tanggal Masuk</th>
                     <th>Status</th>
+                    <th class="nowrap" title="Potongan gaji setiap kelipatan 30 menit datang terlambat">Potongan Absen / 30 mnt</th>
                     @can('create', \App\Modules\Hrms\Models\Karyawan::class)
                         <th style="text-align: right;">Aksi</th>
                     @endcan
@@ -184,6 +185,7 @@
                         <td>{{ $karyawan->jabatan ?? '-' }}</td>
                         <td class="nowrap">{{ $karyawan->tanggal_masuk?->translatedFormat('d M Y') ?? '-' }}</td>
                         <td><span class="badge st-{{ str_replace(' ', '', $karyawan->status) }}">{{ $karyawan->status }}</span></td>
+                        <td class="nowrap" style="text-align: right;">Rp {{ number_format($karyawan->potongan_absen, 0, ',', '.') }}</td>
                         @can('create', \App\Modules\Hrms\Models\Karyawan::class)
                             <td style="text-align: right; white-space: nowrap;">
                                 @can('update', $karyawan)
@@ -199,6 +201,7 @@
                                             'tanggal_masuk' => $karyawan->tanggal_masuk?->format('Y-m-d'),
                                             'status' => $karyawan->status,
                                             'group' => $karyawan->group,
+                                            'potongan_absen' => $karyawan->potongan_absen,
                                         ]) }}">Edit</button>
                                 <button type="button" class="btn btn-danger btn-sm" data-delete="{{ $karyawan->id }}"
                                         data-name="{{ $karyawan->nik }} - {{ $karyawan->nama }}">Hapus</button>
@@ -208,7 +211,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="muted" style="text-align: center; padding: 32px;">
+                        <td colspan="13" class="muted" style="text-align: center; padding: 32px;">
                             @if ($search !== '' || $status !== '' || $jabatan !== '' || $department !== '' || $group !== '')
                                 Karyawan tidak ditemukan.
                             @else
@@ -240,7 +243,7 @@
                 <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
             </div>
             <div class="modal-body">
-                @if ($errors->hasAny(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group']))
+                @if ($errors->hasAny(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group', 'potongan_absen']))
                     <div class="alert">Periksa kembali isian yang ditandai.</div>
                 @endif
                 <div class="grid-2">
@@ -324,6 +327,15 @@
                         </datalist>
                         @error('group') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
+                    @if ($isAdmin)
+                        <div>
+                            <label for="f-potongan_absen">Potongan Absen / 30 menit (Rp)</label>
+                            <input id="f-potongan_absen" type="number" name="potongan_absen" min="0" max="10000000" step="1000"
+                                   placeholder="{{ \App\Modules\Hrms\Models\Karyawan::POTONGAN_ABSEN_DEFAULT }}">
+                            <div class="muted small" style="margin-top: 4px;">Dipotong setiap kelipatan 30 menit datang terlambat. Kosong = {{ number_format(\App\Modules\Hrms\Models\Karyawan::POTONGAN_ABSEN_DEFAULT, 0, ',', '.') }}.</div>
+                            @error('potongan_absen') <div class="field-error">{{ $message }}</div> @enderror
+                        </div>
+                    @endif
                 </div>
             </div>
             <div class="modal-foot">
@@ -387,7 +399,7 @@
 @push('scripts')
 <script>
     (function () {
-        var fields = ['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group'];
+        var fields = ['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group', 'potongan_absen'];
         var modal = document.getElementById('karyawan-modal');
         var form = document.getElementById('karyawan-form');
         var storeUrl = {{ Js::from(route('hrms.karyawans.store')) }};
@@ -449,9 +461,9 @@
         }
 
         // Validasi gagal: buka lagi modal yang tadi dipakai beserta isiannya.
-        var reopen = {{ Js::from($errors->hasAny(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group']) ? old('_modal') : null) }};
+        var reopen = {{ Js::from($errors->hasAny(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group', 'potongan_absen']) ? old('_modal') : null) }};
         if (reopen) {
-            var old = {{ Js::from(collect(old())->only(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group'])) }};
+            var old = {{ Js::from(collect(old())->only(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group', 'potongan_absen'])) }};
             openForm(reopen.indexOf('edit:') === 0 ? reopen.slice(5) : null, old, true);
         }
     })();

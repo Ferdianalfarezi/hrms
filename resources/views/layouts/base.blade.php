@@ -119,8 +119,9 @@
         /* Jembatan tak terlihat supaya dropdown tidak tertutup saat kursor turun dari tab ke menu. */
         .subtab-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
         .subtab-drop:hover .subtab-menu, .subtab-drop:focus-within .subtab-menu { display: block; }
-        .subtab-menu a { display: block; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--text); }
+        .subtab-menu a { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--text); }
         .subtab-menu a:hover { background: var(--soft-2); }
+        .menu-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
         .subtab-menu a.active { background: var(--soft); color: var(--navy); font-weight: 600; }
 
         /* Komponen dasar */

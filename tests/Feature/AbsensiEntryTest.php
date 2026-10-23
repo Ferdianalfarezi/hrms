@@ -54,17 +54,30 @@ class AbsensiEntryTest extends TestCase
             ->assertDontSee('id="abs-table"', false);
     }
 
-    public function test_store_range_skips_weekend_and_overwrites_existing(): void
+    public function test_store_range_skips_weekend_and_dates_that_already_have_data(): void
     {
         Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-16', 'kode' => 'S']);
 
-        // 16 Okt (Jumat) s/d 19 Okt (Senin): 17 Okt (Sabtu) & 18 Okt (Minggu) dilewati.
+        // 16 Okt (Jumat) s/d 19 Okt (Senin): 17 Okt (Sabtu) & 18 Okt (Minggu) dilewati,
+        // 16 Okt sudah ada datanya jadi tidak ditimpa (mengubah data lama perlu approval HRD).
         $this->actingAs($this->deptAdmin)->post(route('hrms.absensi.entries.store'), [
             'karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-16', 'sampai' => '2026-10-19', 'kode' => 'CT', 'keterangan' => 'Cuti pulang kampung',
         ])->assertRedirect(route('hrms.absensi.index', ['tanggal' => '2026-10-16']));
 
-        $this->assertSame(['2026-10-16', '2026-10-19'],
-            Absensi::orderBy('tanggal')->get()->map(fn ($a) => $a->tanggal->toDateString())->all());
+        $this->assertSame(['2026-10-16' => 'S', '2026-10-19' => 'CT'],
+            Absensi::orderBy('tanggal')->get()->mapWithKeys(fn ($a) => [$a->tanggal->toDateString() => $a->kode])->all());
+    }
+
+    public function test_hrms_admin_store_range_overwrites_existing(): void
+    {
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-16', 'kode' => 'S']);
+        $admin = User::factory()->create();
+        $admin->assignRole('hrms', 'admin');
+
+        $this->actingAs($admin)->post(route('hrms.absensi.entries.store'), [
+            'karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-16', 'sampai' => '2026-10-19', 'kode' => 'CT',
+        ])->assertRedirect();
+
         $this->assertSame(2, Absensi::where('kode', 'CT')->count());
     }
 
@@ -82,20 +95,22 @@ class AbsensiEntryTest extends TestCase
         $this->assertSame('2026-10-16', $absensi->fresh()->tanggal->toDateString());
     }
 
-    public function test_update_and_delete(): void
+    public function test_hrms_admin_updates_and_deletes_directly(): void
     {
+        $admin = User::factory()->create();
+        $admin->assignRole('hrms', 'admin');
         $absensi = Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-15', 'kode' => 'S']);
         Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => 'I']);
 
-        $this->actingAs($this->deptAdmin)->put(route('hrms.absensi.entries.update', $absensi), ['tanggal' => '2026-10-15', 'kode' => 'SD', 'keterangan' => 'Surat dokter'])
+        $this->actingAs($admin)->put(route('hrms.absensi.entries.update', $absensi), ['tanggal' => '2026-10-15', 'kode' => 'SD', 'keterangan' => 'Surat dokter'])
             ->assertRedirect();
         $this->assertSame('SD', $absensi->fresh()->kode);
 
         // Pindah ke tanggal yang sudah terisi ditolak.
-        $this->actingAs($this->deptAdmin)->put(route('hrms.absensi.entries.update', $absensi), ['tanggal' => '2026-10-14', 'kode' => 'SD'])
+        $this->actingAs($admin)->put(route('hrms.absensi.entries.update', $absensi), ['tanggal' => '2026-10-14', 'kode' => 'SD'])
             ->assertSessionHasErrors('tanggal');
 
-        $this->actingAs($this->deptAdmin)->delete(route('hrms.absensi.entries.destroy', $absensi))->assertRedirect();
+        $this->actingAs($admin)->delete(route('hrms.absensi.entries.destroy', $absensi))->assertRedirect();
         $this->assertModelMissing($absensi);
     }
 

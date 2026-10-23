@@ -86,6 +86,7 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Item dengan kunci "can" hanya tampil kalau user lolos gate tersebut, mis. ['manage-module', 'hrms'].
      * Item dengan "children" jadi dropdown; kalau anaknya tinggal satu, tampil sebagai tab biasa.
+     * Item dengan "badge" (closure) menampilkan angka notifikasi; tab dropdown menjumlahkan badge anaknya.
      */
     private function menuItems(array $items): array
     {
@@ -99,10 +100,13 @@ class AppServiceProvider extends ServiceProvider
                     return null;
                 }
 
+                $badge = isset($item['badge']) ? (int) ($item['badge'])() : 0;
+
                 return [
                     'label' => $item['label'],
                     'url' => $children[0]['url'] ?? route($item['route']),
                     'active' => request()->routeIs($item['active']),
+                    'badge' => $badge + array_sum(array_column($children, 'badge')),
                     'children' => count($children) > 1 ? $children : [],
                 ];
             })->filter()->values()->all();

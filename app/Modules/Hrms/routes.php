@@ -1,8 +1,10 @@
 <?php
 
+use App\Modules\Hrms\Controllers\AbsensiApprovalController;
 use App\Modules\Hrms\Controllers\AbsensiController;
 use App\Modules\Hrms\Controllers\AbsensiDetailController;
 use App\Modules\Hrms\Controllers\AbsensiKomparasiController;
+use App\Modules\Hrms\Controllers\AbsensiPotonganController;
 use App\Modules\Hrms\Controllers\DashboardController;
 use App\Modules\Hrms\Controllers\DepartmentController;
 use App\Modules\Hrms\Controllers\KaryawanController;
@@ -36,3 +38,12 @@ Route::post('absensi/rotasi', [AbsensiDetailController::class, 'storeRotasi'])->
 // Komparasi data mesin absen: upload data mesin + daftar yang belum ada keterangan (khusus Admin HRMS).
 Route::get('absensi/komparasi', [AbsensiKomparasiController::class, 'index'])->name('absensi.komparasi');
 Route::post('absensi/komparasi', [AbsensiKomparasiController::class, 'store'])->name('absensi.komparasi.store');
+
+// Rekap potongan gaji karena datang terlambat per bulan (Admin HRMS: semua, Admin Departemen: departemennya).
+Route::get('absensi/potongan', [AbsensiPotonganController::class, 'index'])->name('absensi.potongan');
+
+// Approval HRD atas perubahan absensi dari Admin Departemen (khusus Admin HRMS), evidence bisa dibuka pengaju juga.
+Route::get('absensi/approval', [AbsensiApprovalController::class, 'index'])->name('absensi.approval');
+Route::post('absensi/approval/{approval}/approve', [AbsensiApprovalController::class, 'approve'])->name('absensi.approval.approve');
+Route::post('absensi/approval/{approval}/reject', [AbsensiApprovalController::class, 'reject'])->name('absensi.approval.reject');
+Route::get('absensi/approval/{approval}/evidence', [AbsensiApprovalController::class, 'evidence'])->name('absensi.approval.evidence');

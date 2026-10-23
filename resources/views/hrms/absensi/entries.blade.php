@@ -105,6 +105,13 @@
     .combo-option.active { background: var(--soft-2); }
     .combo-option.selected { font-weight: 600; color: var(--navy); }
     .combo-hint { padding: 8px 10px 2px; font-size: 12px; color: var(--muted); }
+    .ap-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .ap-amber { background: #fef3c7; color: #92400e; }
+    .ap-green { background: #dcfce7; color: #15803d; }
+    .ap-red { background: #fee2e2; color: #b91c1c; }
+    .approval-box { display: grid; gap: 14px; padding: 14px; border-radius: 12px; background: #fff8e6; border: 1px solid #fde68a; }
+    .approval-box .note { font-size: 13px; color: #92400e; }
+    input[type=file] { width: 100%; font-size: 13px; }
     input[type=date] { width: 100%; padding: 11px 14px; font: inherit; font-size: 14px; color: var(--text); background: var(--glass-strong); border: 1px solid var(--line-strong); border-radius: 12px; }
 @endsection
 
@@ -114,7 +121,9 @@
     $prev = $tanggal->copy()->subWeekday()->toDateString();
     $next = $tanggal->copy()->addWeekday()->toDateString();
     $tidakHadir = $absensis->filter(fn ($absensi) => ! ($kodes[$absensi->kode]['hadir'] ?? false))->count();
-    $fields = ['karyawan_id', 'tanggal', 'sampai', 'kode', 'keterangan'];
+    $fields = ['karyawan_id', 'tanggal', 'sampai', 'kode', 'menit_terlambat', 'keterangan', 'alasan'];
+    $kodeTerlambat = \App\Modules\Hrms\Models\Absensi::KODE_TERLAMBAT;
+    $kodeSakit = \App\Modules\Hrms\Models\Absensi::KODE_SAKIT;
 @endphp
 
 <div class="ent-head">
@@ -131,6 +140,10 @@
         <button type="button" class="btn" data-create>+ Tambah Absensi</button>
     @endif
 </div>
+
+@error('approval')
+    <div class="alert">{{ $message }}</div>
+@enderror
 
 @if ($missingDepartment)
     <div class="alert">Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
@@ -163,6 +176,7 @@
                     <th>Kode</th>
                     <th>Keterangan</th>
                     <th>Diinput oleh</th>
+                    <th>Status</th>
                     @if ($canEdit)
                         <th></th>
                     @endif
@@ -172,32 +186,56 @@
                 @forelse ($absensis as $absensi)
                     @php
                         $info = $kodes[$absensi->kode] ?? ['label' => $absensi->kode, 'tone' => 'blue'];
+                        $approval = $absensi->latestApproval;
+                        $pending = $approval?->isPending();
                     @endphp
                     <tr>
                         <td class="muted">{{ $loop->iteration }}</td>
                         <td class="nowrap">{{ $absensi->karyawan->nik }}</td>
                         <td style="font-weight: 600;">{{ $absensi->karyawan->nama }}</td>
                         <td class="nowrap">{{ $absensi->karyawan->group ?? '-' }}</td>
-                        <td class="nowrap"><i class="k k-tag k-{{ $info['tone'] }}">{{ $absensi->kode }}</i> <span class="small muted">{{ $info['label'] }}</span></td>
+                        <td class="nowrap"><i class="k k-tag k-{{ $info['tone'] }}">{{ $absensi->kode }}</i> <span class="small muted">{{ $info['label'] }}</span>
+                            @if ($absensi->menit_terlambat)
+                                <span class="badge" style="margin-left: 4px;">{{ $absensi->menit_terlambat }} menit</span>
+                            @elseif (in_array($absensi->kode, $kodeTerlambat, true))
+                                <span class="badge badge-off" style="margin-left: 4px;" title="Edit untuk mengisi menit terlambat">menit belum diisi</span>
+                            @endif
+                        </td>
                         <td>{{ $absensi->keterangan ?: '-' }}</td>
                         <td class="small muted">{{ $absensi->creator?->name ?? '-' }}</td>
+                        <td>
+                            @if ($approval)
+                                <span class="ap-badge ap-{{ $approval->statusTone() }}"
+                                      title="{{ $approval->isDeletion() ? 'Pengajuan hapus' : 'Pengajuan ubah ke '.$approval->kode_baru }}{{ $approval->catatan_review ? ' · Catatan HRD: '.$approval->catatan_review : '' }}">{{ $approval->statusLabel() }}</span>
+                                @if (! $pending && $approval->catatan_review)
+                                    <div class="small muted" style="margin-top: 2px;">Catatan HRD: {{ $approval->catatan_review }}</div>
+                                @endif
+                            @else
+                                <span class="muted">-</span>
+                            @endif
+                        </td>
                         @if ($canEdit)
                             <td style="text-align: right; white-space: nowrap;">
+                                @if ($pending)
+                                    <span class="small muted">Menunggu HRD</span>
+                                @else
                                 <button type="button" class="btn btn-ghost btn-sm" data-edit="{{ $absensi->id }}"
                                         data-record="{{ json_encode([
                                             'karyawan_id' => $absensi->karyawan_id,
                                             'tanggal' => $absensi->tanggal->toDateString(),
                                             'kode' => $absensi->kode,
+                                            'menit_terlambat' => $absensi->menit_terlambat,
                                             'keterangan' => $absensi->keterangan,
                                         ]) }}">Edit</button>
                                 <button type="button" class="btn btn-danger btn-sm" data-delete="{{ $absensi->id }}"
                                         data-name="{{ $absensi->karyawan->nik }} - {{ $absensi->karyawan->nama }}">Hapus</button>
+                                @endif
                             </td>
                         @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="muted" style="text-align: center; padding: 32px;">
+                        <td colspan="9" class="muted" style="text-align: center; padding: 32px;">
                             {{ $search !== '' ? 'Data tidak ditemukan.' : 'Belum ada karyawan yang tidak hadir di tanggal ini — semua dianggap masuk.' }}
                         </td>
                     </tr>
@@ -210,7 +248,7 @@
 @if ($canEdit)
     {{-- Modal tambah / edit --}}
     <dialog class="modal" id="entry-modal" style="width: min(560px, calc(100% - 32px));">
-        <form method="POST" action="{{ route('hrms.absensi.entries.store') }}" id="entry-form">
+        <form method="POST" action="{{ route('hrms.absensi.entries.store') }}" id="entry-form" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" value="POST">
             <input type="hidden" name="_modal" value="create">
@@ -258,15 +296,35 @@
                     </select>
                     @error('kode') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
+                <div data-menit-field hidden>
+                    <label for="f-menit_terlambat">Terlambat berapa menit?</label>
+                    <input id="f-menit_terlambat" type="number" name="menit_terlambat" min="1" max="720" placeholder="Mis. 45" inputmode="numeric">
+                    <div class="muted small" style="margin-top: 4px;">Potongan gaji dihitung per kelipatan 30 menit (dibulatkan ke atas). DT&lt; = maks. 30 menit, DT&gt; = 30 menit ke atas.</div>
+                    @error('menit_terlambat') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
                 <div>
                     <label for="f-keterangan">Keterangan <span class="muted">(opsional)</span></label>
                     <input id="f-keterangan" type="text" name="keterangan" maxlength="255" placeholder="Mis. Cuti pulang kampung, sakit demam, DT 07:27">
                     @error('keterangan') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
+                {{-- Edit data yang sudah ada = pengajuan ke HRD, absensi baru berubah setelah disetujui. --}}
+                <div class="approval-box" data-edit-only hidden>
+                    <div class="note">Perubahan akan berstatus <strong>Menunggu approval HRD</strong>. Data absensi baru berubah setelah disetujui Admin HRMS.</div>
+                    <div>
+                        <label for="f-alasan">Alasan perubahan</label>
+                        <textarea id="f-alasan" name="alasan" rows="2" maxlength="1000" placeholder="Mis. Karyawan ternyata sakit, surat dokter baru diserahkan"></textarea>
+                        @error('alasan') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+                    <div>
+                        <label for="f-evidence">Evidence <span class="muted" data-evidence-hint>(opsional, JPG/PNG/PDF maks. 5 MB)</span></label>
+                        <input id="f-evidence" type="file" name="evidence" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                        @error('evidence') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+                </div>
             </div>
             <div class="modal-foot">
                 <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn">Simpan</button>
+                <button type="submit" class="btn" id="entry-submit">Simpan</button>
             </div>
         </form>
     </dialog>
@@ -280,12 +338,18 @@
                 <h2>Hapus Absensi</h2>
                 <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
             </div>
-            <div class="modal-body">
-                Hapus data absensi <strong id="delete-name"></strong>? Karyawan akan dianggap <strong>masuk</strong> di tanggal ini.
+            <input type="hidden" name="_delete_id" id="delete-id">
+            <div class="modal-body" style="display: grid; gap: 14px;">
+                <div>Ajukan penghapusan data absensi <strong id="delete-name"></strong>? Setelah disetujui HRD, karyawan dianggap <strong>masuk</strong> di tanggal ini.</div>
+                <div>
+                    <label for="delete-alasan">Alasan penghapusan</label>
+                    <textarea id="delete-alasan" name="alasan" rows="2" maxlength="1000" required placeholder="Mis. Salah input, karyawan ternyata masuk">{{ old('_delete_id') ? old('alasan') : '' }}</textarea>
+                    @error('alasan', 'hapus') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
             </div>
             <div class="modal-foot">
                 <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+                <button type="submit" class="btn" style="background: var(--danger);">Ajukan Hapus</button>
             </div>
         </form>
     </dialog>
@@ -313,6 +377,23 @@
         var hint = document.getElementById('combo-hint');
         var hidden = form.elements.karyawan_id;
         var MAX_RESULTS = 50;
+        var kodeTerlambat = {{ Js::from($kodeTerlambat) }};
+        var kodeSakit = {{ Js::from($kodeSakit) }};
+        var editing = false;
+
+        // Kolom menit hanya untuk DT; surat dokter wajib saat mengajukan perubahan ke kode sakit.
+        function syncKode() {
+            var kode = form.elements.kode.value;
+            var terlambat = kodeTerlambat.indexOf(kode) !== -1;
+            modal.querySelector('[data-menit-field]').hidden = !terlambat;
+            form.elements.menit_terlambat.disabled = !terlambat;
+            form.elements.menit_terlambat.required = terlambat;
+            var sakit = editing && kodeSakit.indexOf(kode) !== -1;
+            form.elements.evidence.required = sakit;
+            modal.querySelector('[data-evidence-hint]').textContent = sakit
+                ? '(wajib: surat dokter, JPG/PNG/PDF maks. 5 MB)' : '(opsional, JPG/PNG/PDF maks. 5 MB)';
+        }
+        form.elements.kode.addEventListener('change', syncKode);
         var results = [], active = -1;
 
         function labelOf(id) {
@@ -413,6 +494,15 @@
             trigger.disabled = !!id;
             modal.querySelectorAll('[data-create-only]').forEach(function (el) { el.hidden = !!id; });
             form.elements.sampai.disabled = !!id;
+            // Edit = pengajuan approval: alasan wajib, evidence bisa dilampirkan.
+            editing = !!id;
+            modal.querySelector('[data-edit-only]').hidden = !id;
+            form.elements.alasan.disabled = !id;
+            form.elements.alasan.required = !!id;
+            form.elements.evidence.disabled = !id;
+            form.elements.evidence.value = '';
+            document.getElementById('entry-submit').textContent = id ? 'Ajukan Perubahan' : 'Simpan';
+            syncKode();
             // Kalender (flatpickr) diselaraskan dengan nilai yang baru diisi.
             ['tanggal', 'sampai'].forEach(function (name) {
                 var picker = form.elements[name]._flatpickr;
@@ -431,11 +521,22 @@
         });
         document.querySelectorAll('[data-delete]').forEach(function (button) {
             button.addEventListener('click', function () {
-                document.getElementById('delete-form').action = destroyUrl.replace('__ID__', button.dataset.delete);
-                document.getElementById('delete-name').textContent = button.dataset.name;
-                document.getElementById('delete-modal').showModal();
+                openDelete(button.dataset.delete, button.dataset.name, false);
             });
         });
+        function openDelete(id, name, keepErrors) {
+            var dialog = document.getElementById('delete-modal');
+            document.getElementById('delete-form').action = destroyUrl.replace('__ID__', id);
+            document.getElementById('delete-id').value = id;
+            document.getElementById('delete-name').textContent = name;
+            if (!keepErrors) {
+                document.getElementById('delete-alasan').value = '';
+                dialog.querySelectorAll('.field-error').forEach(function (el) { el.remove(); });
+            }
+            dialog.showModal();
+            document.getElementById('delete-alasan').focus();
+        }
+
         document.querySelectorAll('dialog.modal').forEach(function (dialog) {
             dialog.querySelectorAll('[data-close]').forEach(function (button) {
                 button.addEventListener('click', function () { dialog.close(); });
@@ -444,7 +545,13 @@
         });
 
         // Validasi gagal: buka lagi modal yang tadi dipakai beserta isiannya.
-        var reopen = {{ Js::from($errors->hasAny($fields) ? old('_modal') : null) }};
+        var reopenDelete = {{ Js::from($errors->hapus->any() ? old('_delete_id') : null) }};
+        if (reopenDelete) {
+            var deleteButton = document.querySelector('[data-delete="' + reopenDelete + '"]');
+            if (deleteButton) openDelete(reopenDelete, deleteButton.dataset.name, true);
+        }
+
+        var reopen = {{ Js::from($errors->hasAny([...$fields, 'evidence']) ? old('_modal') : null) }};
         if (reopen) {
             openForm(reopen.indexOf('edit:') === 0 ? reopen.slice(5) : null, {{ Js::from(collect(old())->only($fields)) }}, true);
         }

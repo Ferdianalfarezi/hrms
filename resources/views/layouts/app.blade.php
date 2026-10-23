@@ -16,16 +16,29 @@
                         <div class="subtab-drop">
                             <button type="button" @class(['subtab', 'active' => $tab['active']]) aria-haspopup="true">
                                 {{ $tab['label'] }}
+                                @if ($tab['badge'] > 0)
+                                    <span class="menu-badge" title="{{ $tab['badge'] }} menunggu tindakan">{{ $tab['badge'] > 99 ? '99+' : $tab['badge'] }}</span>
+                                @endif
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div class="subtab-menu" role="menu">
                                 @foreach ($tab['children'] as $child)
-                                    <a href="{{ $child['url'] }}" role="menuitem" @class(['active' => $child['active']])>{{ $child['label'] }}</a>
+                                    <a href="{{ $child['url'] }}" role="menuitem" @class(['active' => $child['active']])>
+                                        {{ $child['label'] }}
+                                        @if ($child['badge'] > 0)
+                                            <span class="menu-badge">{{ $child['badge'] > 99 ? '99+' : $child['badge'] }}</span>
+                                        @endif
+                                    </a>
                                 @endforeach
                             </div>
                         </div>
                     @else
-                        <a href="{{ $tab['url'] }}" @class(['subtab', 'active' => $tab['active']])>{{ $tab['label'] }}</a>
+                        <a href="{{ $tab['url'] }}" @class(['subtab', 'active' => $tab['active']])>
+                            {{ $tab['label'] }}
+                            @if ($tab['badge'] > 0)
+                                <span class="menu-badge">{{ $tab['badge'] > 99 ? '99+' : $tab['badge'] }}</span>
+                            @endif
+                        </a>
                     @endif
                 @endforeach
             </nav>

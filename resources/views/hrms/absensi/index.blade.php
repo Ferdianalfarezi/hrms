@@ -117,6 +117,9 @@
         @if ($canEdit)
             <p class="muted small" style="margin: 0; max-width: 340px; text-align: right;">
                 Klik sel pada tanggal untuk mengisi keterangan. Sel kosong berarti karyawan <strong>masuk</strong>.
+                @unless ($isAdmin)
+                    Mengubah data yang sudah terisi lewat menu <a href="{{ route('hrms.absensi.index') }}" style="text-decoration: underline;">Daftar</a> (perlu approval HRD).
+                @endunless
             </p>
         @endif
         <button type="button" class="btn btn-ghost btn-sm" data-open-legend>
@@ -245,18 +248,19 @@
                             $label = $mark ? ($kodes[$mark['kode']]['label'] ?? $mark['kode']) : null;
                             $title = match (true) {
                                 $salahInput => 'Hadir di mesin absen · admin input '.$label.', cek ulang',
-                                $mark !== null => $label.($mark['keterangan'] ? ' · '.$mark['keterangan'] : ''),
+                                $mark !== null => $label.($mark['menit'] ? ' · '.$mark['menit'].' menit' : '').($mark['keterangan'] ? ' · '.$mark['keterangan'] : ''),
                                 $tanpaKet => 'Tidak masuk · belum ada keterangan',
                                 default => 'Masuk',
                             };
-                            // Admin Departemen hanya mengisi hari kerja (Senin - Jumat).
-                            $cellEditable = $canEdit && ($isAdmin || ! $day['weekend']);
+                            // Admin Departemen hanya mengisi hari kerja (Senin - Jumat) yang masih kosong;
+                            // mengubah data lama lewat menu Daftar karena perlu approval HRD.
+                            $cellEditable = $canEdit && ($isAdmin || (! $day['weekend'] && $mark === null));
                             $cellClass = 'cell'.($cellEditable ? ' editable' : '').($tone !== null ? ' k k-'.$tone : '')
                                 .($tanpaKet ? ' tanpa-ket' : '').($tone === null && ! $tanpaKet && ($day['worked'] || $salahInput) ? ' present' : '');
 
                             $cells .= '<td class="'.$day['tdClass'].'"><button type="button" class="'.$cellClass.'" data-day="'.$day['day'].'"'
                                 .($day['worked'] ? ' data-worked' : '').($mesinTanpaKet ? ' data-tanpa-ket' : '').($hadirDiMesin ? ' data-hadir-mesin' : '')
-                                .($mark ? ' data-kode="'.e($mark['kode']).'"'.($mark['keterangan'] ? ' data-ket="'.e($mark['keterangan']).'"' : '') : '')
+                                .($mark ? ' data-kode="'.e($mark['kode']).'"'.($mark['menit'] ? ' data-menit="'.$mark['menit'].'"' : '').($mark['keterangan'] ? ' data-ket="'.e($mark['keterangan']).'"' : '') : '')
                                 .' title="'.e($title).'"'.($cellEditable ? '' : ' disabled').'>'.e($mark['kode'] ?? '').'</button></td>';
                         }
                     @endphp
@@ -334,6 +338,11 @@
                             <span><i class="k k-tag k-{{ $info['tone'] }}">{{ $kode }}</i>{{ $info['label'] }}</span>
                         </label>
                     @endforeach
+                </div>
+                <div style="margin-top: 16px;" id="abs-menit-wrap" hidden>
+                    <label for="abs-menit">Terlambat berapa menit?</label>
+                    <input id="abs-menit" type="number" name="menit_terlambat" min="1" max="720" placeholder="Mis. 45" inputmode="numeric" disabled>
+                    <div class="muted small" style="margin-top: 4px;">Potongan gaji dihitung per kelipatan 30 menit (dibulatkan ke atas). DT&lt; = maks. 30 menit, DT&gt; = 30 menit ke atas.</div>
                 </div>
                 <div style="margin-top: 16px;">
                     <label for="abs-ket">Keterangan <span class="muted">(opsional)</span></label>
@@ -446,6 +455,17 @@
         var form = document.getElementById('abs-form');
         var error = document.getElementById('abs-error');
         var activeCell = null;
+        var kodeTerlambat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_TERLAMBAT) }};
+
+        // Input menit hanya muncul (dan wajib) untuk kode datang terlambat.
+        function syncMenit() {
+            var checked = form.querySelector('input[name=kode]:checked');
+            var terlambat = !!checked && kodeTerlambat.indexOf(checked.value) !== -1;
+            document.getElementById('abs-menit-wrap').hidden = !terlambat;
+            form.elements.menit_terlambat.disabled = !terlambat;
+            form.elements.menit_terlambat.required = terlambat;
+        }
+        form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.addEventListener('change', syncMenit); });
 
         table.addEventListener('click', function (event) {
             var cell = event.target.closest('.cell.editable');
@@ -457,6 +477,8 @@
             form.elements.tanggal.value = isoDate;
             form.elements.keterangan.value = cell.dataset.ket || '';
             form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.checked = radio.value === (cell.dataset.kode || ''); });
+            form.elements.menit_terlambat.value = cell.dataset.menit || '';
+            syncMenit();
             document.getElementById('abs-modal-title').textContent = row.querySelector('.c-nama').textContent;
             var date = new Date(isoDate + 'T00:00:00');
             document.getElementById('abs-modal-sub').textContent = 'NIK ' + row.querySelector('.c-nik').textContent + ' · '
@@ -494,14 +516,16 @@
                 }
                 var kode = result.body.kode || '';
                 var ket = result.body.keterangan || '';
+                var menit = result.body.menit_terlambat || '';
                 activeCell.dataset.kode = kode;
+                if (menit) activeCell.dataset.menit = menit; else delete activeCell.dataset.menit;
                 activeCell.dataset.ket = ket;
                 activeCell.textContent = kode;
                 var tanpaKet = !kode && 'tanpaKet' in activeCell.dataset;
                 var salahInput = kode && !kodes[kode].hadir && 'hadirMesin' in activeCell.dataset;
                 activeCell.className = 'cell editable' + (kode && !salahInput ? ' k k-' + kodes[kode].tone : (tanpaKet ? ' tanpa-ket' : ('worked' in activeCell.dataset || salahInput ? ' present' : '')));
                 activeCell.title = salahInput ? 'Hadir di mesin absen · admin input ' + kodes[kode].label + ', cek ulang'
-                    : kode ? kodes[kode].label + (ket ? ' · ' + ket : '') : (tanpaKet ? 'Tidak masuk · belum ada keterangan' : 'Masuk');
+                    : kode ? kodes[kode].label + (menit ? ' · ' + menit + ' menit' : '') + (ket ? ' · ' + ket : '') : (tanpaKet ? 'Tidak masuk · belum ada keterangan' : 'Masuk');
                 if (Number(activeCell.dataset.day) === selectedDay) {
                     activeCell.closest('tr').querySelector('[data-ket-selected]').textContent = ket;
                 }
