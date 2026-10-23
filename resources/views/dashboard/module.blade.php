@@ -83,7 +83,8 @@
         .a-side:has(.comp-scroll) { contain: size; }
         .a-side .comp-scroll { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
         .a-side .comp-scroll .legend-scroll { flex: 1 1 0; max-height: none; min-height: 0; }
-        .a-side:has(.comp-scroll) .team-card { flex: none; }
+        .a-side:has(.comp-scroll) .team-card { flex: none; height: 270px; display: flex; flex-direction: column; }
+        .a-side:has(.comp-scroll) .team-list { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 6px; }
     }
     .legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
     .legend-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
@@ -325,6 +326,7 @@
                 <h2 class="card-title">{{ $people['title'] }}</h2>
                 <b>{{ $people['counter'] }}</b>
             </div>
+            <div class="team-list">
             @forelse ($people['items'] as $person)
                 <a @if ($person['url'] ?? null) href="{{ $person['url'] }}" @endif class="team-item" style="--j: {{ $loop->index }};">
                     @if ($person['photo'] ?? null)
@@ -343,6 +345,7 @@
             @empty
                 <div class="muted small">{{ $people['empty'] }}</div>
             @endforelse
+            </div>
         </div>
         @endif
     </div>
