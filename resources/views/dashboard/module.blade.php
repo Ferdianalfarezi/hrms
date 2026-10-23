@@ -76,6 +76,7 @@
     .stackbar { display: flex; gap: 3px; height: 12px; margin: 16px 0 14px; }
     .stackbar span { min-width: 6px; border-radius: 999px; }
     .legend { display: grid; gap: 8px; }
+    .legend-scroll { max-height: 240px; overflow-y: auto; padding-right: 6px; }
     .legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
     .legend-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
     .legend-label { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -291,9 +292,10 @@
                     @endforeach
                 </div>
             @endif
-            <div class="legend" @unless ($composition['bar'] ?? true) style="margin-top: 16px;" @endunless>
+            {{-- "scroll" => true: legenda panjang (mis. per karyawan) dibatasi tingginya dan bisa di-scroll. --}}
+            <div @class(['legend', 'legend-scroll' => $composition['scroll'] ?? false]) @unless ($composition['bar'] ?? true) style="margin-top: 16px;" @endunless>
                 @foreach ($segments as $segment)
-                    <div class="legend-row" style="--j: {{ $loop->index }};">
+                    <div class="legend-row" style="--j: {{ min($loop->index, 10) }};" @if ($segment['title'] ?? null) title="{{ $segment['title'] }}" @endif>
                         <i class="dot tone-{{ $segment['tone'] }}"></i>
                         <span class="legend-label">{{ $segment['label'] }}</span>
                         <span class="legend-value">{{ $segment['text'] ?? number_format($segment['count'], 0, ',', '.').' '.$composition['unit'] }}</span>

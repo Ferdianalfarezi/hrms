@@ -72,9 +72,9 @@ class HrmsDashboard
                 'bars' => $bars->all(),
                 'link' => route('hrms.karyawans.index'),
             ],
-            // Admin Departemen hanya punya 1 departemen, jadi yang ditampilkan komposisi jenis kelamin.
+            // Admin Departemen: persentase kehadiran tiap karyawan di departemennya bulan ini.
             'composition' => $viewer->isDepartmentAdmin()
-                ? self::genderComposition($total, $perempuan)
+                ? self::kehadiranKaryawan($visible)
                 : self::absensiHariIni($visible),
             'people' => [
                 'title' => 'Karyawan Terbaru',
@@ -108,19 +108,69 @@ class HrmsDashboard
         return mb_strlen($words[0]) <= 2 && isset($words[1]) ? "{$words[0]} {$words[1]}" : $words[0];
     }
 
-    private static function genderComposition(int $total, int $perempuan): array
+    /**
+     * Persentase kehadiran tiap karyawan bulan ini, hari kerja Senin - Jumat sampai hari ini (mulai tanggal masuk kalau masuk bulan ini).
+     * Tidak hadir = kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan. Urut dari yang paling rendah.
+     */
+    private static function kehadiranKaryawan(\Closure $visible): array
     {
-        $lakiLaki = $total - $perempuan;
+        $today = Carbon::today();
+        $mulai = $today->copy()->startOfMonth();
+        $karyawans = $visible()->orderBy('nama')->get(['id', 'nik', 'nama', 'group', 'tanggal_masuk']);
+
+        // [karyawan_id][Y-m-d] => true
+        $tidakHadir = KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $mulai, $today);
+        Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
+            ->where('tanggal', '>=', $mulai->toDateString())
+            ->where('tanggal', '<', $today->copy()->addDay()->toDateString())
+            ->whereIn('kode', Absensi::kodeTidakHadir())
+            ->get(['karyawan_id', 'tanggal'])
+            ->each(function (Absensi $absensi) use (&$tidakHadir) {
+                $tidakHadir[$absensi->karyawan_id][$absensi->tanggal->toDateString()] = true;
+            });
+
+        $totalHariKerja = 0;
+        $totalHadir = 0;
+        $rows = $karyawans->map(function (Karyawan $karyawan) use ($mulai, $today, $tidakHadir, &$totalHariKerja, &$totalHadir) {
+            $dari = $karyawan->tanggal_masuk?->gt($mulai) ? $karyawan->tanggal_masuk->copy()->startOfDay() : $mulai->copy();
+            $hariKerja = 0;
+            $absen = 0;
+            for ($day = $dari; $day->lte($today); $day->addDay()) {
+                if ($day->isWeekday()) {
+                    $hariKerja++;
+                    $absen += isset($tidakHadir[$karyawan->id][$day->toDateString()]) ? 1 : 0;
+                }
+            }
+
+            $totalHariKerja += $hariKerja;
+            $totalHadir += $hariKerja - $absen;
+
+            return ['karyawan' => $karyawan, 'hariKerja' => $hariKerja, 'hadir' => $hariKerja - $absen];
+        })->filter(fn (array $row) => $row['hariKerja'] > 0)
+            ->sortBy(fn (array $row) => $row['hadir'] / $row['hariKerja'])
+            ->values();
 
         return [
-            'title' => 'Jenis Kelamin',
-            'value' => $total,
-            'unit' => 'orang',
-            'segments' => [
-                ['label' => 'Laki-laki', 'count' => $lakiLaki, 'tone' => 'primary'],
-                ['label' => 'Perempuan', 'count' => $perempuan, 'tone' => 'navy'],
-            ],
-            'note' => null,
+            'title' => 'Kehadiran '.$today->translatedFormat('M'),
+            'value' => $totalHariKerja > 0 ? self::persenHadir($totalHadir, $totalHariKerja).'%' : '-',
+            'unit' => 'hari',
+            'bar' => false,
+            'scroll' => true,
+            'segments' => $rows->map(fn (array $row) => [
+                'label' => $row['karyawan']->nama,
+                'count' => $row['hadir'],
+                'text' => self::persenHadir($row['hadir'], $row['hariKerja']).'%',
+                'title' => "{$row['hadir']} dari {$row['hariKerja']} hari kerja",
+                'tone' => match (true) {
+                    $row['hadir'] === $row['hariKerja'] => 'success',
+                    ($row['hariKerja'] - $row['hadir']) / $row['hariKerja'] * 100 > LaporanAbsensiShift::TARGET_PERSEN => 'danger',
+                    default => 'navy',
+                },
+                'always' => true,
+            ])->all(),
+            'note' => $rows->isEmpty()
+                ? 'Belum ada hari kerja bulan ini.'
+                : 'Hari kerja Senin - Jumat, 1 - '.$today->translatedFormat('d M').'. Merah = tidak hadir di atas '.LaporanAbsensiShift::TARGET_PERSEN.'%.',
         ];
     }
 

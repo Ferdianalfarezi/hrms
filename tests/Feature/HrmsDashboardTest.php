@@ -114,7 +114,7 @@ class HrmsDashboardTest extends TestCase
 
         $this->assertSame(2, $data['bigStats'][0]['value']);
         $this->assertSame('Departemen PSD', $data['subtitle']);
-        $this->assertSame('Jenis Kelamin', $data['composition']['title']);
+        $this->assertSame('Kehadiran Okt', $data['composition']['title']);
         $this->assertSame(['Andi Saputra', 'Bunga Lestari'], array_column($data['people']['items'], 'name'));
 
         $this->actingAs($deptAdmin)->get('/hrms')
@@ -123,6 +123,26 @@ class HrmsDashboardTest extends TestCase
             ->assertSee('Andi Saputra')
             ->assertDontSee('Citra Dewi')        // PWD, termasuk dari kalender ulang tahun
             ->assertDontSee('Dodi Tanpa Dept');
+    }
+
+    public function test_department_admin_sees_kehadiran_per_karyawan_bulan_ini(): void
+    {
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
+        $id = fn (string $nik) => Karyawan::where('nik', $nik)->value('id');
+        // 1 - 15 Okt 2026 = 11 hari kerja (Senin - Jumat).
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-14', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-13', 'kode' => 'DT<']); // terlambat tetap hadir
+        Absensi::create(['karyawan_id' => $id('0002'), 'tanggal' => '2026-10-12', 'kode' => 'I']);
+        Absensi::create(['karyawan_id' => $id('0002'), 'tanggal' => '2026-10-10', 'kode' => 'I']); // Sabtu, tidak dihitung
+        AbsensiMesin::create(['tanggal' => '2026-10-13', 'nik' => '0002']);                         // tidak absen, belum ada keterangan
+
+        $composition = HrmsDashboard::build($deptAdmin)['composition'];
+
+        $this->assertSame('86,3%', $composition['value']);                                           // 19 dari 22 hari
+        $this->assertSame(['Bunga Lestari' => '81,8%', 'Andi Saputra' => '90,9%'],
+            array_column($composition['segments'], 'text', 'label'));
+        $this->assertSame('danger', $composition['segments'][0]['tone']);
     }
 
     public function test_department_admin_sees_absensi_belum_ada_keterangan_instead_of_karyawan_masuk(): void
