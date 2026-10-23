@@ -288,7 +288,12 @@
         {{-- Komposisi --}}
         <div @class(['card', 'comp-scroll' => $composition['scroll'] ?? false]) style="--i: 3;">
             <div class="status-top">
-                <h2 class="card-title">{{ $composition['title'] }}</h2>
+                <div style="min-width: 0;">
+                    <h2 class="card-title">{{ $composition['title'] }}</h2>
+                    @if ($composition['subtitle'] ?? null)
+                        <div class="muted small" style="margin-top: 2px;">{{ $composition['subtitle'] }}</div>
+                    @endif
+                </div>
                 <b data-count>{{ $composition['value'] }}</b>
             </div>
             {{-- Segmen bernilai 0 disembunyikan, kecuali ditandai "always". "text" menggantikan angka + satuan di legenda. --}}

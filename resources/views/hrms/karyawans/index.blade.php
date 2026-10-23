@@ -159,7 +159,9 @@
                     <th>Jabatan</th>
                     <th class="nowrap">Tanggal Masuk</th>
                     <th>Status</th>
-                    <th class="nowrap" title="Potongan gaji setiap kelipatan 30 menit datang terlambat">Potongan Absen / 30 mnt</th>
+                    @if ($isAdmin)
+                        <th class="nowrap" title="Potongan gaji setiap kelipatan 30 menit datang terlambat">Potongan Absen / 30 mnt</th>
+                    @endif
                     @can('create', \App\Modules\Hrms\Models\Karyawan::class)
                         <th style="text-align: right;">Aksi</th>
                     @endcan
@@ -185,7 +187,9 @@
                         <td>{{ $karyawan->jabatan ?? '-' }}</td>
                         <td class="nowrap">{{ $karyawan->tanggal_masuk?->translatedFormat('d M Y') ?? '-' }}</td>
                         <td><span class="badge st-{{ str_replace(' ', '', $karyawan->status) }}">{{ $karyawan->status }}</span></td>
-                        <td class="nowrap" style="text-align: right;">Rp {{ number_format($karyawan->potongan_absen, 0, ',', '.') }}</td>
+                        @if ($isAdmin)
+                            <td class="nowrap" style="text-align: right;">Rp {{ number_format($karyawan->potongan_absen, 0, ',', '.') }}</td>
+                        @endif
                         @can('create', \App\Modules\Hrms\Models\Karyawan::class)
                             <td style="text-align: right; white-space: nowrap;">
                                 @can('update', $karyawan)
@@ -201,7 +205,7 @@
                                             'tanggal_masuk' => $karyawan->tanggal_masuk?->format('Y-m-d'),
                                             'status' => $karyawan->status,
                                             'group' => $karyawan->group,
-                                            'potongan_absen' => $karyawan->potongan_absen,
+                                            'potongan_absen' => $isAdmin ? $karyawan->potongan_absen : null,
                                         ]) }}">Edit</button>
                                 <button type="button" class="btn btn-danger btn-sm" data-delete="{{ $karyawan->id }}"
                                         data-name="{{ $karyawan->nik }} - {{ $karyawan->nama }}">Hapus</button>

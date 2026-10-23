@@ -115,6 +115,7 @@ class HrmsDashboardTest extends TestCase
         $this->assertSame(2, $data['bigStats'][0]['value']);
         $this->assertSame('Departemen PSD', $data['subtitle']);
         $this->assertSame('Kehadiran Okt', $data['composition']['title']);
+        $this->assertSame('Departemen PSD', $data['composition']['subtitle']);
         $this->assertSame(['Andi Saputra', 'Bunga Lestari'], array_column($data['people']['items'], 'name'));
 
         $this->actingAs($deptAdmin)->get('/hrms')

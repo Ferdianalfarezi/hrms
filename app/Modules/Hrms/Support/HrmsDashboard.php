@@ -74,7 +74,7 @@ class HrmsDashboard
             ],
             // Admin Departemen: persentase kehadiran tiap karyawan di departemennya bulan ini.
             'composition' => $viewer->isDepartmentAdmin()
-                ? self::kehadiranKaryawan($visible)
+                ? self::kehadiranKaryawan($visible, $managedDepartment)
                 : self::absensiHariIni($visible),
             'people' => [
                 'title' => 'Karyawan Terbaru',
@@ -112,7 +112,7 @@ class HrmsDashboard
      * Persentase kehadiran tiap karyawan bulan ini, hari kerja Senin - Jumat sampai hari ini (mulai tanggal masuk kalau masuk bulan ini).
      * Tidak hadir = kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan. Urut dari yang paling rendah.
      */
-    private static function kehadiranKaryawan(\Closure $visible): array
+    private static function kehadiranKaryawan(\Closure $visible, ?Department $department): array
     {
         $today = Carbon::today();
         $mulai = $today->copy()->startOfMonth();
@@ -152,6 +152,7 @@ class HrmsDashboard
 
         return [
             'title' => 'Kehadiran '.$today->translatedFormat('M'),
+            'subtitle' => $department ? "Departemen {$department->name}" : null,
             'value' => $totalHariKerja > 0 ? self::persenHadir($totalHadir, $totalHariKerja).'%' : '-',
             'unit' => 'hari',
             'bar' => false,

@@ -105,4 +105,21 @@ class AbsensiPotonganTest extends TestCase
         $this->actingAs($this->hrmsAdmin)->put(route('hrms.karyawans.update', $this->andi), $data)->assertSessionHasNoErrors();
         $this->assertSame(75000, $this->andi->fresh()->potongan_absen);
     }
+
+    public function test_deduction_column_in_karyawan_table_is_only_shown_to_hrms_admin(): void
+    {
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
+
+        $this->actingAs($this->hrmsAdmin)->get(route('hrms.karyawans.index'))
+            ->assertOk()
+            ->assertSee('Potongan Absen / 30 mnt')
+            ->assertSee('Rp 20.000');
+
+        $this->actingAs($deptAdmin)->get(route('hrms.karyawans.index'))
+            ->assertOk()
+            ->assertSee('Andi PSD')
+            ->assertDontSee('Potongan Absen / 30 mnt')
+            ->assertDontSee('Rp '.number_format(Karyawan::POTONGAN_ABSEN_DEFAULT, 0, ',', '.'));
+    }
 }

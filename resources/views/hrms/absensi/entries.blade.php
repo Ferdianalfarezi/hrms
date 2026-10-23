@@ -216,9 +216,7 @@
                         </td>
                         @if ($canEdit)
                             <td style="text-align: right; white-space: nowrap;">
-                                @if ($pending)
-                                    <span class="small muted">Menunggu HRD</span>
-                                @else
+                                @unless ($pending)
                                 <button type="button" class="btn btn-ghost btn-sm" data-edit="{{ $absensi->id }}"
                                         data-record="{{ json_encode([
                                             'karyawan_id' => $absensi->karyawan_id,
@@ -229,7 +227,7 @@
                                         ]) }}">Edit</button>
                                 <button type="button" class="btn btn-danger btn-sm" data-delete="{{ $absensi->id }}"
                                         data-name="{{ $absensi->karyawan->nik }} - {{ $absensi->karyawan->nama }}">Hapus</button>
-                                @endif
+                                @endunless
                             </td>
                         @endif
                     </tr>
