@@ -181,7 +181,7 @@ class HrmsDashboard
 
         return [
             'title' => 'Absensi '.$today->translatedFormat('d M'),
-            'value' => ModuleDashboard::percent($hadir, $total).'% hadir',
+            'value' => self::persenHadir($hadir, $total).'%',
             'unit' => 'orang',
             'segments' => [
                 ['label' => 'Hadir', 'count' => $hadir, 'tone' => 'success'],
@@ -190,6 +190,20 @@ class HrmsDashboard
             ],
             'note' => $note,
         ];
+    }
+
+    /**
+     * Persen hadir dibulatkan ke bawah 1 desimal (mis. 560/561 = "99,8"), supaya tidak tampil 100% selama masih ada yang tidak hadir.
+     */
+    private static function persenHadir(int $hadir, int $total): string
+    {
+        if ($total === 0) {
+            return '0';
+        }
+
+        $permil = intdiv($hadir * 1000, $total);
+
+        return number_format($permil / 10, $permil % 10 === 0 ? 0 : 1, ',', '.');
     }
 
     /**

@@ -90,8 +90,19 @@ class HrmsDashboardTest extends TestCase
 
         $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 2, 'Tidak hadir tanpa keterangan' => 1],
             array_column($composition['segments'], 'count', 'label'));
-        $this->assertSame('25% hadir', $composition['value']);
+        $this->assertSame('25%', $composition['value']);
         $this->assertSame('1 kode tidak hadir perlu dicek ulang (hadir di mesin absen).', $composition['note']);
+    }
+
+    public function test_persen_hadir_dibulatkan_ke_bawah_satu_desimal(): void
+    {
+        $this->karyawan('0005', 'Eka', $this->psd, 'Tetap', 'Laki-laki', masuk: '2020-01-01', lahir: '1990-01-01');
+        $this->karyawan('0006', 'Fajar', $this->psd, 'Tetap', 'Laki-laki', masuk: '2020-01-01', lahir: '1990-01-01');
+        Absensi::create(['karyawan_id' => Karyawan::where('nik', '0001')->value('id'), 'tanggal' => '2026-10-15', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => Karyawan::where('nik', '0002')->value('id'), 'tanggal' => '2026-10-15', 'kode' => 'I']);
+
+        // 4 dari 6 = 66,67% → tampil 66,6 (bukan dibulatkan ke atas, jadi tidak pernah 100% selama ada yang tidak hadir).
+        $this->assertSame('66,6%', HrmsDashboard::build($this->hrmsAdmin())['composition']['value']);
     }
 
     public function test_department_admin_dashboard_is_scoped(): void
