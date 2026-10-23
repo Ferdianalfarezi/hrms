@@ -77,6 +77,14 @@
     .stackbar span { min-width: 6px; border-radius: 999px; }
     .legend { display: grid; gap: 8px; }
     .legend-scroll { max-height: 240px; overflow-y: auto; padding-right: 6px; }
+    /* Layar lebar: kolom kanan tidak ikut menentukan tinggi baris (supaya foto profil dll. tidak melar);
+       daftar panjang di kartu komposisi mengisi sisa ruang lalu di-scroll. */
+    @media (min-width: 641px) {
+        .a-side:has(.comp-scroll) { contain: size; }
+        .a-side .comp-scroll { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+        .a-side .comp-scroll .legend-scroll { flex: 1 1 0; max-height: none; min-height: 0; }
+        .a-side:has(.comp-scroll) .team-card { flex: none; }
+    }
     .legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
     .legend-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
     .legend-label { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -277,7 +285,7 @@
 
     <div class="a-side">
         {{-- Komposisi --}}
-        <div class="card" style="--i: 3;">
+        <div @class(['card', 'comp-scroll' => $composition['scroll'] ?? false]) style="--i: 3;">
             <div class="status-top">
                 <h2 class="card-title">{{ $composition['title'] }}</h2>
                 <b data-count>{{ $composition['value'] }}</b>
