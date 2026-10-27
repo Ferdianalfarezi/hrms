@@ -52,111 +52,96 @@
     table.chart-table td { padding: 7px 6px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text); }
     table.chart-table td.series-name { text-align: left; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 
-    /* Kartu temuan (pengganti Pertumbuhan & Jam Kerja). */
-    .temuan-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-    .temuan-status span { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1.5px solid; white-space: nowrap; }
-    .temuan-status .s-open { color: #b45309; border-color: #f59e0b; background: #fffbeb; }
-    .temuan-status .s-closed { color: var(--success); border-color: #34d399; background: var(--success-bg); }
+    /* Kartu grafik Daily Patrol (7 hari) & Cross Patrol (per bulan): batang bertumpuk Open + Close. */
+    .stack-card { display: flex; flex-direction: column; min-width: 0; }
+    .stack-card .card-head { margin-bottom: 2px; align-items: flex-start; }
+    .stack-card .chart-plot-sm { height: 160px; margin: 8px 0 10px; }
+    .stack-card .chart-legend-sm b { color: var(--text); font-variant-numeric: tabular-nums; }
+    .chart-plot .axis text.now { fill: var(--primary); font-weight: 700; }
+    .chart-tip .tip-sep { margin: 6px 0 4px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11px; color: var(--faint); }
 
-    /* Cross Patrol: batang bulan ini (biru) berdampingan dengan bulan lalu (pucat) per minggu. */
-    .cross-card { display: flex; flex-direction: column; }
-    .trend { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; border: 1.5px solid transparent; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-    .trend-up { color: #b91c1c; background: #fee2e2; }
-    .trend-down { color: var(--success); background: var(--success-bg); }
-    .trend-flat { color: var(--muted); background: var(--soft-2); }
-    .cross-bars .bar-pair { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
-    .cross-bars .bar.prev { background: #b9cbef; }
-    .cross-bars .bar-col.now small { color: var(--primary); font-weight: 600; }
-    .cross-legend { display: flex; justify-content: center; gap: 12px; margin-top: 10px; font-size: 11px; color: var(--muted); }
-    .cross-legend span { display: inline-flex; align-items: center; gap: 5px; }
-    .cross-legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+    /* Heatmap departemen x bulan di modal perbesar Cross Patrol: makin gelap = makin banyak temuan. */
+    table.heat-table td.heat { min-width: 34px; border-radius: 6px; background: var(--h, transparent); color: var(--hc, var(--text)); }
+    table.heat-table td.heat.zero { color: var(--faint); }
+    table.heat-table td.dept-name { text-align: left; white-space: nowrap; font-weight: 600; }
+    table.heat-table tr.sum-row td { font-weight: 700; border-top: 1px solid var(--line); }
+    .heat-scale { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+    .heat-scale i { width: 18px; height: 10px; border-radius: 3px; background: var(--h); }
 @endsection
 
 @section('progress')
-    {{-- Kartu "Pertumbuhan" diganti temuan Daily Patrol hari ini + 7 hari terakhir. --}}
-    <div class="card a-progress" style="--i: 1;">
+    {{-- Kartu "Pertumbuhan" diganti grafik temuan Daily Patrol 7 hari terakhir (Open / Close bertumpuk). --}}
+    @php
+        $dailyChart = [
+            'labels' => array_column($dailyHariIni['bars'], 'label'),
+            'titles' => array_column($dailyHariIni['bars'], 'title'),
+            'highlight' => count($dailyHariIni['bars']) - 1,
+            'open' => array_column($dailyHariIni['bars'], 'open'),
+            'close' => array_column($dailyHariIni['bars'], 'close'),
+        ];
+    @endphp
+    <div class="card a-progress stack-card" style="--i: 1;" data-stack-card="daily" data-stack="{{ json_encode($dailyChart) }}">
         <div class="card-head">
-            <h2 class="card-title">Daily Patrol</h2>
-            @can('sms-patrol')
-                <a href="{{ route('sms.daily-patrols.index') }}" class="mini-btn" title="Buka Daily Patrol">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
-                </a>
-            @endcan
+            <div style="min-width: 0;">
+                <h2 class="card-title">Daily Patrol</h2>
+                <div class="muted small">7 hari terakhir</div>
+            </div>
+            <div class="temuan-tools">
+                <button type="button" class="mini-btn" data-stack-expand title="Perbesar" aria-label="Perbesar grafik Daily Patrol">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+                @can('sms-patrol')
+                    <a href="{{ route('sms.daily-patrols.index') }}" class="mini-btn" title="Buka Daily Patrol">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
+                    </a>
+                @endcan
+            </div>
         </div>
-        <div class="big-metric"><b data-count>{{ $dailyHariIni['total'] }}</b><span class="muted small">temuan<br>hari ini</span></div>
-        <div class="temuan-status">
-            <span class="s-open">Open {{ $dailyHariIni['open'] }}</span>
-            <span class="s-closed">Close {{ $dailyHariIni['closed'] }}</span>
+        <div class="chart-plot chart-plot-sm" data-stack-plot role="img"
+             aria-label="Grafik temuan Daily Patrol 7 hari terakhir, Open dan Close. Hari ini {{ $dailyHariIni['total'] }} temuan.">
+            <div class="chart-tip" hidden></div>
         </div>
-        @php($maxDaily = max(collect($dailyHariIni['bars'])->max('count'), 1))
-        <div class="bars">
-            @foreach ($dailyHariIni['bars'] as $bar)
-                <div class="bar-col" style="--j: {{ $loop->index }};">
-                    @if ($bar['highlight'])
-                        <div class="bar-bubble">{{ $bar['count'] }} temuan</div>
-                    @endif
-                    <div @class(['bar', 'zero' => $bar['count'] === 0, 'today' => $bar['highlight']])
-                         style="height: {{ $bar['count'] ? max(round($bar['count'] / $maxDaily * 100), 12) : 10 }}%;"
-                         title="{{ $bar['title'] }}: {{ $bar['count'] }} temuan"></div>
-                    <small>{{ $bar['label'] }}</small>
-                </div>
-            @endforeach
+        <div class="chart-legend chart-legend-sm">
+            <span><i class="swatch" style="--c: #eb6834;"></i>Open</span>
+            <span><i class="swatch" style="--c: #1baf7a;"></i>Close</span>
+            <span>Hari ini <b>{{ $dailyHariIni['total'] }}</b> temuan</span>
         </div>
     </div>
 @endsection
 
 @section('clock')
-    {{-- Kartu "Jam Kerja" diganti temuan Cross Patrol bulan ini, dibandingkan bulan lalu per minggu. --}}
-    @php($cross = $crossBulanIni)
-    @php($diff = $cross['total'] - $cross['previousTotal'])
-    <div class="card a-clock cross-card" style="--i: 2;">
+    {{-- Kartu "Jam Kerja" diganti grafik temuan Cross Patrol per bulan; detail per departemen di tooltip & modal perbesar. --}}
+    <div class="card a-clock stack-card" style="--i: 2;" data-stack-card="cross" data-stack-years="{{ json_encode($grafikCross['data']) }}">
         <div class="card-head">
-            <h2 class="card-title">Cross Patrol</h2>
-            @can('sms-patrol')
-                <a href="{{ route('sms.cross-patrols.index') }}" class="mini-btn" title="Buka Cross Patrol">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
-                </a>
-            @endcan
-        </div>
-        <div class="big-metric">
-            <b data-count>{{ $cross['total'] }}</b>
-            <span class="muted small">temuan<br>{{ $cross['month'] }}</span>
-        </div>
-        {{-- Open / Close di bawah angka, sama seperti kartu Daily Patrol; pembanding bulan lalu ikut di barisnya. --}}
-        <div class="temuan-status">
-            <span class="s-open">Open {{ $cross['open'] }}</span>
-            <span class="s-closed">Close {{ $cross['closed'] }}</span>
-            @if ($cross['hasPrevious'])
-                <span @class(['trend', 'trend-up' => $diff > 0, 'trend-down' => $diff < 0, 'trend-flat' => $diff === 0])
-                      title="Bulan lalu ({{ $cross['previousLabel'] }}): {{ $cross['previousTotal'] }} temuan">
-                    {{ $diff > 0 ? '▲ '.$diff : ($diff < 0 ? '▼ '.abs($diff) : 'Sama') }} dari {{ $cross['previousLabel'] }} ({{ $cross['previousTotal'] }})
-                </span>
-            @endif
-        </div>
-        @php($maxCross = max(collect($cross['weeks'])->max('current'), collect($cross['weeks'])->max('previous'), 1))
-        <div class="bars cross-bars">
-            @foreach ($cross['weeks'] as $week)
-                <div @class(['bar-col', 'now' => $loop->index === $cross['currentWeek']]) style="--j: {{ $loop->index }};">
-                    <div class="bar-pair">
-                        @if ($cross['hasPrevious'])
-                            <div @class(['bar', 'prev', 'zero' => $week['previous'] === 0])
-                                 style="height: {{ $week['previous'] ? max(round($week['previous'] / $maxCross * 100), 12) : 10 }}%;"
-                                 title="{{ $week['label'] }} {{ $cross['previousLabel'] }}: {{ $week['previous'] }} temuan"></div>
-                        @endif
-                        <div @class(['bar', 'today' => $week['current'] > 0, 'zero' => $week['current'] === 0])
-                             style="height: {{ $week['current'] ? max(round($week['current'] / $maxCross * 100), 12) : 10 }}%;"
-                             title="{{ $week['label'] }} {{ $cross['currentLabel'] }}: {{ $week['current'] }} temuan"></div>
-                    </div>
-                    <small>{{ $week['label'] }}</small>
-                </div>
-            @endforeach
-        </div>
-        @if ($cross['hasPrevious'])
-            <div class="cross-legend">
-                <span><i style="--c: var(--primary);"></i>{{ $cross['currentLabel'] }}</span>
-                <span><i style="--c: #b9cbef;"></i>{{ $cross['previousLabel'] }}</span>
+            <div style="min-width: 0;">
+                <h2 class="card-title">Cross Patrol</h2>
+                <div class="muted small">Temuan per bulan</div>
             </div>
-        @endif
+            <div class="temuan-tools">
+                <select data-stack-year aria-label="Tahun">
+                    @foreach ($grafikCross['years'] as $year)
+                        <option value="{{ $year }}" @selected($year === $grafikCross['selected'])>{{ $year }}</option>
+                    @endforeach
+                </select>
+                <button type="button" class="mini-btn" data-stack-expand title="Perbesar" aria-label="Perbesar grafik Cross Patrol per departemen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+                @can('sms-patrol')
+                    <a href="{{ route('sms.cross-patrols.index') }}" class="mini-btn" title="Buka Cross Patrol">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
+                    </a>
+                @endcan
+            </div>
+        </div>
+        <div class="chart-plot chart-plot-sm" data-stack-plot role="img"
+             aria-label="Grafik temuan Cross Patrol per bulan, Open dan Close. Klik perbesar untuk rincian per departemen.">
+            <div class="chart-tip" hidden></div>
+        </div>
+        <div class="chart-legend chart-legend-sm">
+            <span><i class="swatch" style="--c: #eb6834;"></i>Open</span>
+            <span><i class="swatch" style="--c: #1baf7a;"></i>Close</span>
+            <span>Total <b data-stack-total></b></span>
+        </div>
     </div>
 @endsection
 
@@ -629,6 +614,280 @@
                 }).observe(plot);
             }
         });
+    })();
+    // Kartu Daily Patrol (7 hari) & Cross Patrol (per bulan): batang bertumpuk Open + Close, tooltip per batang,
+    // dan modal perbesar (grafik besar + tabel; Cross Patrol ditambah heatmap departemen x bulan).
+    (function () {
+        var NS = 'http://www.w3.org/2000/svg';
+        var SERIES = [{ key: 'open', label: 'Open', color: '#eb6834' }, { key: 'close', label: 'Close', color: '#1baf7a' }];
+        var MONTHS = @json(\App\Modules\Sms\Support\GrafikKecelakaan::MONTHS);
+        var MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        // Skala biru berurutan (terang = sedikit, gelap = banyak) untuk heatmap.
+        var HEAT = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
+        var today = new Date();
+
+        function el(name, attrs, parent) {
+            var node = document.createElementNS(NS, name);
+            Object.keys(attrs).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+            if (parent) parent.appendChild(node);
+            return node;
+        }
+
+        function html(tag, className, text) {
+            var node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        }
+
+        function swatch(color) {
+            var node = html('i', 'swatch');
+            node.style.setProperty('--c', color);
+            return node;
+        }
+
+        function sum(values) { return values.reduce(function (n, v) { return n + v; }, 0); }
+
+        // Ujung atas membulat 4px (hanya segmen teratas), dasar rata.
+        function barPath(x, y, w, h, round) {
+            var r = round ? Math.min(4, w / 2, h) : 0;
+            return 'M' + x + ' ' + (y + h) + 'V' + (y + r) + 'Q' + x + ' ' + y + ' ' + (x + r) + ' ' + y
+                + 'H' + (x + w - r) + 'Q' + (x + w) + ' ' + y + ' ' + (x + w) + ' ' + (y + r) + 'V' + (y + h) + 'Z';
+        }
+
+        // chart: { labels, titles, highlight, open: [], close: [], details?: [[{name, count}]] }
+        function draw(plot, chart, animateDelay) {
+            var tip = plot.querySelector('.chart-tip');
+            var old = plot.querySelector('svg');
+            if (old) old.remove();
+            var width = plot.clientWidth, height = plot.clientHeight;
+            var pad = { top: 10, right: 6, bottom: 24, left: 26 };
+            var innerW = width - pad.left - pad.right, innerH = height - pad.top - pad.bottom;
+            if (innerW <= 0 || innerH <= 0) return;
+
+            var n = chart.labels.length;
+            var totals = chart.labels.map(function (_, i) { return chart.open[i] + chart.close[i]; });
+            var max = Math.max.apply(null, totals.concat([1]));
+            var step = Math.max(1, Math.ceil(max / 4));
+            var top = Math.ceil(max / step) * step;
+            var y = function (v) { return pad.top + innerH - innerH * v / top; };
+            var base = pad.top + innerH;
+            var slot = innerW / n;
+            var barW = Math.max(4, Math.min(22, slot * 0.56));
+            var labelEvery = slot < 22 ? 3 : (slot < 30 ? 2 : 1);
+
+            var svg = el('svg', { width: width, height: height, 'aria-hidden': 'true' });
+            plot.insertBefore(svg, tip);
+            var grid = el('g', { class: 'grid' }, svg), axis = el('g', { class: 'axis' }, svg);
+            for (var t = 0; t <= top; t += step) {
+                el('line', { x1: pad.left, x2: width - pad.right, y1: y(t), y2: y(t), 'stroke-dasharray': t === 0 ? 'none' : '3 4' }, grid);
+                el('text', { x: pad.left - 8, y: y(t) + 4, 'text-anchor': 'end' }, axis).textContent = t;
+            }
+
+            chart.labels.forEach(function (label, i) {
+                var center = pad.left + slot * i + slot / 2;
+                if (i % labelEvery === 0) {
+                    el('text', { x: center, y: height - 6, 'text-anchor': 'middle', class: i === chart.highlight ? 'now' : '' }, axis).textContent = label;
+                }
+
+                // Open di bawah, Close di atas; celah 2px antar segmen.
+                var bottom = 0;
+                var parts = SERIES.filter(function (s) { return chart[s.key][i] > 0; });
+                parts.forEach(function (s, k) {
+                    var value = chart[s.key][i];
+                    var yTop = y(bottom + value), h = y(bottom) - yTop - (k > 0 ? 2 : 0);
+                    bottom += value;
+                    if (h <= 0) return;
+                    var bar = el('path', { d: barPath(center - barW / 2, yTop, barW, h, k === parts.length - 1), fill: s.color }, svg);
+                    if (animateDelay !== null) { bar.setAttribute('class', 'bar-grow'); bar.style.animationDelay = (animateDelay + i * 50) + 'ms'; }
+                });
+
+                var hit = el('rect', { x: center - slot / 2, y: 0, width: slot, height: base, fill: 'transparent' }, svg);
+                hit.addEventListener('mouseenter', function () {
+                    tip.innerHTML = '';
+                    tip.appendChild(html('b', '', chart.titles[i]));
+                    SERIES.forEach(function (s) {
+                        var row = html('div');
+                        row.append(swatch(s.color), html('span', '', s.label), html('span', '', chart[s.key][i]));
+                        tip.appendChild(row);
+                    });
+                    var total = html('div');
+                    total.append(html('span', '', 'Total'), html('span', '', totals[i]));
+                    tip.appendChild(total);
+                    var details = (chart.details || [])[i] || [];
+                    if (details.length) {
+                        tip.appendChild(html('div', 'tip-sep', 'Per departemen'));
+                        details.slice(0, 6).forEach(function (d) {
+                            var row = html('div');
+                            row.append(html('span', '', d.name), html('span', '', d.count));
+                            tip.appendChild(row);
+                        });
+                        if (details.length > 6) tip.appendChild(html('div', 'tip-sep', '+' + (details.length - 6) + ' departemen lain'));
+                    }
+                    tip.hidden = false;
+                    var left = center + slot / 2 + 6;
+                    if (left + tip.offsetWidth > width) left = center - slot / 2 - tip.offsetWidth - 6;
+                    tip.style.left = Math.max(0, left) + 'px';
+                    tip.style.top = pad.top + 'px';
+                });
+                hit.addEventListener('mouseleave', function () { tip.hidden = true; });
+            });
+        }
+
+        function watch(plot, getChart, animateDelay) {
+            draw(plot, getChart(), reduceMotion ? null : animateDelay);
+            if (!('ResizeObserver' in window)) return;
+            var lastWidth = plot.clientWidth;
+            new ResizeObserver(function () {
+                if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; draw(plot, getChart(), null); }
+            }).observe(plot);
+        }
+
+        // Tabel angka Open / Close / Total per kolom (hari atau bulan).
+        function totalsTable(chart) {
+            var wrap = html('div', 'table-wrap');
+            var table = html('table', 'chart-table');
+            var headRow = html('tr');
+            headRow.appendChild(html('th'));
+            chart.labels.forEach(function (label) { headRow.appendChild(html('th', '', label)); });
+            headRow.appendChild(html('th', '', 'Jumlah'));
+            table.appendChild(html('thead')).appendChild(headRow);
+            var body = table.appendChild(html('tbody'));
+            SERIES.concat([{ key: 'total', label: 'Total' }]).forEach(function (s) {
+                var values = s.key === 'total' ? chart.labels.map(function (_, i) { return chart.open[i] + chart.close[i]; }) : chart[s.key];
+                var tr = html('tr');
+                var name = html('td', 'series-name');
+                if (s.color) name.appendChild(swatch(s.color));
+                name.append(s.label);
+                tr.appendChild(name);
+                values.forEach(function (v) { tr.appendChild(html('td', '', v)); });
+                var all = html('td', '', sum(values));
+                all.style.fontWeight = '700';
+                tr.appendChild(all);
+                body.appendChild(tr);
+            });
+            wrap.appendChild(table);
+            return wrap;
+        }
+
+        // Heatmap departemen x bulan untuk Cross Patrol.
+        function heatTable(departments) {
+            var wrap = html('div', 'table-wrap');
+            if (!departments.length) {
+                wrap.appendChild(html('p', 'muted', 'Belum ada temuan di tahun ini.'));
+                return wrap;
+            }
+            var max = Math.max.apply(null, departments.map(function (d) { return Math.max.apply(null, d.values); }).concat([1]));
+            var table = html('table', 'chart-table heat-table');
+            var headRow = html('tr');
+            headRow.appendChild(html('th', '', 'Departemen'));
+            MONTHS.forEach(function (m) { headRow.appendChild(html('th', '', m)); });
+            headRow.appendChild(html('th', '', 'Jumlah'));
+            table.appendChild(html('thead')).appendChild(headRow);
+            var body = table.appendChild(html('tbody'));
+            var monthTotals = MONTHS.map(function () { return 0; });
+            departments.forEach(function (d) {
+                var tr = html('tr');
+                tr.appendChild(html('td', 'dept-name', d.department));
+                d.values.forEach(function (v, i) {
+                    monthTotals[i] += v;
+                    var td = html('td', 'heat' + (v ? '' : ' zero'), v || '–');
+                    if (v) {
+                        var level = Math.min(HEAT.length - 1, Math.ceil(v / max * HEAT.length) - 1);
+                        td.style.setProperty('--h', HEAT[level]);
+                        if (level >= 3) td.style.setProperty('--hc', '#fff');
+                    }
+                    td.title = d.department + ' · ' + MONTH_NAMES[i] + ': ' + v + ' temuan';
+                    tr.appendChild(td);
+                });
+                var all = html('td', '', d.total);
+                all.style.fontWeight = '700';
+                tr.appendChild(all);
+                body.appendChild(tr);
+            });
+            var sumRow = html('tr', 'sum-row');
+            sumRow.appendChild(html('td', 'dept-name', 'Total'));
+            monthTotals.forEach(function (v) { sumRow.appendChild(html('td', '', v)); });
+            sumRow.appendChild(html('td', '', sum(monthTotals)));
+            body.appendChild(sumRow);
+            wrap.appendChild(table);
+
+            var scale = html('div', 'heat-scale');
+            scale.append('Sedikit');
+            HEAT.forEach(function (color) { var i = html('i'); i.style.setProperty('--h', color); scale.appendChild(i); });
+            scale.append('Banyak');
+            wrap.appendChild(scale);
+            return wrap;
+        }
+
+        function openModal(title, subtitle, chart, extra) {
+            var modal = document.getElementById('chart-modal');
+            var body = document.getElementById('chart-modal-body');
+            document.getElementById('chart-modal-title').textContent = title;
+            document.getElementById('chart-modal-sub').textContent = subtitle;
+            body.innerHTML = '';
+            var legend = html('div', 'chart-legend');
+            SERIES.forEach(function (s) { var item = html('span'); item.append(swatch(s.color), s.label); legend.appendChild(item); });
+            body.appendChild(legend);
+            var plot = html('div', 'chart-plot chart-plot-lg');
+            plot.innerHTML = '<div class="chart-tip" hidden></div>';
+            body.appendChild(plot);
+            body.appendChild(totalsTable(chart));
+            if (extra) {
+                var heading = html('h3', 'card-title', 'Temuan per Departemen');
+                heading.style.margin = '20px 0 8px';
+                body.append(heading, extra);
+            }
+            modal.showModal();
+            watch(plot, function () { return chart; }, 100);
+        }
+
+        // Daily Patrol: data sudah jadi dari server.
+        var dailyCard = document.querySelector('[data-stack-card="daily"]');
+        if (dailyCard) {
+            var daily = JSON.parse(dailyCard.dataset.stack);
+            watch(dailyCard.querySelector('[data-stack-plot]'), function () { return daily; }, 900);
+            dailyCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
+                openModal('Grafik Temuan Daily Patrol', '7 hari terakhir', daily, null);
+            });
+        }
+
+        // Cross Patrol: data semua tahun dikirim sekaligus; grafik kartu ganti saat tahun dipilih.
+        var crossCard = document.querySelector('[data-stack-card="cross"]');
+        if (crossCard) {
+            var years = JSON.parse(crossCard.dataset.stackYears);
+            var select = crossCard.querySelector('[data-stack-year]');
+            var crossPlot = crossCard.querySelector('[data-stack-plot]');
+
+            var crossChart = function () {
+                var year = Number(select.value);
+                var data = years[year];
+                return {
+                    labels: MONTHS,
+                    titles: MONTH_NAMES.map(function (m) { return m + ' ' + year; }),
+                    highlight: year === today.getFullYear() ? today.getMonth() : -1,
+                    open: data.open,
+                    close: data.close,
+                    details: MONTHS.map(function (_, i) {
+                        return data.departments
+                            .filter(function (d) { return d.values[i] > 0; })
+                            .map(function (d) { return { name: d.department, count: d.values[i] }; })
+                            .sort(function (a, b) { return b.count - a.count; });
+                    }),
+                };
+            };
+            var showTotal = function () {
+                var data = years[select.value];
+                crossCard.querySelector('[data-stack-total]').textContent = sum(data.open) + sum(data.close);
+            };
+
+            showTotal();
+            watch(crossPlot, crossChart, 1050);
+            select.addEventListener('change', function () { showTotal(); draw(crossPlot, crossChart(), reduceMotion ? null : 0); });
+            crossCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
+                openModal('Grafik Temuan Cross Patrol', 'Per bulan · Tahun ' + select.value, crossChart(), heatTable(years[select.value].departments));
+            });
+        }
     })();
 </script>
 @endpush

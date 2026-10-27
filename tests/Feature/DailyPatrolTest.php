@@ -7,6 +7,7 @@ use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Sms\Models\CrossPatrol;
 use App\Modules\Sms\Models\DailyPatrol;
+use App\Modules\Sms\Support\GrafikCrossPatrol;
 use App\Modules\Sms\Support\GrafikTemuanPatrol;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -233,38 +234,57 @@ class DailyPatrolTest extends TestCase
         $this->assertSame(1, DailyPatrol::where('department_id', $this->pwd->id)->where('finding', 'like', 'Tutup%')->count());
     }
 
-    public function test_dashboard_cards_show_daily_today_and_cross_month_vs_last_month(): void
+    public function test_dashboard_daily_card_charts_open_and_close_for_last_seven_days(): void
     {
         Carbon::setTestNow('2026-10-22 10:00:00');
 
         $this->patrol($this->psd, ['tanggal' => '2026-10-22']);
         $this->patrol($this->pwd, ['tanggal' => '2026-10-22', 'status' => 'closed']);
-        $this->patrol($this->psd, ['tanggal' => '2026-10-21']); // kemarin: hanya di grafik 7 hari
+        $this->patrol($this->psd, ['tanggal' => '2026-10-21']);
+        $this->patrol($this->psd, ['tanggal' => '2026-10-15']); // 8 hari lalu: di luar grafik
 
-        $cross = fn (string $tanggal, string $status = 'open') => CrossPatrol::create([
-            'tanggal' => $tanggal, 'plant' => 'Plant 1', 'zona' => 1, 'finding' => 'Temuan', 'foto' => 'cross-patrol/a.jpg',
-            'efek' => '2R', 'resiko' => 'C', 'area' => 'OBEYA', 'department_id' => $this->psd->id, 'rekomendasi' => 'Perbaiki',
-            'target' => '2026-10-30', 'pic' => 'Dedi', 'kategori' => '5r', 'patroler' => 'Miftari', 'status' => $status,
-        ]);
-
-        // Bulan lalu kosong: tidak ada pembanding.
-        $cross('2026-10-01');
-        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
+        $response = $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
             ->assertDontSee('<h2 class="card-title">Pertumbuhan</h2>', false)
             ->assertDontSee('<h2 class="card-title">Jam Kerja</h2>', false)
-            ->assertSeeInOrder(['Daily Patrol', '<b data-count>2</b>', 'hari ini', 'Open 1', 'Close 1', '2 temuan'], false)
-            ->assertSeeInOrder(['Cross Patrol', '<b data-count>1</b>', 'Oktober 2026'], false)
-            ->assertDontSee('dari Sep');
+            ->assertSeeInOrder(['Daily Patrol', '7 hari terakhir', 'Hari ini <b>2</b> temuan'], false);
 
-        $cross('2026-10-15', 'closed');
-        $cross('2026-10-31', 'closed');
-        $cross('2026-09-30'); // bulan lalu, minggu ke-5
-        $cross('2026-09-02');
+        $chart = $response->viewData('dailyHariIni');
+        $this->assertSame([0, 0, 0, 0, 0, 1, 1], array_column($chart['bars'], 'open'));
+        $this->assertSame([0, 0, 0, 0, 0, 0, 1], array_column($chart['bars'], 'close'));
 
-        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')
-            ->assertSeeInOrder(['Cross Patrol', '<b data-count>3</b>', 'Open 1', 'Close 2', '▲ 1 dari Sep (2)', 'Mg 1', 'Mg 5'], false)
-            ->assertSee('Mg 5 Sep: 1 temuan')
-            ->assertSee('Mg 5 Okt: 1 temuan');
+        Carbon::setTestNow();
+    }
+
+    public function test_dashboard_cross_chart_counts_per_month_and_department(): void
+    {
+        Carbon::setTestNow('2026-10-22 10:00:00');
+
+        $cross = fn (Department $department, string $tanggal, string $status = 'open') => CrossPatrol::create([
+            'tanggal' => $tanggal, 'plant' => 'Plant 1', 'zona' => 1, 'finding' => 'Temuan', 'foto' => 'cross-patrol/a.jpg',
+            'efek' => '2R', 'resiko' => 'C', 'area' => 'OBEYA', 'department_id' => $department->id, 'rekomendasi' => 'Perbaiki',
+            'target' => '2026-10-30', 'pic' => 'Dedi', 'kategori' => '5r', 'patroler' => 'Miftari', 'status' => $status,
+        ]);
+        $cross($this->psd, '2026-10-01');
+        $cross($this->psd, '2026-10-31', 'closed');
+        $cross($this->pwd, '2026-10-15', 'closed');
+        $cross($this->pwd, '2026-01-05');
+        $cross($this->psd, '2025-12-31');
+
+        $chart = GrafikCrossPatrol::build(Carbon::today());
+
+        $this->assertSame([2026, 2025], $chart['years']);
+        $this->assertSame(2026, $chart['selected']);
+        $this->assertSame([1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], $chart['data'][2026]['open']);
+        $this->assertSame([0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0], $chart['data'][2026]['close']);
+        $this->assertSame([
+            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0], 'total' => 2],
+            ['department' => 'PWD', 'values' => [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], 'total' => 2],
+        ], $chart['data'][2026]['departments']);
+        $this->assertSame([['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 'total' => 1]], $chart['data'][2025]['departments']);
+
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
+            ->assertSee('data-stack-years=', false)
+            ->assertSeeInOrder(['Cross Patrol', 'Temuan per bulan', '<option value="2026" selected>2026</option>'], false);
 
         Carbon::setTestNow();
     }

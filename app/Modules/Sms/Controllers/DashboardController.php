@@ -3,9 +3,9 @@
 namespace App\Modules\Sms\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Sms\Models\CrossPatrol;
 use App\Modules\Sms\Models\DailyPatrol;
 use App\Modules\Sms\Models\Kecelakaan;
+use App\Modules\Sms\Support\GrafikCrossPatrol;
 use App\Modules\Sms\Support\GrafikKecelakaan;
 use App\Modules\Sms\Support\GrafikTemuanPatrol;
 use App\Support\ModuleDashboard;
@@ -25,16 +25,15 @@ class DashboardController extends Controller
             'grafikKecelakaan' => GrafikKecelakaan::build(Carbon::today()),
             // Grafik temuan Daily Patrol per departemen menggantikan kartu "User Terbaru".
             'grafikTemuan' => GrafikTemuanPatrol::build(Carbon::today()),
-            // Kartu "Pertumbuhan" diganti temuan Daily Patrol hari ini (grafik 7 hari terakhir).
+            // Kartu "Pertumbuhan" diganti grafik temuan Daily Patrol 7 hari terakhir (Open / Close).
             'dailyHariIni' => $this->dailyHariIni(Carbon::today()),
-            // Kartu "Jam Kerja" diganti temuan Cross Patrol bulan ini, dibandingkan bulan lalu per minggu.
-            'crossBulanIni' => $this->crossBulanIni(Carbon::today()),
+            // Kartu "Jam Kerja" diganti grafik temuan Cross Patrol per bulan (detail per departemen di modal perbesar).
+            'grafikCross' => GrafikCrossPatrol::build(Carbon::today()),
         ]);
     }
 
     /**
-     * Temuan Daily Patrol (seluruh perusahaan) hari ini + jumlah per hari selama 7 hari terakhir.
-     * Bentuk data mengikuti kartu grafik batang di dashboard/module.blade.php.
+     * Temuan Daily Patrol (seluruh perusahaan) hari ini + jumlah Open / Close per hari selama 7 hari terakhir.
      */
     private function dailyHariIni(Carbon $today): array
     {
@@ -49,59 +48,16 @@ class DashboardController extends Controller
             'closed' => $closed,
             'bars' => collect(range(0, 6))->map(function (int $offset) use ($since, $patrols) {
                 $day = $since->copy()->addDays($offset);
+                $ofDay = $patrols->filter(fn (DailyPatrol $patrol) => $patrol->tanggal->isSameDay($day));
+                $closedOfDay = $ofDay->filter(fn (DailyPatrol $patrol) => $patrol->isClosed())->count();
 
                 return [
                     'label' => $day->translatedFormat('D'),
-                    'title' => $day->translatedFormat('d M'),
-                    'count' => $patrols->filter(fn (DailyPatrol $patrol) => $patrol->tanggal->isSameDay($day))->count(),
-                    'highlight' => $offset === 6,
+                    'title' => $day->translatedFormat('D, d M'),
+                    'open' => $ofDay->count() - $closedOfDay,
+                    'close' => $closedOfDay,
                 ];
             })->all(),
-        ];
-    }
-
-    /**
-     * Temuan Cross Patrol (seluruh perusahaan) bulan ini, per minggu (tgl 1-7, 8-14, 15-21, 22-28, 29-akhir),
-     * dibandingkan bulan lalu pada minggu yang sama.
-     */
-    private function crossBulanIni(Carbon $today): array
-    {
-        $monthStart = $today->copy()->startOfMonth();
-        $previousStart = $monthStart->copy()->subMonthNoOverflow();
-        $patrols = CrossPatrol::whereBetween('tanggal', [$previousStart, $today->copy()->endOfMonth()])->get(['tanggal', 'status']);
-
-        $weeks = collect(range(1, 5))->map(fn (int $week) => ['label' => 'Mg '.$week, 'current' => 0, 'previous' => 0])->all();
-        $current = ['total' => 0, 'closed' => 0];
-        $previousTotal = 0;
-
-        foreach ($patrols as $patrol) {
-            $week = min(intdiv($patrol->tanggal->day - 1, 7), 4);
-
-            if ($patrol->tanggal->gte($monthStart)) {
-                $weeks[$week]['current']++;
-                $current['total']++;
-                $current['closed'] += $patrol->isClosed() ? 1 : 0;
-            } else {
-                $weeks[$week]['previous']++;
-                $previousTotal++;
-            }
-        }
-
-        // Minggu ke-5 hanya ada kalau bulan ini / bulan lalu punya tanggal 29 ke atas (Februari bisa tidak).
-        $days = max($monthStart->daysInMonth, $previousStart->daysInMonth);
-        $weeks = array_slice($weeks, 0, $days > 28 ? 5 : 4);
-
-        return [
-            'total' => $current['total'],
-            'open' => $current['total'] - $current['closed'],
-            'closed' => $current['closed'],
-            'month' => $monthStart->translatedFormat('F Y'),
-            'currentLabel' => $monthStart->translatedFormat('M'),
-            'previousLabel' => $previousStart->translatedFormat('M'),
-            'previousTotal' => $previousTotal,
-            'hasPrevious' => $previousTotal > 0,
-            'weeks' => $weeks,
-            'currentWeek' => min(intdiv($today->day - 1, 7), 4),
         ];
     }
 
