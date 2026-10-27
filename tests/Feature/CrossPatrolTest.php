@@ -48,6 +48,14 @@ class CrossPatrolTest extends TestCase
         return $user;
     }
 
+    private function smsAdmin(): User
+    {
+        $user = User::factory()->create();
+        $user->assignRole('sms', 'admin');
+
+        return $user;
+    }
+
     private function payload(array $overrides = []): array
     {
         return [
@@ -92,9 +100,9 @@ class CrossPatrolTest extends TestCase
 
     public function test_create_is_open_then_close_needs_repair_photo(): void
     {
+        // Admin SMS menambah temuan untuk departemen, Admin Departemen menutupnya lewat edit.
+        $this->actingAs($this->smsAdmin())->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id]))->assertSessionHasNoErrors();
         $admin = $this->deptAdmin($this->psd);
-
-        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload())->assertSessionHasNoErrors();
         $patrol = CrossPatrol::sole();
         $this->assertSame('open', $patrol->status);
         $this->assertSame($this->psd->id, $patrol->department_id);
@@ -113,11 +121,28 @@ class CrossPatrolTest extends TestCase
 
     public function test_pic_and_patroler_must_be_chosen_from_karyawan(): void
     {
-        $this->actingAs($this->deptAdmin($this->psd))
-            ->post('/sms/cross-patrols', $this->payload(['pic' => 'Samri, Bukan Karyawan', 'patroler' => '']))
+        $this->actingAs($this->smsAdmin())
+            ->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id, 'pic' => 'Samri, Bukan Karyawan', 'patroler' => '']))
             ->assertSessionHasErrors(['pic' => 'Karyawan tidak ditemukan: Bukan Karyawan.', 'patroler']);
 
         $this->assertSame(0, CrossPatrol::count());
+    }
+
+    public function test_department_admin_cannot_add_or_delete(): void
+    {
+        $patrol = $this->patrol($this->psd);
+        $deptAdmin = $this->deptAdmin($this->psd);
+
+        $this->actingAs($deptAdmin)->get('/sms/cross-patrols')->assertOk()
+            ->assertDontSee('+ Tambah')
+            ->assertDontSee('title="Hapus"', false)
+            ->assertSee('data-edit="'.$patrol->id.'"', false);
+        $this->actingAs($deptAdmin)->post('/sms/cross-patrols', $this->payload())->assertForbidden();
+        $this->actingAs($deptAdmin)->delete("/sms/cross-patrols/{$patrol->id}")->assertForbidden();
+        $this->assertModelExists($patrol);
+
+        $this->actingAs($this->smsAdmin())->delete("/sms/cross-patrols/{$patrol->id}")->assertRedirect();
+        $this->assertModelMissing($patrol);
     }
 
     public function test_cannot_edit_other_department(): void
@@ -156,11 +181,12 @@ class CrossPatrolTest extends TestCase
 
     public function test_zona_is_required_one_to_nine_and_filterable(): void
     {
-        $admin = $this->deptAdmin($this->psd);
+        $admin = $this->smsAdmin();
+        $psd = ['department_id' => $this->psd->id];
 
-        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload(['zona' => null]))->assertSessionHasErrors('zona');
-        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload(['zona' => '10']))->assertSessionHasErrors('zona');
-        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload(['zona' => '9', 'finding' => 'Temuan Zona Sembilan']))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload([...$psd, 'zona' => null]))->assertSessionHasErrors('zona');
+        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload([...$psd, 'zona' => '10']))->assertSessionHasErrors('zona');
+        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload([...$psd, 'zona' => '9', 'finding' => 'Temuan Zona Sembilan']))->assertSessionHasNoErrors();
         $this->assertSame(9, CrossPatrol::sole()->zona);
 
         $this->patrol($this->psd, ['finding' => 'Temuan Zona Lima', 'zona' => 5]);

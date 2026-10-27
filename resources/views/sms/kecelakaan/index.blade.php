@@ -31,7 +31,7 @@
             @endif
         </p>
     </div>
-    @if ($canEdit)
+    @if ($canManage)
         <button type="button" class="btn" data-create>+ Tambah Kecelakaan</button>
     @endif
 </div>
@@ -103,6 +103,8 @@
                                             ]) }}">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
                                     </button>
+                                @endif
+                                @if ($canManage)
                                     <button type="button" class="act-btn act-danger" data-delete="{{ $kecelakaan->id }}" data-name="{{ $kecelakaan->nama_korban }} ({{ $kecelakaan->waktu->format('d/m/Y H:i') }})" title="Hapus" aria-label="Hapus">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>
                                     </button>
@@ -224,7 +226,9 @@
             </div>
         </form>
     </dialog>
+@endif
 
+@if ($canManage)
     {{-- Modal hapus --}}
     <dialog class="modal" id="delete-modal">
         <form method="POST" id="delete-form">
@@ -318,7 +322,8 @@
             return button ? JSON.parse(button.dataset.record) : null;
         }
 
-        document.querySelector('[data-create]').addEventListener('click', function () { openForm(null, null); });
+        var createButton = document.querySelector('[data-create]');
+        if (createButton) createButton.addEventListener('click', function () { openForm(null, null); });
         document.querySelectorAll('[data-edit]').forEach(function (button) {
             button.addEventListener('click', function () { openForm(button.dataset.edit, recordOf(button.dataset.edit)); });
         });

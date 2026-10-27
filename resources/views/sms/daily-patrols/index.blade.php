@@ -23,7 +23,7 @@
             @endif
         </p>
     </div>
-    @if ($canEdit)
+    @if ($canManage)
         <button type="button" class="btn" data-create>+ Tambah Temuan</button>
     @endif
 </div>

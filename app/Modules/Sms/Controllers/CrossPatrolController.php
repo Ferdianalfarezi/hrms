@@ -95,8 +95,8 @@ class CrossPatrolController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('sms-patrol');
         $user = $request->user();
+        $this->authorizeManage($user);
         $data = $this->validated($request, null);
 
         $patrol = CrossPatrol::create([
@@ -131,7 +131,7 @@ class CrossPatrolController extends Controller
 
     public function destroy(Request $request, CrossPatrol $crossPatrol): RedirectResponse
     {
-        $this->authorizeRecord($request->user(), $crossPatrol);
+        $this->authorizeManage($request->user());
 
         $crossPatrol->delete();
         $this->deletePhotos([$crossPatrol->foto, $crossPatrol->foto_perbaikan]);

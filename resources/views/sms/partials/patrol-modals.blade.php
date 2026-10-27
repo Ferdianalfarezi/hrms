@@ -23,7 +23,7 @@
     <img id="photo-modal-img" alt="Foto">
 </dialog>
 
-@if ($canEdit)
+@if ($canManage)
     <dialog class="modal" id="delete-modal">
         <form method="POST" id="delete-form">
             @csrf

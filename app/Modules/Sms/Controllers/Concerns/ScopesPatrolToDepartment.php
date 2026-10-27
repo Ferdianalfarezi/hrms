@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Aturan bersama Daily Patrol & Cross Patrol: Admin SMS melihat & mengelola semua departemen,
- * Admin Departemen hanya departemennya. Temuan baru Open; jadi Closed lewat edit setelah ada foto perbaikan.
+ * Aturan bersama Daily Patrol, Cross Patrol & Kecelakaan: Admin SMS melihat, menambah, mengedit & menghapus semua departemen;
+ * Admin Departemen hanya melihat & mengedit data departemennya. Temuan baru Open; jadi Closed lewat edit setelah ada foto perbaikan.
  */
 trait ScopesPatrolToDepartment
 {
@@ -36,6 +36,16 @@ trait ScopesPatrolToDepartment
 
         abort_unless($user->isModuleAdmin('sms') || $patrol->department_id === $user->managedDepartmentId('sms'), 403,
             'Temuan ini milik departemen lain.');
+    }
+
+    /**
+     * Tambah & hapus data hanya untuk Admin SMS; Admin Departemen cukup mengedit data departemennya.
+     */
+    private function authorizeManage(User $user): void
+    {
+        Gate::authorize('sms-patrol');
+
+        abort_unless($user->isModuleAdmin('sms'), 403, 'Admin Departemen hanya bisa mengedit data, tidak bisa menambah atau menghapus.');
     }
 
     /**
@@ -64,6 +74,8 @@ trait ScopesPatrolToDepartment
         return [
             'isAdmin' => $isAdmin,
             'canEdit' => $isAdmin || $managedDepartmentId !== null,
+            // Tombol Tambah & Hapus hanya untuk Admin SMS.
+            'canManage' => $isAdmin,
             'lockedDepartment' => $managedDepartmentId ? Department::find($managedDepartmentId) : null,
             'missingDepartment' => $user->isDepartmentAdmin('sms') && $managedDepartmentId === null,
             'departments' => $isAdmin ? Department::orderBy('name')->get() : collect(),

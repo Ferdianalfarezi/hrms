@@ -57,8 +57,8 @@ class DailyPatrolController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('sms-patrol');
         $user = $request->user();
+        $this->authorizeManage($user);
         $data = $this->validated($request, null);
 
         $patrol = DailyPatrol::create([
@@ -92,7 +92,7 @@ class DailyPatrolController extends Controller
 
     public function destroy(Request $request, DailyPatrol $dailyPatrol): RedirectResponse
     {
-        $this->authorizeRecord($request->user(), $dailyPatrol);
+        $this->authorizeManage($request->user());
 
         $dailyPatrol->delete();
         $this->deletePhotos([$dailyPatrol->foto, $dailyPatrol->foto_perbaikan]);

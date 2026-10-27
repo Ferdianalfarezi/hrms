@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Sms\Models\Kecelakaan;
+use App\Modules\Sms\Support\GrafikKecelakaan;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -31,6 +32,14 @@ class KecelakaanTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole('sms', 'dept_admin', $department->id);
+
+        return $user;
+    }
+
+    private function smsAdmin(): User
+    {
+        $user = User::factory()->create();
+        $user->assignRole('sms', 'admin');
 
         return $user;
     }
@@ -70,10 +79,10 @@ class KecelakaanTest extends TestCase
 
     public function test_traffic_accident_requires_kategori(): void
     {
-        $admin = $this->deptAdmin($this->psd);
+        $admin = $this->smsAdmin();
 
-        $this->actingAs($admin)->post('/sms/kecelakaan', $this->payload(['kategori' => null]))->assertSessionHasErrors('kategori');
-        $this->actingAs($admin)->post('/sms/kecelakaan', $this->payload())->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post('/sms/kecelakaan', $this->payload(['department_id' => $this->psd->id, 'kategori' => null]))->assertSessionHasErrors('kategori');
+        $this->actingAs($admin)->post('/sms/kecelakaan', $this->payload(['department_id' => $this->psd->id]))->assertSessionHasNoErrors();
 
         $kecelakaan = Kecelakaan::sole();
         $this->assertSame('ditabrak', $kecelakaan->kategori);
@@ -83,11 +92,28 @@ class KecelakaanTest extends TestCase
 
     public function test_work_accident_ignores_kategori(): void
     {
-        $this->actingAs($this->deptAdmin($this->psd))
-            ->post('/sms/kecelakaan', $this->payload(['tipe' => 'work', 'kategori' => 'menabrak']))
+        $this->actingAs($this->smsAdmin())
+            ->post('/sms/kecelakaan', $this->payload(['department_id' => $this->psd->id, 'tipe' => 'work', 'kategori' => 'menabrak']))
             ->assertSessionHasNoErrors();
 
         $this->assertNull(Kecelakaan::sole()->kategori);
+    }
+
+    public function test_department_admin_can_only_edit_own_department(): void
+    {
+        $kecelakaan = $this->kecelakaan($this->psd);
+        $admin = $this->deptAdmin($this->psd);
+
+        $this->actingAs($admin)->get('/sms/kecelakaan')->assertOk()
+            ->assertDontSee('+ Tambah')
+            ->assertDontSee('title="Hapus"', false)
+            ->assertSee('data-edit="'.$kecelakaan->id.'"', false);
+        $this->actingAs($admin)->post('/sms/kecelakaan', $this->payload())->assertForbidden();
+        $this->actingAs($admin)->delete("/sms/kecelakaan/{$kecelakaan->id}")->assertForbidden();
+        $this->assertSame(1, Kecelakaan::count());
+
+        $this->actingAs($admin)->put("/sms/kecelakaan/{$kecelakaan->id}", $this->payload(['nama_korban' => 'Nama Diedit']))->assertSessionHasNoErrors();
+        $this->assertSame('Nama Diedit', $kecelakaan->fresh()->nama_korban);
     }
 
     public function test_cannot_edit_or_delete_other_department(): void
@@ -136,7 +162,7 @@ class KecelakaanTest extends TestCase
         $this->kecelakaan($this->psd, ['waktu' => '2026-01-20 08:00', 'tipe' => 'traffic', 'kategori' => 'tunggal']);
         $this->kecelakaan($this->psd, ['waktu' => '2026-03-01 08:00', 'tipe' => 'traffic', 'kategori' => 'tunggal']);
 
-        $charts = \App\Modules\Sms\Support\GrafikKecelakaan::build(Carbon::today());
+        $charts = GrafikKecelakaan::build(Carbon::today());
         $work = collect($charts['work']['series'])->keyBy('label');
         $traffic = collect($charts['traffic']['series'])->keyBy('label');
 

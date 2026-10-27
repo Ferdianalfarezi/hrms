@@ -113,18 +113,37 @@ class DailyPatrolTest extends TestCase
         $this->actingAs($staff)->get('/sms/daily-patrols')->assertForbidden();
     }
 
-    public function test_new_finding_is_open_and_uses_admin_department(): void
+    public function test_department_admin_cannot_add_or_delete_only_edit(): void
     {
-        $admin = $this->deptAdmin($this->psd);
+        $deptAdmin = $this->deptAdmin($this->psd);
+        $patrol = $this->patrol($this->psd);
 
-        // Admin Departemen tidak bisa memilih departemen lain walaupun mengirim department_id.
+        $this->actingAs($deptAdmin)->get('/sms/daily-patrols')->assertOk()
+            ->assertDontSee('+ Tambah')
+            ->assertDontSee('title="Hapus"', false)
+            ->assertSee('data-edit="'.$patrol->id.'"', false);
+
+        $this->actingAs($deptAdmin)->post('/sms/daily-patrols', $this->payload())->assertForbidden();
+        $this->actingAs($deptAdmin)->delete("/sms/daily-patrols/{$patrol->id}")->assertForbidden();
+        $this->assertSame(1, DailyPatrol::count());
+
+        $this->actingAs($deptAdmin)->put("/sms/daily-patrols/{$patrol->id}", $this->payload(['foto' => null, 'finding' => 'Sudah diedit', 'status' => 'open']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Sudah diedit', $patrol->fresh()->finding);
+    }
+
+    public function test_new_finding_by_sms_admin_is_open_in_chosen_department(): void
+    {
+        $admin = $this->smsAdmin();
+
+        $this->actingAs($admin)->get('/sms/daily-patrols')->assertSee('+ Tambah Temuan');
         $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['department_id' => $this->pwd->id]))
             ->assertRedirect(route('sms.daily-patrols.index'))
             ->assertSessionHasNoErrors();
 
         $patrol = DailyPatrol::sole();
         $this->assertSame('open', $patrol->status);
-        $this->assertSame($this->psd->id, $patrol->department_id);
+        $this->assertSame($this->pwd->id, $patrol->department_id);
         $this->assertSame($admin->id, $patrol->created_by);
         $this->assertSame('Hartono, Dedi, Aminudin, Danar', $patrol->pic);
         $this->assertSame('Yayan R, Miftari', $patrol->pic_patrol);
@@ -133,8 +152,8 @@ class DailyPatrolTest extends TestCase
 
     public function test_validation_requires_photo_and_known_options(): void
     {
-        $this->actingAs($this->deptAdmin($this->psd))
-            ->post('/sms/daily-patrols', $this->payload(['foto' => null, 'resiko' => 'X', 'kategori' => 'nope', 'pic_patrol' => '']))
+        $this->actingAs($this->smsAdmin())
+            ->post('/sms/daily-patrols', $this->payload(['department_id' => $this->psd->id, 'foto' => null, 'resiko' => 'X', 'kategori' => 'nope', 'pic_patrol' => '']))
             ->assertSessionHasErrors(['foto', 'resiko', 'kategori', 'pic_patrol']);
 
         $this->assertSame(0, DailyPatrol::count());
@@ -142,14 +161,14 @@ class DailyPatrolTest extends TestCase
 
     public function test_pic_must_be_chosen_from_karyawan(): void
     {
-        $admin = $this->deptAdmin($this->psd);
+        $admin = $this->smsAdmin();
 
-        $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['pic' => 'Hartono, Orang Luar']))
+        $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['department_id' => $this->psd->id, 'pic' => 'Hartono, Orang Luar']))
             ->assertSessionHasErrors(['pic' => 'Karyawan tidak ditemukan: Orang Luar.']);
         $this->assertSame(0, DailyPatrol::count());
 
         // Spasi berlebih & nama dobel dirapikan.
-        $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['pic' => ' Dedi ,Hartono, Dedi ', 'pic_patrol' => 'Miftari']))
+        $this->actingAs($admin)->post('/sms/daily-patrols', $this->payload(['department_id' => $this->psd->id, 'pic' => ' Dedi ,Hartono, Dedi ', 'pic_patrol' => 'Miftari']))
             ->assertSessionHasNoErrors();
         $this->assertSame('Dedi, Hartono', DailyPatrol::sole()->pic);
     }
@@ -243,7 +262,7 @@ class DailyPatrolTest extends TestCase
         $this->patrol($this->psd, ['tanggal' => '2026-10-21']);
         $this->patrol($this->psd, ['tanggal' => '2026-10-15']); // 8 hari lalu: di luar grafik
 
-        $response = $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
+        $response = $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
             ->assertDontSee('<h2 class="card-title">Pertumbuhan</h2>', false)
             ->assertDontSee('<h2 class="card-title">Jam Kerja</h2>', false)
             ->assertSeeInOrder(['Daily Patrol', '7 hari terakhir', 'Hari ini <b>2</b> temuan'], false);
@@ -293,6 +312,21 @@ class DailyPatrolTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_dashboard_for_department_admin_still_shows_all_departments(): void
+    {
+        Carbon::setTestNow('2026-10-22 10:00:00');
+
+        $this->patrol($this->psd, ['tanggal' => '2026-10-22']);
+        $this->patrol($this->pwd, ['tanggal' => '2026-10-22']);
+
+        // Daftar Daily Patrol dibatasi departemennya, tapi dashboard tetap seluruh perusahaan.
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
+            ->assertViewHas('dailyHariIni', fn (array $daily) => $daily['total'] === 2
+                && array_column($daily['departments'], 'department') === ['PSD', 'PWD']);
+
+        Carbon::setTestNow();
+    }
+
     public function test_dashboard_chart_counts_findings_per_department_and_year(): void
     {
         Carbon::setTestNow('2026-10-21 10:00:00');
@@ -326,7 +360,7 @@ class DailyPatrolTest extends TestCase
         Storage::disk('public')->put('daily-patrol/b.jpg', 'x');
         $patrol = $this->patrol($this->psd, ['foto_perbaikan' => 'daily-patrol/b.jpg', 'status' => 'closed']);
 
-        $this->actingAs($this->deptAdmin($this->psd))->delete("/sms/daily-patrols/{$patrol->id}")->assertRedirect();
+        $this->actingAs($this->smsAdmin())->delete("/sms/daily-patrols/{$patrol->id}")->assertRedirect();
 
         $this->assertModelMissing($patrol);
         Storage::disk('public')->assertMissing('daily-patrol/a.jpg');

@@ -171,7 +171,8 @@
             return button ? JSON.parse(button.dataset.record) : null;
         }
 
-        document.querySelector('[data-create]').addEventListener('click', function () { openForm(null, null); });
+        var createButton = document.querySelector('[data-create]');
+        if (createButton) createButton.addEventListener('click', function () { openForm(null, null); });
         document.querySelectorAll('[data-edit]').forEach(function (button) {
             button.addEventListener('click', function () { openForm(button.dataset.edit, recordOf(button.dataset.edit)); });
         });

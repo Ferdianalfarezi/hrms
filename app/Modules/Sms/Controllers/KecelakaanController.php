@@ -55,8 +55,8 @@ class KecelakaanController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Gate::authorize('sms-patrol');
         $user = $request->user();
+        $this->authorizeManage($user);
         $data = $this->validated($request);
 
         Kecelakaan::create([
@@ -88,7 +88,7 @@ class KecelakaanController extends Controller
 
     public function destroy(Request $request, Kecelakaan $kecelakaan): RedirectResponse
     {
-        $this->authorizeRecord($request->user(), $kecelakaan);
+        $this->authorizeManage($request->user());
         $kecelakaan->delete();
 
         return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
