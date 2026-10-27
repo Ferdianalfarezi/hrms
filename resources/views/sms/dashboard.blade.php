@@ -78,6 +78,7 @@
             'highlight' => count($dailyHariIni['bars']) - 1,
             'open' => array_column($dailyHariIni['bars'], 'open'),
             'close' => array_column($dailyHariIni['bars'], 'close'),
+            'departments' => $dailyHariIni['departments'],
         ];
     @endphp
     <div class="card a-progress stack-card" style="--i: 1;" data-stack-card="daily" data-stack="{{ json_encode($dailyChart) }}">
@@ -770,22 +771,34 @@
             return wrap;
         }
 
-        // Heatmap departemen x bulan untuk Cross Patrol.
-        function heatTable(departments) {
+        // Rincian per departemen untuk tooltip: hanya yang ada temuannya, terbanyak dulu.
+        function detailsOf(departments, count) {
+            var details = [];
+            for (var i = 0; i < count; i++) {
+                details.push(departments
+                    .filter(function (d) { return d.values[i] > 0; })
+                    .map(function (d) { return { name: d.department, count: d.values[i] }; })
+                    .sort(function (a, b) { return b.count - a.count; }));
+            }
+            return details;
+        }
+
+        // Heatmap departemen x kolom (hari untuk Daily, bulan untuk Cross).
+        function heatTable(departments, labels, titles) {
             var wrap = html('div', 'table-wrap');
             if (!departments.length) {
-                wrap.appendChild(html('p', 'muted', 'Belum ada temuan di tahun ini.'));
+                wrap.appendChild(html('p', 'muted', 'Belum ada temuan.'));
                 return wrap;
             }
             var max = Math.max.apply(null, departments.map(function (d) { return Math.max.apply(null, d.values); }).concat([1]));
             var table = html('table', 'chart-table heat-table');
             var headRow = html('tr');
             headRow.appendChild(html('th', '', 'Departemen'));
-            MONTHS.forEach(function (m) { headRow.appendChild(html('th', '', m)); });
+            labels.forEach(function (label) { headRow.appendChild(html('th', '', label)); });
             headRow.appendChild(html('th', '', 'Jumlah'));
             table.appendChild(html('thead')).appendChild(headRow);
             var body = table.appendChild(html('tbody'));
-            var monthTotals = MONTHS.map(function () { return 0; });
+            var monthTotals = labels.map(function () { return 0; });
             departments.forEach(function (d) {
                 var tr = html('tr');
                 tr.appendChild(html('td', 'dept-name', d.department));
@@ -797,7 +810,7 @@
                         td.style.setProperty('--h', HEAT[level]);
                         if (level >= 3) td.style.setProperty('--hc', '#fff');
                     }
-                    td.title = d.department + ' · ' + MONTH_NAMES[i] + ': ' + v + ' temuan';
+                    td.title = d.department + ' · ' + titles[i] + ': ' + v + ' temuan';
                     tr.appendChild(td);
                 });
                 var all = html('td', '', d.total);
@@ -846,9 +859,10 @@
         var dailyCard = document.querySelector('[data-stack-card="daily"]');
         if (dailyCard) {
             var daily = JSON.parse(dailyCard.dataset.stack);
+            daily.details = detailsOf(daily.departments, daily.labels.length);
             watch(dailyCard.querySelector('[data-stack-plot]'), function () { return daily; }, 900);
             dailyCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
-                openModal('Grafik Temuan Daily Patrol', '7 hari terakhir', daily, null);
+                openModal('Grafik Temuan Daily Patrol', '7 hari terakhir', daily, heatTable(daily.departments, daily.labels, daily.titles));
             });
         }
 
@@ -868,12 +882,7 @@
                     highlight: year === today.getFullYear() ? today.getMonth() : -1,
                     open: data.open,
                     close: data.close,
-                    details: MONTHS.map(function (_, i) {
-                        return data.departments
-                            .filter(function (d) { return d.values[i] > 0; })
-                            .map(function (d) { return { name: d.department, count: d.values[i] }; })
-                            .sort(function (a, b) { return b.count - a.count; });
-                    }),
+                    details: detailsOf(data.departments, MONTHS.length),
                 };
             };
             var showTotal = function () {
@@ -885,7 +894,7 @@
             watch(crossPlot, crossChart, 1050);
             select.addEventListener('change', function () { showTotal(); draw(crossPlot, crossChart(), reduceMotion ? null : 0); });
             crossCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
-                openModal('Grafik Temuan Cross Patrol', 'Per bulan · Tahun ' + select.value, crossChart(), heatTable(years[select.value].departments));
+                openModal('Grafik Temuan Cross Patrol', 'Per bulan · Tahun ' + select.value, crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles));
             });
         }
     })();

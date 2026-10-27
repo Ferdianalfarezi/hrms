@@ -3,6 +3,7 @@
 namespace App\Modules\Sms\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Hrms\Models\Department;
 use App\Modules\Sms\Models\DailyPatrol;
 use App\Modules\Sms\Models\Kecelakaan;
 use App\Modules\Sms\Support\GrafikCrossPatrol;
@@ -11,6 +12,7 @@ use App\Modules\Sms\Support\GrafikTemuanPatrol;
 use App\Support\ModuleDashboard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -38,7 +40,7 @@ class DashboardController extends Controller
     private function dailyHariIni(Carbon $today): array
     {
         $since = $today->copy()->subDays(6);
-        $patrols = DailyPatrol::whereBetween('tanggal', [$since, $today->copy()->endOfDay()])->get(['tanggal', 'status']);
+        $patrols = DailyPatrol::whereBetween('tanggal', [$since, $today->copy()->endOfDay()])->get(['department_id', 'tanggal', 'status']);
         $todays = $patrols->filter(fn (DailyPatrol $patrol) => $patrol->tanggal->isSameDay($today));
         $closed = $todays->filter(fn (DailyPatrol $patrol) => $patrol->isClosed())->count();
 
@@ -58,7 +60,30 @@ class DashboardController extends Controller
                     'close' => $closedOfDay,
                 ];
             })->all(),
+            'departments' => $this->dailyPerDepartment($patrols, $since),
         ];
+    }
+
+    /**
+     * Jumlah temuan Daily Patrol per departemen per hari (index 0 = 6 hari lalu, 6 = hari ini), urut nama departemen.
+     *
+     * @return list<array{department: string, values: list<int>, total: int}>
+     */
+    private function dailyPerDepartment(Collection $patrols, Carbon $since): array
+    {
+        $names = Department::pluck('name', 'id');
+        $rows = [];
+
+        foreach ($patrols as $patrol) {
+            $department = $names[$patrol->department_id] ?? '-';
+            $rows[$department] ??= ['department' => $department, 'values' => array_fill(0, 7, 0), 'total' => 0];
+            $rows[$department]['values'][(int) $since->diffInDays($patrol->tanggal->copy()->startOfDay())]++;
+            $rows[$department]['total']++;
+        }
+
+        ksort($rows);
+
+        return array_values($rows);
     }
 
     /**

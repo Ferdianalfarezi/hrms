@@ -251,6 +251,10 @@ class DailyPatrolTest extends TestCase
         $chart = $response->viewData('dailyHariIni');
         $this->assertSame([0, 0, 0, 0, 0, 1, 1], array_column($chart['bars'], 'open'));
         $this->assertSame([0, 0, 0, 0, 0, 0, 1], array_column($chart['bars'], 'close'));
+        $this->assertSame([
+            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 1, 1], 'total' => 2],
+            ['department' => 'PWD', 'values' => [0, 0, 0, 0, 0, 0, 1], 'total' => 1],
+        ], $chart['departments']);
 
         Carbon::setTestNow();
     }
