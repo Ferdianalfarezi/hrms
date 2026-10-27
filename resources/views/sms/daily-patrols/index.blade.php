@@ -154,6 +154,11 @@
                 <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
             </div>
             <div class="modal-body">
+                @unless ($canManage)
+                    <div class="locked-note">Admin Departemen hanya bisa mengisi bagian <b>Perbaikan</b>. Data temuan lainnya diisi oleh Admin SMS.</div>
+                @endunless
+                {{-- Admin Departemen: semua field temuan dikunci (abu-abu), hanya kotak Perbaikan yang bisa diisi. --}}
+                <fieldset class="patrol-main" @disabled(! $canManage)>
                 <div class="grid-2">
                     <div>
                         <label for="f-tanggal">Tanggal</label>
@@ -240,6 +245,7 @@
                     @include('sms.partials.karyawan-picker', ['name' => 'pic', 'label' => 'PIC'])
                     @include('sms.partials.karyawan-picker', ['name' => 'pic_patrol', 'label' => 'PIC Patrol'])
                 </div>
+                </fieldset>
 
                 @include('sms.partials.patrol-fix-fields')
             </div>

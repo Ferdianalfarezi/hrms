@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -89,7 +90,10 @@ trait ScopesPatrolToDepartment
     {
         $oldFiles = [];
 
-        foreach (['foto', 'foto_perbaikan'] as $field) {
+        // Admin Departemen hanya boleh mengganti foto perbaikan, bukan foto temuan.
+        $fields = $request->user()->isModuleAdmin('sms') ? ['foto', 'foto_perbaikan'] : ['foto_perbaikan'];
+
+        foreach ($fields as $field) {
             if ($request->hasFile($field)) {
                 $oldFiles[] = $patrol->{$field};
                 $data[$field] = $request->file($field)->store($this->photoFolder(), 'public');
@@ -99,6 +103,24 @@ trait ScopesPatrolToDepartment
         $data['closed_at'] = $data['status'] === 'closed' ? ($patrol->closed_at ?? now()) : null;
 
         return [$data, array_filter($oldFiles)];
+    }
+
+    /**
+     * Edit oleh Admin Departemen: hanya kotak Perbaikan (foto perbaikan & status) yang diterima;
+     * field temuan lainnya tetap seperti yang diisi Admin SMS walaupun ikut dikirim.
+     *
+     * @return array{status: string}
+     */
+    private function validatedFixOnly(Request $request, Model $patrol): array
+    {
+        $data = $request->validate([
+            'foto_perbaikan' => $this->photoRules(false),
+            'status' => ['required', Rule::in([$patrol::STATUS_OPEN, $patrol::STATUS_CLOSED])],
+        ], $this->photoMessages(), ['foto_perbaikan' => 'foto perbaikan', 'status' => 'status']);
+
+        $this->ensureCanClose($request, $patrol, $data);
+
+        return ['status' => $data['status']];
     }
 
     /**

@@ -36,7 +36,7 @@
                         <a href="{{ $tab['url'] }}" @class(['subtab', 'active' => $tab['active']])>
                             {{ $tab['label'] }}
                             @if ($tab['badge'] > 0)
-                                <span class="menu-badge">{{ $tab['badge'] > 99 ? '99+' : $tab['badge'] }}</span>
+                                <span class="menu-badge" title="{{ $tab['badge'] }} menunggu tindakan">{{ $tab['badge'] > 99 ? '99+' : $tab['badge'] }}</span>
                             @endif
                         </a>
                     @endif

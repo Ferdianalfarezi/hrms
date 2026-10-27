@@ -66,6 +66,16 @@
     textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; background: #fff; }
     input[type=date] { width: 100%; padding: 11px 14px; font: inherit; font-size: 14px; color: var(--text); background: var(--glass-strong); border: 1px solid var(--line-strong); border-radius: 12px; }
     .locked-field { padding: 11px 14px; border-radius: 12px; background: #f4f6fa; border: 1px solid var(--line); color: var(--muted); }
+    /* Field temuan (di luar kotak Perbaikan); dikunci abu-abu untuk Admin Departemen. */
+    .patrol-main { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+    .patrol-main:disabled label { color: var(--muted); }
+    .patrol-main:disabled :is(input, textarea, select, .kp-box, .locked-field) {
+        background: #eef1f6; color: var(--muted); border-color: var(--line); cursor: not-allowed; box-shadow: none;
+    }
+    .patrol-main:disabled .kp-chip button, .patrol-main:disabled input[type=file], .patrol-main:disabled label .muted { display: none; }
+    .patrol-main:disabled .kp-search::placeholder { color: transparent; }
+    .patrol-main:disabled .photo-preview { filter: grayscale(.6); opacity: .8; }
+    .locked-note { padding: 10px 14px; border-radius: 12px; font-size: 13px; color: var(--muted); background: var(--soft-2); border: 1px dashed var(--line-strong); }
     .photo-field { display: flex; gap: 12px; align-items: center; }
     .photo-preview { flex: none; width: 72px; height: 72px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line-strong); background: var(--soft-2); }
     .photo-field input[type=file] { flex: 1; min-width: 0; font: inherit; font-size: 13px; }

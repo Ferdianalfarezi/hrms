@@ -163,7 +163,8 @@
 
             if (!keepErrors) modal.querySelectorAll('.field-error').forEach(function (el) { el.remove(); });
             modal.showModal();
-            form.elements.tanggal.focus();
+            // Admin Departemen: field temuan dikunci, jadi langsung ke foto perbaikan.
+            (form.querySelector('.patrol-main:disabled') ? form.elements.foto_perbaikan : form.elements.tanggal).focus();
         }
 
         function recordOf(id) {

@@ -191,6 +191,10 @@ class CrossPatrolController extends Controller
 
     private function validated(Request $request, ?CrossPatrol $patrol): array
     {
+        if ($patrol && ! $request->user()->isModuleAdmin('sms')) {
+            return $this->validatedFixOnly($request, $patrol);
+        }
+
         $creating = $patrol === null;
 
         $data = $request->validate([

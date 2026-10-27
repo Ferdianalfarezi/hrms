@@ -118,18 +118,44 @@ class DailyPatrolTest extends TestCase
         $deptAdmin = $this->deptAdmin($this->psd);
         $patrol = $this->patrol($this->psd);
 
+        // Field temuan dikunci (fieldset disabled), hanya kotak Perbaikan yang bisa diisi.
         $this->actingAs($deptAdmin)->get('/sms/daily-patrols')->assertOk()
             ->assertDontSee('+ Tambah')
             ->assertDontSee('title="Hapus"', false)
-            ->assertSee('data-edit="'.$patrol->id.'"', false);
+            ->assertSee('data-edit="'.$patrol->id.'"', false)
+            ->assertSee('<fieldset class="patrol-main" disabled>', false);
+        $this->actingAs($this->smsAdmin())->get('/sms/daily-patrols')
+            ->assertSee('<fieldset class="patrol-main" >', false);
 
         $this->actingAs($deptAdmin)->post('/sms/daily-patrols', $this->payload())->assertForbidden();
         $this->actingAs($deptAdmin)->delete("/sms/daily-patrols/{$patrol->id}")->assertForbidden();
         $this->assertSame(1, DailyPatrol::count());
+    }
 
-        $this->actingAs($deptAdmin)->put("/sms/daily-patrols/{$patrol->id}", $this->payload(['foto' => null, 'finding' => 'Sudah diedit', 'status' => 'open']))
-            ->assertSessionHasNoErrors();
-        $this->assertSame('Sudah diedit', $patrol->fresh()->finding);
+    public function test_department_admin_edit_only_saves_repair_photo_and_status(): void
+    {
+        $deptAdmin = $this->deptAdmin($this->psd);
+        $patrol = $this->patrol($this->psd);
+        $original = $patrol->only(['finding', 'foto', 'potensi_bahaya', 'pic', 'resiko', 'department_id']);
+
+        // Field temuan yang ikut dikirim (mis. lewat request manual) diabaikan.
+        $this->actingAs($deptAdmin)->put("/sms/daily-patrols/{$patrol->id}", [
+            'finding' => 'Diubah diam-diam', 'potensi_bahaya' => '', 'pic' => 'Orang Luar', 'resiko' => 'X',
+            'department_id' => $this->pwd->id, 'foto' => UploadedFile::fake()->image('baru.jpg'),
+            'foto_perbaikan' => UploadedFile::fake()->image('fix.jpg'), 'status' => 'closed',
+        ])->assertSessionHasNoErrors();
+
+        $patrol->refresh();
+        $this->assertSame($original, $patrol->only(array_keys($original)));
+        $this->assertSame('closed', $patrol->status);
+        $this->assertNotNull($patrol->foto_perbaikan);
+        Storage::disk('public')->assertExists($patrol->foto_perbaikan);
+
+        // Close tetap butuh foto perbaikan.
+        $other = $this->patrol($this->psd);
+        $this->actingAs($deptAdmin)->put("/sms/daily-patrols/{$other->id}", ['status' => 'closed'])
+            ->assertSessionHasErrors('foto_perbaikan');
+        $this->assertSame('open', $other->fresh()->status);
     }
 
     public function test_new_finding_by_sms_admin_is_open_in_chosen_department(): void
@@ -177,8 +203,8 @@ class DailyPatrolTest extends TestCase
     {
         $patrol = $this->patrol($this->psd, ['pic' => 'Tim Maintenance', 'pic_patrol' => null]);
 
-        $this->actingAs($this->deptAdmin($this->psd))->put("/sms/daily-patrols/{$patrol->id}", $this->payload([
-            'foto' => null, 'status' => 'open', 'pic' => 'Tim Maintenance, Dedi', 'pic_patrol' => 'Yayan R',
+        $this->actingAs($this->smsAdmin())->put("/sms/daily-patrols/{$patrol->id}", $this->payload([
+            'department_id' => $this->psd->id, 'foto' => null, 'status' => 'open', 'pic' => 'Tim Maintenance, Dedi', 'pic_patrol' => 'Yayan R',
         ]))->assertSessionHasNoErrors();
 
         $this->assertSame('Tim Maintenance, Dedi', $patrol->fresh()->pic);
@@ -310,6 +336,33 @@ class DailyPatrolTest extends TestCase
             ->assertSeeInOrder(['Cross Patrol', 'Temuan per bulan', '<option value="2026" selected>2026</option>'], false);
 
         Carbon::setTestNow();
+    }
+
+    public function test_menu_badge_counts_open_findings_per_user(): void
+    {
+        $this->patrol($this->psd);
+        $this->patrol($this->psd);
+        $this->patrol($this->psd, ['status' => 'closed']);
+        $this->patrol($this->pwd);
+        CrossPatrol::create([
+            'tanggal' => '2026-10-05', 'plant' => 'Plant 1', 'zona' => 1, 'finding' => 'Temuan', 'foto' => 'cross-patrol/a.jpg',
+            'efek' => '2R', 'resiko' => 'C', 'area' => 'OBEYA', 'department_id' => $this->psd->id, 'rekomendasi' => 'Perbaiki',
+            'target' => '2026-10-30', 'pic' => 'Dedi', 'kategori' => '5r', 'patroler' => 'Miftari', 'status' => 'open',
+        ]);
+        $badge = fn (int $count) => '<span class="menu-badge" title="'.$count.' menunggu tindakan">'.$count.'</span>';
+
+        // Admin Departemen PSD: hanya temuan Open departemennya.
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')
+            ->assertSeeInOrder(['Daily Patrol', $badge(2), 'Cross Patrol', $badge(1), 'Kecelakaan'], false);
+
+        // Admin Departemen PWD: tidak ada Cross Patrol Open, jadi tanpa angka.
+        $this->actingAs($this->deptAdmin($this->pwd))->get('/sms')
+            ->assertSeeInOrder(['Daily Patrol', $badge(1), 'Cross Patrol'], false)
+            ->assertDontSee($badge(2), false);
+
+        // Admin SMS: semua departemen.
+        $this->actingAs($this->smsAdmin())->get('/sms')
+            ->assertSeeInOrder(['Daily Patrol', $badge(3), 'Cross Patrol', $badge(1)], false);
     }
 
     public function test_dashboard_for_department_admin_still_shows_all_departments(): void
