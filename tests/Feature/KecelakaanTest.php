@@ -132,21 +132,24 @@ class KecelakaanTest extends TestCase
         $staff = User::factory()->create();
         $staff->assignRole('sms', 'staff');
 
-        // Kartu "Status Akun" diganti, bukan kartu baru.
+        // Kartu "Status Akun" diganti 2 kartu: Work & Traffic Accident.
         $this->actingAs($staff)->get('/sms')->assertOk()
-            ->assertSee('Hari Tanpa Kecelakaan')
             ->assertDontSee('<h2 class="card-title">Status Akun</h2>', false)
-            ->assertSee('Belum ada kecelakaan yang tercatat.');
+            ->assertDontSee('Hari Tanpa Kecelakaan')
+            ->assertSeeInOrder([
+                'Hari Tanpa Work Accident', '–', 'Belum ada Work Accident yang tercatat.',
+                'Hari Tanpa Traffic Accident', '–', 'Belum ada Traffic Accident yang tercatat.',
+            ]);
 
-        // Acuan = kecelakaan paling akhir (seluruh perusahaan): 15 Okt -> 6 hari.
+        // Tiap kartu dihitung dari kecelakaan terakhir tipenya (seluruh perusahaan).
         $this->kecelakaan($this->pwd, ['waktu' => '2026-10-01 08:00', 'tipe' => 'traffic', 'kategori' => 'menabrak']);
         $this->kecelakaan($this->psd, ['waktu' => '2026-10-15 23:30']);
 
         $this->actingAs($staff)->get('/sms')
-            ->assertSee('<b data-count>6 hari</b>', false)
-            ->assertSee('Kecelakaan terakhir 15 Oktober 2026')
-            ->assertSee('Tanpa Traffic Accident')
-            ->assertSee('20 hari'); // traffic terakhir 1 Okt
+            ->assertSeeInOrder([
+                'Hari Tanpa Work Accident', '<b data-count style="white-space: nowrap;">6 hari</b>', 'Terakhir 15 Oktober 2026 · PSD',
+                'Hari Tanpa Traffic Accident', '<b data-count style="white-space: nowrap;">20 hari</b>', 'Terakhir 01 Oktober 2026 · PWD',
+            ], false);
 
         Carbon::setTestNow();
     }

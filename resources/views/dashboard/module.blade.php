@@ -285,6 +285,10 @@
     @endif
 
     <div class="a-side">
+        {{-- Kartu atas kolom kanan: modul bisa menggantinya lewat @section('side-top') (mis. SMS: hari tanpa kecelakaan). --}}
+        @hasSection('side-top')
+            @yield('side-top')
+        @else
         {{-- Komposisi --}}
         <div @class(['card', 'comp-scroll' => $composition['scroll'] ?? false]) style="--i: 3;">
             <div class="status-top">
@@ -320,6 +324,7 @@
                 <div class="muted small" style="margin-top: 12px;">{{ $composition['note'] }}</div>
             @endif
         </div>
+        @endif
 
         {{-- Kartu bawah kolom kanan: modul bisa menggantinya lewat @section('side-bottom') (mis. SMS: grafik temuan patrol). --}}
         @hasSection('side-bottom')

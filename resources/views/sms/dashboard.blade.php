@@ -151,6 +151,19 @@
     @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['traffic'], 'area' => 'calendar', 'index' => 6, 'key' => 'traffic'])
 @endsection
 
+@section('side-top')
+    {{-- Kartu "Status Akun" diganti 2 kartu: hari tanpa Work Accident & hari tanpa Traffic Accident. --}}
+    @foreach ($hariTanpa as $item)
+        <div class="card" style="--i: 3;" data-hari-tanpa="{{ $item['tipe'] }}">
+            <div class="status-top" style="gap: 12px;">
+                <h2 class="card-title" style="min-width: 0;">Hari Tanpa {{ $item['label'] }}</h2>
+                <b data-count style="white-space: nowrap;">{{ $item['value'] }}</b>
+            </div>
+            <div class="muted small" style="margin-top: 10px;">{{ $item['note'] }}</div>
+        </div>
+    @endforeach
+@endsection
+
 @section('side-bottom')
     <div class="card team-card temuan-card" style="--i: 4;" data-temuan="{{ json_encode($grafikTemuan['data']) }}">
         <div class="card-head">
