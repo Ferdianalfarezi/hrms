@@ -39,8 +39,11 @@
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Potongan Absen</h1>
         <p class="muted" style="margin: 2px 0 0;">
             Potongan gaji datang terlambat · {{ $bulan->translatedFormat('F Y') }}
-            @if ($lockedDepartment)
-                · departemen <span class="badge">{{ $lockedDepartment->name }}</span>
+            @if ($lockedDepartments->isNotEmpty())
+                · departemen
+                @foreach ($lockedDepartments as $lockedDepartment)
+                    <span class="badge">{{ $lockedDepartment->name }}</span>
+                @endforeach
             @endif
         </p>
     </div>
@@ -62,7 +65,7 @@
         <a href="{{ route('hrms.absensi.potongan', [...$keep, 'bulan' => $bulan->copy()->addMonthNoOverflow()->format('Y-m')]) }}" title="Bulan berikutnya">&rsaquo;</a>
     </span>
     <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="Bulan">
-    @if ($isAdmin)
+    @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()">
             <option value="">Semua departemen</option>
             @foreach ($departments as $option)

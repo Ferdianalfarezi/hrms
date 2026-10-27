@@ -50,8 +50,9 @@
                                 @forelse ($user->applications as $application)
                                     <span class="badge">
                                         {{ $application->name }} · {{ $roleNames[$application->pivot->role_id] ?? '-' }}
-                                        @if ($application->pivot->department_id)
-                                            ({{ $departmentNames[$application->pivot->department_id] ?? '-' }})
+                                        @php($managed = $user->managedDepartments->where('pivot.application_id', $application->id)->sortBy('name'))
+                                        @if ($managed->isNotEmpty())
+                                            ({{ $managed->pluck('name')->implode(', ') }})
                                         @endif
                                     </span>
                                 @empty

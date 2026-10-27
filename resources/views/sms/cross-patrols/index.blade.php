@@ -35,8 +35,11 @@
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Cross Patrol</h1>
         <p class="muted" style="margin: 2px 0 0;">
             Form temuan safety patrol
-            @if ($lockedDepartment)
-                · departemen <span class="badge">{{ $lockedDepartment->name }}</span>
+            @if ($lockedDepartments->isNotEmpty())
+                · departemen
+                @foreach ($lockedDepartments as $lockedDepartment)
+                    <span class="badge">{{ $lockedDepartment->name }}</span>
+                @endforeach
             @endif
         </p>
     </div>
@@ -80,7 +83,7 @@
         <option value="open" @selected($status === 'open')>Open</option>
         <option value="closed" @selected($status === 'closed')>Close</option>
     </select>
-    @if ($isAdmin)
+    @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
             <option value="">Semua departemen</option>
             @foreach ($departments as $option)
@@ -126,7 +129,7 @@
                         </td>
                         <td class="c-finding" style="max-width: 360px;">
                             {{ $patrol->finding }}
-                            <span class="sub">{{ $patrol->area }} · {{ $patrol->zonaLabel() }} · {{ $patrol->plant }}@if ($isAdmin) · {{ $patrol->department?->name }}@endif</span>
+                            <span class="sub">{{ $patrol->area }} · {{ $patrol->zonaLabel() }} · {{ $patrol->plant }}@if ($canFilterDepartment) · {{ $patrol->department?->name }}@endif</span>
                         </td>
                         <td><span class="risk risk-{{ $resikoTone[$patrol->resiko] ?? 'orange' }}">{{ $patrol->resikoLabel() }}</span></td>
                         <td class="nowrap">{{ $patrol->target->format('d M Y') }}</td>
@@ -296,7 +299,7 @@
                     </div>
                     <div>
                         <label for="f-department_id">Departemen</label>
-                        @if ($isAdmin)
+                        @if ($canFilterDepartment)
                             <select id="f-department_id" name="department_id" required>
                                 <option value="">-- Pilih Departemen --</option>
                                 @foreach ($departments as $option)
@@ -304,7 +307,7 @@
                                 @endforeach
                             </select>
                         @else
-                            <div class="locked-field">{{ $lockedDepartment?->name ?? '-' }}</div>
+                            <div class="locked-field">{{ $lockedDepartments->first()?->name ?? '-' }}</div>
                         @endif
                         @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
                     </div>

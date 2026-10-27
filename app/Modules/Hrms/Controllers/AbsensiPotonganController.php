@@ -21,8 +21,10 @@ class AbsensiPotonganController extends Controller
     {
         $user = $request->user();
         $isAdmin = $user->isModuleAdmin('hrms');
+        $lockedDepartments = $user->managedDepartmentList();
+        $canFilterDepartment = $isAdmin || $lockedDepartments->count() > 1;
         $bulan = $this->parseMonth((string) $request->query('bulan')) ?? Carbon::today()->startOfMonth();
-        $department = $isAdmin ? (string) $request->query('department') : '';
+        $department = $canFilterDepartment ? (string) $request->query('department') : '';
         $search = trim((string) $request->query('q'));
         $showAll = $request->boolean('semua');
 
@@ -74,18 +76,17 @@ class AbsensiPotonganController extends Controller
             $rows = $rows->filter(fn (array $row) => $row['jumlah'] > 0)->values();
         }
 
-        $managedDepartmentId = $user->managedDepartmentId();
-
         return view('hrms.absensi.potongan', [
             'bulan' => $bulan,
             'rows' => $rows,
             'search' => $search,
             'showAll' => $showAll,
             'department' => $department,
-            'departments' => $isAdmin ? Department::orderBy('name')->get() : collect(),
+            'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'isAdmin' => $isAdmin,
-            'lockedDepartment' => $managedDepartmentId ? Department::find($managedDepartmentId) : null,
-            'missingDepartment' => $user->isDepartmentAdmin() && $managedDepartmentId === null,
+            'canFilterDepartment' => $canFilterDepartment,
+            'lockedDepartments' => $lockedDepartments,
+            'missingDepartment' => $user->isDepartmentAdmin() && $lockedDepartments->isEmpty(),
         ]);
     }
 

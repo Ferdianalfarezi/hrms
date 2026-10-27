@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
@@ -30,6 +31,9 @@ class KaryawanController extends Controller
 
         $user = $request->user();
         $isAdmin = $user->isModuleAdmin('hrms');
+        $lockedDepartments = $user->managedDepartmentList();
+        // Filter departemen: Admin HRMS, atau Admin Departemen yang memegang lebih dari satu departemen.
+        $canFilterDepartment = $isAdmin || $lockedDepartments->count() > 1;
         // Admin Departemen: semua query di halaman ini dibatasi ke departemennya.
         $visible = fn () => Karyawan::query()->visibleTo($user);
 
@@ -43,12 +47,10 @@ class KaryawanController extends Controller
             ->when($group === 'none', fn ($query) => $query->whereNull('group'))
             ->when($group !== '' && $group !== 'none', fn ($query) => $query->where('group', $group))
             ->when($isAdmin && $department === 'none', fn ($query) => $query->whereNull('department_id'))
-            ->when($isAdmin && ctype_digit($department), fn ($query) => $query->where('department_id', $department))
+            ->when($canFilterDepartment && ctype_digit($department), fn ($query) => $query->where('department_id', $department))
             ->orderBy('nik')
             ->paginate(25)
             ->withQueryString();
-
-        $managedDepartmentId = $user->managedDepartmentId();
 
         return view('hrms.karyawans.index', [
             'karyawans' => $karyawans,
@@ -59,10 +61,12 @@ class KaryawanController extends Controller
             'group' => $group,
             'groupOptions' => $visible()->whereNotNull('group')->distinct()->orderBy('group')->pluck('group'),
             'isAdmin' => $isAdmin,
-            // Departemen milik Admin Departemen; null untuk admin HRMS / super admin.
-            'lockedDepartment' => $managedDepartmentId ? Department::find($managedDepartmentId) : null,
-            'missingDepartment' => $user->isDepartmentAdmin() && $managedDepartmentId === null,
-            'departments' => $isAdmin ? Department::orderBy('name')->get() : collect(),
+            // Departemen milik Admin Departemen (bisa lebih dari satu); kosong untuk admin HRMS / super admin.
+            'lockedDepartments' => $lockedDepartments,
+            'missingDepartment' => $user->isDepartmentAdmin() && $lockedDepartments->isEmpty(),
+            'canFilterDepartment' => $canFilterDepartment,
+            // Pilihan filter & form: Admin HRMS semua departemen, Admin Departemen departemennya saja.
+            'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'withoutDepartment' => $isAdmin ? Karyawan::whereNull('department_id')->count() : 0,
             'statusCounts' => $visible()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
             'jabatanOptions' => $visible()->whereNotNull('jabatan')->distinct()->orderBy('jabatan')->pluck('jabatan'),
@@ -180,9 +184,9 @@ class KaryawanController extends Controller
 
         $data['group'] = isset($data['group']) ? Str::upper(trim($data['group'])) : null;
 
-        // Admin Departemen tidak bisa memilih departemen: selalu departemennya sendiri.
+        // Admin Departemen hanya boleh memakai departemen yang dipegangnya; satu departemen = otomatis.
         if (! $request->user()->isModuleAdmin('hrms')) {
-            $data['department_id'] = $request->user()->managedDepartmentId();
+            $data['department_id'] = $this->departmentForDepartmentAdmin($request, $data['department_id'] ?? null);
         }
 
         // Potongan absen hanya diatur Admin HRMS. Kosong = pakai default (karyawan baru) / tidak diubah (edit).
@@ -191,5 +195,24 @@ class KaryawanController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Departemen karyawan yang disimpan Admin Departemen: harus salah satu departemennya.
+     * Kalau hanya memegang satu departemen, selalu departemen itu (pilihan lain diabaikan).
+     */
+    private function departmentForDepartmentAdmin(Request $request, mixed $chosen): ?int
+    {
+        $departmentIds = $request->user()->managedDepartmentIds();
+
+        if (count($departmentIds) === 1) {
+            return $departmentIds[0];
+        }
+
+        if ($chosen === null || ! in_array((int) $chosen, $departmentIds, true)) {
+            throw ValidationException::withMessages(['department_id' => 'Pilih salah satu departemen yang Anda kelola.']);
+        }
+
+        return (int) $chosen;
     }
 }

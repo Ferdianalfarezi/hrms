@@ -26,16 +26,17 @@ trait ScopesPatrolToDepartment
             return $query;
         }
 
-        $departmentId = $user->managedDepartmentId('sms');
+        // Admin Departemen bisa memegang beberapa departemen: datanya digabung.
+        $departmentIds = $user->managedDepartmentIds('sms');
 
-        return $departmentId === null ? $query->whereRaw('1 = 0') : $query->where('department_id', $departmentId);
+        return $departmentIds === [] ? $query->whereRaw('1 = 0') : $query->whereIn('department_id', $departmentIds);
     }
 
     private function authorizeRecord(User $user, Model $patrol): void
     {
         Gate::authorize('sms-patrol');
 
-        abort_unless($user->isModuleAdmin('sms') || $patrol->department_id === $user->managedDepartmentId('sms'), 403,
+        abort_unless($user->isModuleAdmin('sms') || $user->managesDepartment('sms', $patrol->department_id), 403,
             'Temuan ini milik departemen lain.');
     }
 
@@ -50,7 +51,8 @@ trait ScopesPatrolToDepartment
     }
 
     /**
-     * Admin Departemen selalu mengisi untuk departemennya sendiri; Admin SMS memilih departemen.
+     * Admin SMS memilih departemen bebas. Admin Departemen hanya boleh salah satu departemennya;
+     * kalau tidak memilih (mis. hanya punya satu departemen), dipakai departemen pertamanya.
      */
     private function departmentFor(User $user, mixed $chosen): int
     {
@@ -58,10 +60,18 @@ trait ScopesPatrolToDepartment
             return (int) $chosen;
         }
 
-        $departmentId = $user->managedDepartmentId('sms');
-        abort_if($departmentId === null, 403, 'Akun Anda belum dipilihkan departemen. Hubungi Super Admin.');
+        $departmentIds = $user->managedDepartmentIds('sms');
+        abort_if($departmentIds === [], 403, 'Akun Anda belum dipilihkan departemen. Hubungi Super Admin.');
 
-        return $departmentId;
+        if (count($departmentIds) === 1 || $chosen === null || $chosen === '') {
+            return $departmentIds[0];
+        }
+
+        if (! in_array((int) $chosen, $departmentIds, true)) {
+            throw ValidationException::withMessages(['department_id' => 'Pilih salah satu departemen yang Anda kelola.']);
+        }
+
+        return (int) $chosen;
     }
 
     /**
@@ -70,16 +80,19 @@ trait ScopesPatrolToDepartment
     private function accessViewData(User $user): array
     {
         $isAdmin = $user->isModuleAdmin('sms');
-        $managedDepartmentId = $user->managedDepartmentId('sms');
+        $lockedDepartments = $user->managedDepartmentList('sms');
 
         return [
             'isAdmin' => $isAdmin,
-            'canEdit' => $isAdmin || $managedDepartmentId !== null,
+            'canEdit' => $isAdmin || $lockedDepartments->isNotEmpty(),
             // Tombol Tambah & Hapus hanya untuk Admin SMS.
             'canManage' => $isAdmin,
-            'lockedDepartment' => $managedDepartmentId ? Department::find($managedDepartmentId) : null,
-            'missingDepartment' => $user->isDepartmentAdmin('sms') && $managedDepartmentId === null,
-            'departments' => $isAdmin ? Department::orderBy('name')->get() : collect(),
+            // Departemen milik Admin Departemen (bisa lebih dari satu); kosong untuk Admin SMS.
+            'lockedDepartments' => $lockedDepartments,
+            'missingDepartment' => $user->isDepartmentAdmin('sms') && $lockedDepartments->isEmpty(),
+            // Pilihan filter & form: Admin SMS semua departemen, Admin Departemen departemennya saja.
+            'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
+            'canFilterDepartment' => $isAdmin || $lockedDepartments->count() > 1,
         ];
     }
 

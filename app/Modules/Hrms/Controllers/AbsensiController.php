@@ -56,7 +56,9 @@ class AbsensiController extends Controller
     {
         $user = $request->user();
         $isAdmin = $user->isModuleAdmin('hrms');
-        $department = $isAdmin ? (string) $request->query('department') : '';
+        $lockedDepartments = $user->managedDepartmentList();
+        $canFilterDepartment = $isAdmin || $lockedDepartments->count() > 1;
+        $department = $canFilterDepartment ? (string) $request->query('department') : '';
         $group = (string) $request->query('group');
 
         $karyawans = Karyawan::query()
@@ -91,8 +93,6 @@ class AbsensiController extends Controller
                 $marks[$absensi->karyawan_id][$absensi->tanggal->day] = ['kode' => $absensi->kode, 'menit' => $absensi->menit_terlambat, 'keterangan' => $absensi->keterangan];
             });
 
-        $managedDepartmentId = $user->managedDepartmentId();
-
         return view('hrms.absensi.index', [
             'routeName' => $routeName,
             'tanggal' => $tanggal,
@@ -105,12 +105,13 @@ class AbsensiController extends Controller
             'hadirMesin' => KomparasiAbsensi::selHadirDiMesin($karyawans, $monthStart, $monthEnd),
             'kodes' => Absensi::KODE,
             'isAdmin' => $isAdmin,
-            'canEdit' => $isAdmin || $managedDepartmentId !== null,
-            'lockedDepartment' => $managedDepartmentId ? Department::find($managedDepartmentId) : null,
-            'missingDepartment' => $user->isDepartmentAdmin() && $managedDepartmentId === null,
+            'canEdit' => $isAdmin || $lockedDepartments->isNotEmpty(),
+            'lockedDepartments' => $lockedDepartments,
+            'missingDepartment' => $user->isDepartmentAdmin() && $lockedDepartments->isEmpty(),
             'department' => $department,
             'group' => $group,
-            'departments' => $isAdmin ? Department::orderBy('name')->get() : collect(),
+            'canFilterDepartment' => $canFilterDepartment,
+            'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'groupOptions' => Karyawan::query()->visibleTo($user)->whereNotNull('group')->distinct()->orderBy('group')->pluck('group'),
         ]);
     }
@@ -122,7 +123,7 @@ class AbsensiController extends Controller
     {
         $user = $request->user();
         $search = trim((string) $request->query('q'));
-        $managedDepartmentId = $user->managedDepartmentId();
+        $lockedDepartments = $user->managedDepartmentList();
 
         $karyawans = Karyawan::query()->visibleTo($user)->orderByRaw('LENGTH(nik)')->orderBy('nik')->get(['id', 'nik', 'nama', 'group']);
 
@@ -142,9 +143,9 @@ class AbsensiController extends Controller
             'absensis' => $absensis,
             'karyawans' => $karyawans,
             'kodes' => Absensi::KODE,
-            'lockedDepartment' => $managedDepartmentId ? Department::find($managedDepartmentId) : null,
-            'missingDepartment' => $user->isDepartmentAdmin() && $managedDepartmentId === null,
-            'canEdit' => $managedDepartmentId !== null,
+            'lockedDepartments' => $lockedDepartments,
+            'missingDepartment' => $user->isDepartmentAdmin() && $lockedDepartments->isEmpty(),
+            'canEdit' => $lockedDepartments->isNotEmpty(),
         ]);
     }
 

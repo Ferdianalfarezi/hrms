@@ -57,7 +57,17 @@ class User extends Authenticatable
     public function applications(): BelongsToMany
     {
         return $this->belongsToMany(Application::class, 'user_app_roles')
-            ->withPivot('role_id', 'department_id')
+            ->withPivot('role_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Semua departemen yang dipegang user sebagai "Admin Departemen", di modul mana pun (pivot application_id).
+     */
+    public function managedDepartments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'user_managed_departments')
+            ->withPivot('application_id')
             ->withTimestamps();
     }
 
@@ -92,7 +102,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Label role untuk ditampilkan, mis. "Admin HRMS", "Admin Departemen · PSD", atau "Super Admin".
+     * Label role untuk ditampilkan, mis. "Admin HRMS", "Admin Departemen · PSD, PWD", atau "Super Admin".
      */
     public function roleLabel(string $code): ?string
     {
@@ -103,9 +113,9 @@ class User extends Authenticatable
         }
 
         $label = Role::find($application->pivot->role_id)?->name;
-        $departmentId = $application->pivot->department_id;
+        $departments = $this->managedDepartments()->wherePivot('application_id', $application->id)->orderBy('name')->pluck('name');
 
-        return $departmentId ? $label.' · '.(Department::find($departmentId)?->name ?? '-') : $label;
+        return $departments->isNotEmpty() ? $label.' · '.$departments->implode(', ') : $label;
     }
 
     /**
@@ -118,22 +128,48 @@ class User extends Authenticatable
     }
 
     /**
-     * Departemen yang dipegang user sebagai "Admin Departemen" di modul ini (default HRMS), atau null.
+     * Id departemen yang dipegang user sebagai "Admin Departemen" di modul ini (default HRMS).
+     * Kosong untuk admin modul / super admin (mereka tidak dibatasi departemen) dan user tanpa role Admin Departemen.
+     *
+     * @return list<int>
      */
-    public function managedDepartmentId(string $code = 'hrms'): ?int
+    public function managedDepartmentIds(string $code = 'hrms'): array
     {
         if ($this->isModuleAdmin($code)) {
-            return null;
+            return [];
         }
 
         $application = $this->applications()->active()->where('code', $code)->first();
         if (! $application || Role::find($application->pivot->role_id)?->code !== 'dept_admin') {
-            return null;
+            return [];
         }
 
-        $departmentId = $application->pivot->department_id;
+        return $this->managedDepartments()
+            ->wherePivot('application_id', $application->id)
+            ->orderBy('name')
+            ->pluck('departments.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
 
-        return $departmentId === null ? null : (int) $departmentId;
+    /**
+     * Departemen (model) yang dipegang Admin Departemen di modul ini, urut nama. Kosong untuk admin modul.
+     *
+     * @return Collection<int, Department>
+     */
+    public function managedDepartmentList(string $code = 'hrms'): Collection
+    {
+        $ids = $this->managedDepartmentIds($code);
+
+        return $ids === [] ? new Collection : Department::whereKey($ids)->orderBy('name')->get();
+    }
+
+    /**
+     * Apakah departemen ini dipegang user sebagai Admin Departemen di modul tersebut.
+     */
+    public function managesDepartment(string $code, mixed $departmentId): bool
+    {
+        return $departmentId !== null && in_array((int) $departmentId, $this->managedDepartmentIds($code), true);
     }
 
     public function isDepartmentAdmin(string $code = 'hrms'): bool
@@ -142,30 +178,39 @@ class User extends Authenticatable
     }
 
     /**
-     * Ganti seluruh akses user sekaligus.
+     * Ganti seluruh akses user sekaligus, termasuk departemen yang dipegang Admin Departemen.
      *
-     * @param  array<int, array{role_id: int, department_id?: ?int}>  $access  application_id => pivot
+     * @param  array<int, array{role_id: int, department_ids?: list<int>}>  $access  application_id => akses
      */
     public function syncAccess(array $access): void
     {
         $this->applications()->sync(
-            collect($access)->map(fn (array $pivot) => [
-                'role_id' => $pivot['role_id'],
-                'department_id' => $pivot['department_id'] ?? null,
-            ])->all()
+            collect($access)->map(fn (array $pivot) => ['role_id' => $pivot['role_id']])->all()
         );
+
+        $this->managedDepartments()->detach();
+        foreach ($access as $applicationId => $pivot) {
+            foreach (array_unique($pivot['department_ids'] ?? []) as $departmentId) {
+                $this->managedDepartments()->attach($departmentId, ['application_id' => $applicationId]);
+            }
+        }
     }
 
     /**
-     * Beri (atau ganti) role user di suatu modul.
+     * Beri (atau ganti) role user di suatu modul. Departemen (satu id atau beberapa) untuk role Admin Departemen.
+     *
+     * @param  int|list<int>|null  $departmentIds
      */
-    public function assignRole(string $applicationCode, string $roleCode, ?int $departmentId = null): void
+    public function assignRole(string $applicationCode, string $roleCode, int|array|null $departmentIds = null): void
     {
         $application = Application::where('code', $applicationCode)->firstOrFail();
         $role = $application->roles()->where('code', $roleCode)->firstOrFail();
 
-        $this->applications()->syncWithoutDetaching([
-            $application->id => ['role_id' => $role->id, 'department_id' => $departmentId],
-        ]);
+        $this->applications()->syncWithoutDetaching([$application->id => ['role_id' => $role->id]]);
+
+        $this->managedDepartments()->wherePivot('application_id', $application->id)->detach();
+        foreach (array_unique(array_filter((array) $departmentIds)) as $departmentId) {
+            $this->managedDepartments()->attach($departmentId, ['application_id' => $application->id]);
+        }
     }
 }

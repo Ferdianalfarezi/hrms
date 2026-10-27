@@ -48,7 +48,7 @@ class Karyawan extends Model
     }
 
     /**
-     * Batasi data sesuai hak user: Admin Departemen hanya melihat departemennya,
+     * Batasi data sesuai hak user: Admin Departemen hanya melihat departemennya (gabungan kalau lebih dari satu),
      * user tanpa hak melihat data karyawan tidak mendapat apa-apa.
      */
     public function scopeVisibleTo(Builder $query, User $user): void
@@ -57,10 +57,10 @@ class Karyawan extends Model
             return;
         }
 
-        $departmentId = $user->managedDepartmentId();
+        $departmentIds = $user->managedDepartmentIds();
 
-        $departmentId === null
+        $departmentIds === []
             ? $query->whereRaw('1 = 0')
-            : $query->where('department_id', $departmentId);
+            : $query->whereIn('department_id', $departmentIds);
     }
 }

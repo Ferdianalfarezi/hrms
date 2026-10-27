@@ -32,8 +32,11 @@
         <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">Karyawan</h1>
         <p class="muted" style="margin: 2px 0 0;">
             {{ $statusCounts->sum() }} karyawan
-            @if ($lockedDepartment)
-                di departemen <span class="badge">{{ $lockedDepartment->name }}</span>
+            @if ($lockedDepartments->isNotEmpty())
+                di departemen
+                @foreach ($lockedDepartments as $lockedDepartment)
+                    <span class="badge">{{ $lockedDepartment->name }}</span>
+                @endforeach
             @else
                 terdaftar
             @endif
@@ -115,13 +118,15 @@
         <input type="hidden" name="status" value="{{ $status }}">
     @endif
     <input type="search" name="q" value="{{ $search }}" placeholder="Cari NIK atau nama...">
-    @if ($isAdmin)
+    @if ($canFilterDepartment)
     <select name="department" onchange="this.form.submit()">
         <option value="">Semua departemen</option>
         @foreach ($departments as $option)
             <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
         @endforeach
-        <option value="none" @selected($department === 'none')>Tanpa departemen ({{ $withoutDepartment }})</option>
+        @if ($isAdmin)
+            <option value="none" @selected($department === 'none')>Tanpa departemen ({{ $withoutDepartment }})</option>
+        @endif
     </select>
     @endif
     <select name="group" onchange="this.form.submit()" style="min-width: 130px;">
@@ -263,16 +268,17 @@
                     </div>
                     <div>
                         <label for="f-department_id">Departemen</label>
-                        @if ($isAdmin)
-                            <select id="f-department_id" name="department_id">
-                                <option value="">Tanpa departemen</option>
+                        @if ($canFilterDepartment)
+                            {{-- Admin HRMS: semua departemen. Admin Departemen multi-dept: hanya departemennya (dicek juga di server). --}}
+                            <select id="f-department_id" name="department_id" @required(! $isAdmin)>
+                                <option value="">{{ $isAdmin ? 'Tanpa departemen' : '-- Pilih Departemen --' }}</option>
                                 @foreach ($departments as $option)
                                     <option value="{{ $option->id }}">{{ $option->name }}</option>
                                 @endforeach
                             </select>
                         @else
-                            {{-- Admin Departemen selalu menyimpan ke departemennya sendiri (dipaksa juga di server). --}}
-                            <input id="f-department_id" type="text" value="{{ $lockedDepartment?->name }}" disabled>
+                            {{-- Admin Departemen dengan satu departemen selalu menyimpan ke departemen itu (dipaksa juga di server). --}}
+                            <input id="f-department_id" type="text" value="{{ $lockedDepartments->first()?->name }}" disabled>
                         @endif
                         @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
                     </div>

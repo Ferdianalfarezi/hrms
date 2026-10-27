@@ -365,6 +365,35 @@ class DailyPatrolTest extends TestCase
             ->assertSeeInOrder(['Daily Patrol', $badge(3), 'Cross Patrol', $badge(1)], false);
     }
 
+    public function test_department_admin_with_several_departments_gets_combined_list_and_badge(): void
+    {
+        $other = Department::create(['name' => 'QA']);
+        $this->patrol($this->psd, ['finding' => 'Temuan PSD']);
+        $pwdPatrol = $this->patrol($this->pwd, ['finding' => 'Temuan PWD']);
+        $this->patrol($other, ['finding' => 'Temuan QA']);
+        $admin = User::factory()->create();
+        $admin->assignRole('sms', 'dept_admin', [$this->psd->id, $this->pwd->id]);
+
+        // Daftar & badge = gabungan PSD + PWD; filter hanya berisi departemennya.
+        $this->actingAs($admin)->get('/sms/daily-patrols')->assertOk()
+            ->assertSee('Temuan PSD')
+            ->assertSee('Temuan PWD')
+            ->assertDontSee('Temuan QA')
+            ->assertSeeInOrder(['Daily Patrol', '<span class="menu-badge" title="2 menunggu tindakan">2</span>'], false)
+            ->assertSee('<select name="department"', false)
+            ->assertDontSee('>QA</option>', false);
+        $this->actingAs($admin)->get("/sms/daily-patrols?department={$this->pwd->id}")
+            ->assertSee('Temuan PWD')
+            ->assertDontSee('Temuan PSD');
+
+        // Bisa menutup temuan di departemen keduanya.
+        $this->actingAs($admin)->put("/sms/daily-patrols/{$pwdPatrol->id}", [
+            'status' => 'closed', 'foto_perbaikan' => UploadedFile::fake()->image('fix.jpg'),
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('closed', $pwdPatrol->fresh()->status);
+        $this->assertSame($this->pwd->id, $pwdPatrol->fresh()->department_id);
+    }
+
     public function test_dashboard_for_department_admin_still_shows_all_departments(): void
     {
         Carbon::setTestNow('2026-10-22 10:00:00');

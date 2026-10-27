@@ -33,7 +33,7 @@ class CrossPatrolController extends Controller
         Gate::authorize('sms-patrol');
 
         $access = $this->accessViewData($request->user());
-        $filters = $this->filters($request, $access['isAdmin']);
+        $filters = $this->filters($request);
 
         $patrols = $this->filteredQuery($request, $filters)
             ->with('department')
@@ -61,7 +61,7 @@ class CrossPatrolController extends Controller
     {
         Gate::authorize('sms-patrol');
 
-        $filters = $this->filters($request, $request->user()->isModuleAdmin('sms'));
+        $filters = $this->filters($request);
         $patrols = $this->filteredQuery($request, $filters)->orderBy('tanggal')->orderBy('id')->get();
 
         return (new CrossPatrolExport(
@@ -83,7 +83,7 @@ class CrossPatrolController extends Controller
         $ids = collect((array) $request->query('ids'))->filter(fn ($id) => ctype_digit((string) $id))->map(fn ($id) => (int) $id);
         $query = $ids->isNotEmpty()
             ? $this->visibleTo(CrossPatrol::query(), $request->user())->whereIn('id', $ids->take(self::PRINT_LIMIT))
-            : $this->filteredQuery($request, $this->filters($request, $request->user()->isModuleAdmin('sms')));
+            : $this->filteredQuery($request, $this->filters($request));
 
         return view('sms.cross-patrols.print', [
             'patrols' => $query->orderBy('tanggal')->orderBy('id')->limit(self::PRINT_LIMIT)->get(),
@@ -142,7 +142,7 @@ class CrossPatrolController extends Controller
     /**
      * @return array{search: string, status: string, department: string, tanggal: string, plant: string, zona: string}
      */
-    private function filters(Request $request, bool $isAdmin): array
+    private function filters(Request $request): array
     {
         $zona = (string) $request->query('zona');
         $tanggal = (string) $request->query('tanggal');
@@ -155,7 +155,8 @@ class CrossPatrolController extends Controller
         return [
             'search' => trim((string) $request->query('q')),
             'status' => (string) $request->query('status'),
-            'department' => $isAdmin ? (string) $request->query('department') : '',
+            // Filter departemen: Admin SMS semua, Admin Departemen hanya hasil dalam departemennya (dibatasi visibleTo).
+            'department' => (string) $request->query('department'),
             'tanggal' => $tanggal,
             'plant' => trim((string) $request->query('plant')),
             'zona' => in_array((int) $zona, CrossPatrol::ZONA, true) ? (string) (int) $zona : '',

@@ -27,7 +27,7 @@ class DailyPatrolController extends Controller
         $access = $this->accessViewData($user);
         $search = trim((string) $request->query('q'));
         $status = (string) $request->query('status');
-        $department = $access['isAdmin'] ? (string) $request->query('department') : '';
+        $department = $access['canFilterDepartment'] ? (string) $request->query('department') : '';
 
         $patrols = $this->visibleTo(DailyPatrol::query(), $user)
             ->with('department')

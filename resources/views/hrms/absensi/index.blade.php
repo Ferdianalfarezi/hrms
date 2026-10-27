@@ -108,8 +108,11 @@
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Laporan Absensi Harian</h1>
         <p class="muted" style="margin: 2px 0 0;">
             {{ $tanggal->translatedFormat('l, d F Y') }} · {{ $karyawans->count() }} karyawan
-            @if ($lockedDepartment)
-                · departemen <span class="badge">{{ $lockedDepartment->name }}</span>
+            @if ($lockedDepartments->isNotEmpty())
+                · departemen
+                @foreach ($lockedDepartments as $lockedDepartment)
+                    <span class="badge">{{ $lockedDepartment->name }}</span>
+                @endforeach
             @endif
         </p>
     </div>
@@ -141,7 +144,7 @@
         <a href="{{ route($routeName, ['tanggal' => $next, ...$keepFilters]) }}" title="Hari berikutnya">&rsaquo;</a>
     </span>
     <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal">
-    @if ($isAdmin)
+    @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()">
             <option value="">Semua departemen</option>
             @foreach ($departments as $option)

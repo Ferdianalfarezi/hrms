@@ -26,8 +26,11 @@
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Kecelakaan</h1>
         <p class="muted" style="margin: 2px 0 0;">
             Laporan work accident & traffic accident
-            @if ($lockedDepartment)
-                · departemen <span class="badge">{{ $lockedDepartment->name }}</span>
+            @if ($lockedDepartments->isNotEmpty())
+                · departemen
+                @foreach ($lockedDepartments as $lockedDepartment)
+                    <span class="badge">{{ $lockedDepartment->name }}</span>
+                @endforeach
             @endif
         </p>
     </div>
@@ -47,7 +50,7 @@
             <option value="{{ $kode }}" @selected($tipe === $kode)>{{ $info['label'] }}</option>
         @endforeach
     </select>
-    @if ($isAdmin)
+    @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
             <option value="">Semua departemen</option>
             @foreach ($departments as $option)
@@ -196,7 +199,7 @@
                     </div>
                     <div>
                         <label for="f-department_id">Departemen <span style="color: var(--danger);">*</span></label>
-                        @if ($isAdmin)
+                        @if ($canFilterDepartment)
                             <select id="f-department_id" name="department_id" required>
                                 <option value="">-- Pilih Departemen --</option>
                                 @foreach ($departments as $option)
@@ -204,7 +207,7 @@
                                 @endforeach
                             </select>
                         @else
-                            <div class="locked-field">{{ $lockedDepartment?->name ?? '-' }}</div>
+                            <div class="locked-field">{{ $lockedDepartments->first()?->name ?? '-' }}</div>
                         @endif
                         @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
                     </div>

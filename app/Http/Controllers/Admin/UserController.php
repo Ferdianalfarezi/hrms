@@ -22,7 +22,7 @@ class UserController extends Controller
         $search = trim((string) $request->query('q'));
 
         $users = User::query()
-            ->with('applications')
+            ->with(['applications', 'managedDepartments'])
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('nik', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%");
             }))
@@ -33,7 +33,6 @@ class UserController extends Controller
         return view('admin.users.index', [
             'users' => $users,
             'roleNames' => Role::pluck('name', 'id'),
-            'departmentNames' => Department::pluck('name', 'id'),
             'search' => $search,
         ]);
     }
@@ -71,7 +70,11 @@ class UserController extends Controller
             'applications' => $this->applications(),
             'departments' => Department::orderBy('name')->get(),
             'currentAccess' => $user->applications->pluck('pivot.role_id', 'id')->all(),
-            'currentDepartments' => $user->applications->pluck('pivot.department_id', 'id')->all(),
+            // application_id => [department_id, ...]
+            'currentDepartments' => $user->managedDepartments
+                ->groupBy('pivot.application_id')
+                ->map(fn ($departments) => $departments->pluck('id')->all())
+                ->all(),
         ]);
     }
 
@@ -126,7 +129,7 @@ class UserController extends Controller
     }
 
     /**
-     * @return array{attributes: array<string, mixed>, access: array<int, array{role_id: int, department_id: ?int}>}
+     * @return array{attributes: array<string, mixed>, access: array<int, array{role_id: int, department_ids: list<int>}>}
      */
     private function validated(Request $request, ?User $user = null): array
     {
@@ -142,7 +145,8 @@ class UserController extends Controller
             'access' => ['array'],
             'access.*' => ['nullable', 'integer', 'exists:roles,id'],
             'department' => ['array'],
-            'department.*' => ['nullable', 'integer', 'exists:departments,id'],
+            'department.*' => ['array'],
+            'department.*.*' => ['integer', 'exists:departments,id'],
         ], [], [
             'nik' => 'NIK',
             'name' => 'nama',
@@ -159,19 +163,19 @@ class UserController extends Controller
             throw ValidationException::withMessages(['access' => 'Role tidak sesuai dengan modulnya.']);
         }
 
-        // Role "Admin Departemen" wajib punya departemen; role lain tidak menyimpan departemen.
+        // Role "Admin Departemen" wajib punya minimal satu departemen (boleh lebih); role lain tidak menyimpan departemen.
         $roleCodes = Role::whereIn('id', $access->values())->pluck('code', 'id');
         $access = $access->map(function (int $roleId, $applicationId) use ($roleCodes, $validated) {
             if ($roleCodes[$roleId] !== 'dept_admin') {
-                return ['role_id' => $roleId, 'department_id' => null];
+                return ['role_id' => $roleId, 'department_ids' => []];
             }
 
-            $departmentId = $validated['department'][$applicationId] ?? null;
-            if (! $departmentId) {
-                throw ValidationException::withMessages(["department.{$applicationId}" => 'Pilih departemen untuk Admin Departemen.']);
+            $departmentIds = array_values(array_unique(array_map('intval', $validated['department'][$applicationId] ?? [])));
+            if ($departmentIds === []) {
+                throw ValidationException::withMessages(["department.{$applicationId}" => 'Pilih minimal satu departemen untuk Admin Departemen.']);
             }
 
-            return ['role_id' => $roleId, 'department_id' => (int) $departmentId];
+            return ['role_id' => $roleId, 'department_ids' => $departmentIds];
         });
 
         $attributes = [

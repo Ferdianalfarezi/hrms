@@ -150,17 +150,63 @@ class DepartmentAdminTest extends TestCase
         $this->actingAs($super)->post('/admin/users', [...$base, 'access' => [$hrms->id => $deptAdminRole]])
             ->assertSessionHasErrors("department.{$hrms->id}");
 
+        // Bisa lebih dari satu departemen.
         $this->actingAs($super)->post('/admin/users', [...$base,
             'access' => [$hrms->id => $deptAdminRole],
-            'department' => [$hrms->id => $this->psd->id],
+            'department' => [$hrms->id => [$this->psd->id, $this->pwd->id]],
         ])->assertRedirect(route('admin.users.index'));
 
         $user = User::where('nik', '7001')->firstOrFail();
-        $this->assertSame($this->psd->id, $user->managedDepartmentId());
-        $this->assertSame('Admin Departemen · PSD', $user->roleLabel('hrms'));
+        $this->assertSame([$this->psd->id, $this->pwd->id], $user->managedDepartmentIds());
+        $this->assertSame('Admin Departemen · PSD, PWD', $user->roleLabel('hrms'));
 
-        $this->actingAs($super)->get('/admin/users')->assertSee('(PSD)');
-        $this->actingAs($super)->get("/admin/users/{$user->id}/edit")->assertSee('Departemen yang dikelola');
+        $this->actingAs($super)->get('/admin/users')->assertSee('(PSD, PWD)');
+        $form = $this->actingAs($super)->get("/admin/users/{$user->id}/edit")->assertSee('Departemen yang dikelola')->getContent();
+        foreach ([$this->psd->id, $this->pwd->id] as $departmentId) {
+            $this->assertMatchesRegularExpression('/name="department\['.$hrms->id.'\]\[\]" value="'.$departmentId.'"\s+checked/', $form);
+        }
+
+        // Edit: kurangi jadi satu departemen.
+        $this->actingAs($super)->put("/admin/users/{$user->id}", [
+            'nik' => $user->nik, 'name' => $user->name,
+            'access' => [$hrms->id => $deptAdminRole],
+            'department' => [$hrms->id => [$this->pwd->id]],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame([$this->pwd->id], $user->refresh()->managedDepartmentIds());
+    }
+
+    public function test_department_admin_with_several_departments_sees_combined_data(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('hrms', 'dept_admin', [$this->psd->id, $this->pwd->id]);
+
+        // Gabungan dua departemen, plus filter yang hanya berisi departemennya.
+        $this->actingAs($admin)->get('/hrms/karyawans')->assertOk()
+            ->assertSee('Andi PSD')
+            ->assertSee('Budi PWD')
+            ->assertDontSee('Tanpa Dept')
+            ->assertSee('2 karyawan')
+            ->assertSee('Semua departemen')
+            ->assertDontSee('Tanpa departemen (');
+        $this->actingAs($admin)->get("/hrms/karyawans?department={$this->pwd->id}")
+            ->assertSee('Budi PWD')
+            ->assertDontSee('Andi PSD');
+
+        // Tambah karyawan: wajib memilih salah satu departemennya.
+        $this->actingAs($admin)->from('/hrms/karyawans')->post('/hrms/karyawans', $this->payload(['department_id' => null]))
+            ->assertSessionHasErrors('department_id');
+        $other = Department::create(['name' => 'QA']);
+        $this->actingAs($admin)->from('/hrms/karyawans')->post('/hrms/karyawans', $this->payload(['department_id' => $other->id]))
+            ->assertSessionHasErrors('department_id');
+        $this->actingAs($admin)->from('/hrms/karyawans')->post('/hrms/karyawans', $this->payload(['department_id' => $this->pwd->id]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame($this->pwd->id, Karyawan::where('nik', '0099')->value('department_id'));
+
+        // Bisa mengedit karyawan di kedua departemennya.
+        $this->actingAs($admin)->from('/hrms/karyawans')
+            ->put("/hrms/karyawans/{$this->budi->id}", $this->payload(['nik' => '0002', 'nama' => 'Budi Baru', 'department_id' => $this->pwd->id]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Budi Baru', $this->budi->refresh()->nama);
     }
 
     public function test_role_change_to_hrms_admin_clears_department(): void
@@ -172,11 +218,11 @@ class DepartmentAdminTest extends TestCase
         $this->actingAs($super)->put("/admin/users/{$user->id}", [
             'nik' => $user->nik, 'name' => $user->name,
             'access' => [$hrms->id => $hrms->roles()->where('code', 'admin')->value('id')],
-            'department' => [$hrms->id => $this->psd->id],
+            'department' => [$hrms->id => [$this->psd->id]],
         ])->assertSessionHasNoErrors();
 
-        $this->assertNull($user->refresh()->managedDepartmentId());
-        $this->assertNull($user->applications()->first()->pivot->department_id);
+        $this->assertSame([], $user->refresh()->managedDepartmentIds());
+        $this->assertSame(0, $user->managedDepartments()->count());
         $this->assertTrue($user->isModuleAdmin('hrms'));
     }
 }

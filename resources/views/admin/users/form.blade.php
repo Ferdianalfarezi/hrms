@@ -3,6 +3,11 @@
 @section('title', $user->exists ? 'Edit User' : 'Tambah User')
 
 @section('styles')
+    /* Pilihan departemen Admin Departemen: chip checkbox, bisa pilih banyak. */
+    .dept-checks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .dept-check { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--glass-strong); font-size: 13px; font-weight: 500; cursor: pointer; user-select: none; }
+    .dept-check input { width: auto; margin: 0; accent-color: var(--primary); }
+    .dept-check:has(input:checked) { border-color: var(--primary); background: var(--soft-2); color: var(--primary); }
     .form-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
     @media (max-width: 860px) { .form-layout { grid-template-columns: minmax(0, 1fr); } }
     .photo-card { text-align: center; }
@@ -126,18 +131,19 @@
                             </select>
 
                             @if ($application->roles->contains('code', 'dept_admin'))
-                                {{-- Muncul hanya saat role "Admin Departemen" dipilih. --}}
+                                {{-- Muncul hanya saat role "Admin Departemen" dipilih. Bisa pilih lebih dari satu departemen. --}}
+                                @php($checkedDepartments = array_map('strval', (array) old("department.{$application->id}", $currentDepartments[$application->id] ?? [])))
                                 <div data-department-for="{{ $application->id }}" style="margin-top: 10px;">
-                                    <label for="department-{{ $application->id }}">Departemen yang dikelola</label>
-                                    <select id="department-{{ $application->id }}" name="department[{{ $application->id }}]">
-                                        <option value="">Pilih departemen...</option>
+                                    <label>Departemen yang dikelola <span class="muted small">(bisa lebih dari satu)</span></label>
+                                    <div class="dept-checks">
                                         @foreach ($departments as $department)
-                                            <option value="{{ $department->id }}"
-                                                    @selected((string) old("department.{$application->id}", $currentDepartments[$application->id] ?? '') === (string) $department->id)>
-                                                {{ $department->name }}
-                                            </option>
+                                            <label class="dept-check">
+                                                <input type="checkbox" name="department[{{ $application->id }}][]" value="{{ $department->id }}"
+                                                       @checked(in_array((string) $department->id, $checkedDepartments, true))>
+                                                <span>{{ $department->name }}</span>
+                                            </label>
                                         @endforeach
-                                    </select>
+                                    </div>
                                     @error("department.{$application->id}") <div class="field-error">{{ $message }}</div> @enderror
                                 </div>
                             @endif

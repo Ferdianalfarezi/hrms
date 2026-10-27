@@ -8,7 +8,7 @@ use App\Modules\Hrms\Models\Karyawan;
 /**
  * Hak akses data karyawan:
  * - Super admin & Admin HRMS: semua karyawan, termasuk import.
- * - Admin Departemen: hanya karyawan di departemennya (lihat, tambah, edit, hapus), tanpa import.
+ * - Admin Departemen: hanya karyawan di departemen yang dipegangnya (lihat, tambah, edit, hapus), tanpa import.
  */
 class KaryawanPolicy
 {
@@ -19,7 +19,7 @@ class KaryawanPolicy
 
     public function create(User $user): bool
     {
-        return $user->isModuleAdmin('hrms') || $user->managedDepartmentId() !== null;
+        return $user->isModuleAdmin('hrms') || $user->managedDepartmentIds() !== [];
     }
 
     public function update(User $user, Karyawan $karyawan): bool
@@ -39,8 +39,6 @@ class KaryawanPolicy
 
     private function ownsDepartment(User $user, Karyawan $karyawan): bool
     {
-        $departmentId = $user->managedDepartmentId();
-
-        return $departmentId !== null && (int) $karyawan->department_id === $departmentId;
+        return $user->managesDepartment('hrms', $karyawan->department_id);
     }
 }

@@ -28,7 +28,7 @@ class KecelakaanController extends Controller
         $access = $this->accessViewData($user);
         $search = trim((string) $request->query('q'));
         $tipe = (string) $request->query('tipe');
-        $department = $access['isAdmin'] ? (string) $request->query('department') : '';
+        $department = $access['canFilterDepartment'] ? (string) $request->query('department') : '';
 
         $kecelakaans = $this->visibleTo(Kecelakaan::query(), $user)
             ->with('department')

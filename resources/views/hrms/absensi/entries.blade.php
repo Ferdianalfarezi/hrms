@@ -131,8 +131,11 @@
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Absensi Karyawan</h1>
         <p class="muted" style="margin: 2px 0 0;">
             {{ $tanggal->translatedFormat('l, d F Y') }}
-            @if ($lockedDepartment)
-                · departemen <span class="badge">{{ $lockedDepartment->name }}</span>
+            @if ($lockedDepartments->isNotEmpty())
+                · departemen
+                @foreach ($lockedDepartments as $lockedDepartment)
+                    <span class="badge">{{ $lockedDepartment->name }}</span>
+                @endforeach
             @endif
         </p>
     </div>

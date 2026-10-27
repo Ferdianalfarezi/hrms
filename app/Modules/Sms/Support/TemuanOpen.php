@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Angka notifikasi menu Daily / Cross Patrol: jumlah temuan yang masih Open (perlu di-Close) yang terlihat oleh user.
- * Admin SMS menghitung semua departemen, Admin Departemen hanya departemennya.
+ * Admin SMS menghitung semua departemen, Admin Departemen gabungan semua departemen yang dipegangnya.
  */
 class TemuanOpen
 {
@@ -26,8 +26,8 @@ class TemuanOpen
             return $query->count();
         }
 
-        $departmentId = $user->managedDepartmentId('sms');
+        $departmentIds = $user->managedDepartmentIds('sms');
 
-        return $departmentId === null ? 0 : $query->where('department_id', $departmentId)->count();
+        return $departmentIds === [] ? 0 : $query->whereIn('department_id', $departmentIds)->count();
     }
 }

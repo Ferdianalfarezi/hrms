@@ -6,7 +6,6 @@ use App\Models\Application;
 use App\Models\User;
 use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
-use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Support\ModuleDashboard;
 use Illuminate\Support\Carbon;
@@ -21,7 +20,8 @@ class HrmsDashboard
     {
         $application = Application::where('code', 'hrms')->firstOrFail();
         $visible = fn () => Karyawan::query()->visibleTo($viewer);
-        $managedDepartment = ($id = $viewer->managedDepartmentId()) ? Department::find($id) : null;
+        $managedDepartments = $viewer->managedDepartmentList();
+        $departmentLabel = $managedDepartments->isNotEmpty() ? 'Departemen '.$managedDepartments->pluck('name')->implode(', ') : null;
 
         $total = $visible()->count();
         $statusCounts = $visible()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
@@ -45,7 +45,7 @@ class HrmsDashboard
 
         return [
             'application' => $application,
-            'subtitle' => $managedDepartment ? "Departemen {$managedDepartment->name}" : $application->description,
+            'subtitle' => $departmentLabel ?? $application->description,
             'myApplications' => $viewer->accessibleApplications(),
             'bigStats' => [
                 ['label' => 'Karyawan', 'value' => $total, 'icon' => 'users'],
@@ -74,7 +74,7 @@ class HrmsDashboard
             ],
             // Admin Departemen: persentase kehadiran tiap karyawan di departemennya bulan ini.
             'composition' => $viewer->isDepartmentAdmin()
-                ? self::kehadiranKaryawan($visible, $managedDepartment)
+                ? self::kehadiranKaryawan($visible, $departmentLabel)
                 : self::absensiHariIni($visible),
             'people' => [
                 'title' => 'Karyawan Terbaru',
@@ -112,7 +112,7 @@ class HrmsDashboard
      * Persentase kehadiran tiap karyawan bulan ini, hari kerja Senin - Jumat sampai hari ini (mulai tanggal masuk kalau masuk bulan ini).
      * Tidak hadir = kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan. Urut dari yang paling rendah.
      */
-    private static function kehadiranKaryawan(\Closure $visible, ?Department $department): array
+    private static function kehadiranKaryawan(\Closure $visible, ?string $departmentLabel): array
     {
         $today = Carbon::today();
         $mulai = $today->copy()->startOfMonth();
@@ -152,7 +152,7 @@ class HrmsDashboard
 
         return [
             'title' => 'Kehadiran '.$today->translatedFormat('M'),
-            'subtitle' => $department ? "Departemen {$department->name}" : null,
+            'subtitle' => $departmentLabel,
             'value' => $totalHariKerja > 0 ? self::persenHadir($totalHadir, $totalHariKerja).'%' : '-',
             'unit' => 'hari',
             'bar' => false,

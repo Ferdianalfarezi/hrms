@@ -12,7 +12,6 @@ use App\Modules\Hrms\Notifications\AbsensiBelumAdaKeterangan;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * Karyawan yang tidak absen di mesin tapi belum diberi keterangan oleh Admin Departemen.
@@ -63,27 +62,34 @@ class KomparasiAbsensi
             return 0;
         }
 
-        $dikirim = 0;
         $perDepartemen = self::belumAdaKeterangan($tanggal)
             ->filter(fn (array $item) => $item['karyawan']->department_id !== null)
             ->groupBy(fn (array $item) => $item['karyawan']->department_id);
 
+        // Admin yang memegang beberapa departemen mendapat satu notifikasi berisi gabungan karyawannya.
+        $perAdmin = [];
         foreach ($perDepartemen as $departmentId => $items) {
             $admins = User::where('is_active', true)
-                ->whereHas('applications', fn ($query) => $query->whereKey($application->id)
-                    ->where('user_app_roles.role_id', $role->id)
-                    ->where('user_app_roles.department_id', $departmentId))
+                ->whereHas('applications', fn ($query) => $query->whereKey($application->id)->where('user_app_roles.role_id', $role->id))
+                ->whereHas('managedDepartments', fn ($query) => $query->whereKey($departmentId)
+                    ->where('user_managed_departments.application_id', $application->id))
                 ->get();
 
-            Notification::send($admins, new AbsensiBelumAdaKeterangan($tanggal, $items->map(fn (array $item) => [
+            foreach ($admins as $admin) {
+                $perAdmin[$admin->id]['user'] = $admin;
+                $perAdmin[$admin->id]['items'] = [...($perAdmin[$admin->id]['items'] ?? []), ...$items->all()];
+            }
+        }
+
+        foreach ($perAdmin as ['user' => $admin, 'items' => $items]) {
+            $admin->notify(new AbsensiBelumAdaKeterangan($tanggal, collect($items)->map(fn (array $item) => [
                 'nik' => $item['karyawan']->nik,
                 'nama' => $item['karyawan']->nama,
                 'tanggal' => $item['tanggalLaporan']->toDateString(),
             ])->values()->all()));
-            $dikirim += $admins->count();
         }
 
-        return $dikirim;
+        return count($perAdmin);
     }
 
     /**
