@@ -54,16 +54,21 @@
     @forelse ($patrols->chunk($perPage) as $page => $chunk)
         <div class="sheet">
             @foreach ($chunk as $patrol)
+                {{-- Temuan Close: tampilkan hasil perbaikan (foto perbaikan + rekomendasi). Open: foto temuan + finding. --}}
+                @php
+                    $closed = $patrol->isClosed();
+                    $photoUrl = $closed && $patrol->foto_perbaikan ? $patrol->foto_perbaikan_url : ($patrol->foto ? $patrol->foto_url : null);
+                @endphp
                 <div class="card">
                     <div class="photo">
                         <span class="num">{{ $page * $perPage + $loop->iteration }}</span>
-                        @if ($patrol->foto)
-                            <img src="{{ $patrol->foto_url }}" alt="">
+                        @if ($photoUrl)
+                            <img src="{{ $photoUrl }}" alt="">
                         @else
                             <div class="no-photo">Tidak ada foto</div>
                         @endif
                     </div>
-                    <div class="finding"><span>{{ $patrol->finding }}</span></div>
+                    <div class="finding"><span>{{ $closed ? $patrol->rekomendasi : $patrol->finding }}</span></div>
                     <div class="row">
                         <div class="label">DUE DATE PERBAIKAN</div>
                         <div class="date">{{ $patrol->target->format('d.m.Y') }}</div>

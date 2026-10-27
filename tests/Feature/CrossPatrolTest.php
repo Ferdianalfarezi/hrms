@@ -198,7 +198,7 @@ class CrossPatrolTest extends TestCase
     public function test_print_selected_cards_only_from_own_department(): void
     {
         $a = $this->patrol($this->psd, ['finding' => 'Temuan Satu']);
-        $b = $this->patrol($this->psd, ['finding' => 'Temuan Dua', 'status' => 'closed', 'target' => '2026-10-02']);
+        $b = $this->patrol($this->psd, ['finding' => 'Temuan Dua', 'rekomendasi' => 'Perbaikan Dua', 'status' => 'closed', 'target' => '2026-10-02']);
         $this->patrol($this->psd, ['finding' => 'Tidak dicentang']);
         $other = $this->patrol($this->pwd, ['finding' => 'Punya departemen lain']);
 
@@ -206,7 +206,7 @@ class CrossPatrolTest extends TestCase
             ->get('/sms/cross-patrols/print?'.http_build_query(['ids' => [$a->id, $b->id, $other->id]]))
             ->assertOk()
             ->assertSee('Temuan Satu')
-            ->assertSee('Temuan Dua')
+            ->assertSee('Perbaikan Dua') // Close: deskripsi = rekomendasi perbaikan
             ->assertSee('02.10.2026')
             ->assertDontSee('Tidak dicentang')
             ->assertDontSee('Punya departemen lain');
@@ -215,6 +215,28 @@ class CrossPatrolTest extends TestCase
         // Status aktif ditandai sel abu-abu: Temuan Satu = OPEN, Temuan Dua = CLOSE.
         $this->assertSame(1, substr_count($response->getContent(), '<div class="opt on">OPEN</div>'));
         $this->assertSame(1, substr_count($response->getContent(), '<div class="opt on">CLOSE</div>'));
+    }
+
+    public function test_print_closed_finding_uses_repair_photo_and_recommendation(): void
+    {
+        $open = $this->patrol($this->psd, ['finding' => 'Kabel menjuntai', 'rekomendasi' => 'Rapikan kabel', 'foto' => 'cross-patrol/temuan-open.jpg']);
+        $closed = $this->patrol($this->psd, [
+            'finding' => 'Lantai licin', 'rekomendasi' => 'Pasang karpet anti slip', 'status' => 'closed',
+            'foto' => 'cross-patrol/temuan-closed.jpg', 'foto_perbaikan' => 'cross-patrol/perbaikan-closed.jpg',
+        ]);
+
+        $this->actingAs($this->deptAdmin($this->psd))
+            ->get('/sms/cross-patrols/print?'.http_build_query(['ids' => [$open->id, $closed->id]]))
+            ->assertOk()
+            // Open: foto temuan + finding.
+            ->assertSee('temuan-open.jpg')
+            ->assertSee('Kabel menjuntai')
+            ->assertDontSee('Rapikan kabel')
+            // Close: foto perbaikan + rekomendasi perbaikan.
+            ->assertSee('perbaikan-closed.jpg')
+            ->assertDontSee('temuan-closed.jpg')
+            ->assertSee('Pasang karpet anti slip')
+            ->assertDontSee('Lantai licin');
     }
 
     public function test_print_without_selection_uses_filters_and_paginates_twenty_five_per_sheet(): void
