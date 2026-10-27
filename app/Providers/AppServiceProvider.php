@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Policies\KaryawanPolicy;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Layout tidak memuat Tailwind; CSS .pagination di layouts/base hanya cocok dengan markup Bootstrap 4.
+        Paginator::useBootstrapFour();
+
         // Boleh mengelola data master modul: super admin, atau role "admin" di modul tersebut.
         Gate::define('manage-module', fn (User $user, string $module) => $user->isModuleAdmin($module));
 

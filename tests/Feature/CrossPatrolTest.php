@@ -129,6 +129,19 @@ class CrossPatrolTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_pagination_uses_bootstrap_markup_and_keeps_filters(): void
+    {
+        foreach (range(1, 21) as $number) {
+            $this->patrol($this->psd, ['finding' => 'Temuan '.$number]);
+        }
+
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms/cross-patrols?plant=Plant+1')
+            ->assertOk()
+            ->assertSee('class="page-link"', false)
+            ->assertDontSee('<svg class="w-5 h-5"', false)
+            ->assertSee('plant=Plant%201&amp;page=2', false);
+    }
+
     public function test_filters_by_tanggal_and_plant(): void
     {
         $this->patrol($this->psd, ['finding' => 'Temuan Plant 1']);

@@ -66,7 +66,7 @@
     </div>
 </div>
 
-{{ $departments->links('pagination::bootstrap-4') }}
+{{ $departments->links() }}
 
 @if ($canManage)
     {{-- Modal tambah / edit --}}

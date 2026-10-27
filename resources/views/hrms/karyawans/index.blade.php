@@ -232,7 +232,7 @@
     </div>
 </div>
 
-{{ $karyawans->links('pagination::bootstrap-4') }}
+{{ $karyawans->links() }}
 
 @can('create', \App\Modules\Hrms\Models\Karyawan::class)
     {{-- Modal tambah / edit --}}

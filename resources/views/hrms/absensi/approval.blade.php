@@ -232,7 +232,7 @@
     </div>
 </div>
 
-{{ $approvals->links('pagination::bootstrap-4') }}
+{{ $approvals->links() }}
 
 <dialog class="modal wide" id="detail-modal">
     <form method="POST" id="review-form">
