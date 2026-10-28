@@ -25,6 +25,7 @@
                     <th>Karyawan</th>
                     <th>Akses</th>
                     <th>Status</th>
+                    <th>Last Login</th>
                     <th style="text-align: right;">Aksi</th>
                 </tr>
             </thead>
@@ -67,6 +68,14 @@
                                 <span class="badge badge-off">Nonaktif</span>
                             @endif
                         </td>
+                        <td style="white-space: nowrap;">
+                            @if ($user->last_login_at)
+                                <div title="{{ $user->last_login_at->translatedFormat('l, d F Y H:i') }}">{{ $user->last_login_at->format('d M Y H:i') }}</div>
+                                <div class="muted small">{{ $user->last_login_at->diffForHumans() }}</div>
+                            @else
+                                <span class="muted small">Belum pernah login</span>
+                            @endif
+                        </td>
                         <td style="text-align: right; white-space: nowrap;">
                             <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-ghost btn-sm">Edit</a>
                             @unless ($user->is(auth()->user()))
@@ -80,7 +89,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="muted" style="text-align: center; padding: 32px;">User tidak ditemukan.</td></tr>
+                    <tr><td colspan="5" class="muted" style="text-align: center; padding: 32px;">User tidak ditemukan.</td></tr>
                 @endforelse
             </tbody>
         </table>

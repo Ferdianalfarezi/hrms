@@ -50,6 +50,18 @@ class LoginTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_successful_login_records_last_login_time(): void
+    {
+        $this->freezeSecond();
+        $user = $this->userWithAccess(['hrms' => 'admin']);
+
+        $this->from('/login')->post('/login', ['nik' => '1234', 'password' => 'salah']);
+        $this->assertNull($user->fresh()->last_login_at);
+
+        $this->post('/login', ['nik' => '1234', 'password' => 'password']);
+        $this->assertTrue($user->fresh()->last_login_at->equalTo(now()));
+    }
+
     public function test_wrong_password_is_rejected(): void
     {
         $this->userWithAccess(['hrms' => 'admin']);

@@ -65,6 +65,17 @@ class UserManagementTest extends TestCase
             ->assertDontSee('Siti Aminah');
     }
 
+    public function test_user_list_shows_last_login(): void
+    {
+        User::factory()->create(['nik' => '2001', 'name' => 'Budi Santoso', 'last_login_at' => '2026-10-27 08:15:00']);
+        User::factory()->create(['nik' => '2002', 'name' => 'Siti Aminah']);
+
+        $this->actingAs($this->admin)->get('/admin/users')
+            ->assertOk()
+            ->assertSee('Last Login')
+            ->assertSeeInOrder(['Budi Santoso', '27 Oct 2026 08:15', 'Siti Aminah', 'Belum pernah login']);
+    }
+
     public function test_superadmin_can_create_user_with_access(): void
     {
         $this->actingAs($this->admin)->post('/admin/users', [

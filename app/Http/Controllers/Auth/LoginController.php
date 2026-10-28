@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +50,9 @@ class LoginController extends Controller
 
         RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
+
+        // Dicatat tanpa mengubah updated_at supaya tidak dianggap edit data user.
+        User::withoutTimestamps(fn () => $request->user()->forceFill(['last_login_at' => now()])->saveQuietly());
 
         // Penanda sekali pakai: halaman berikutnya memutar animasi pintu terbuka (lihat layouts.base).
         return redirect()->route('portal')->with('door', true);
