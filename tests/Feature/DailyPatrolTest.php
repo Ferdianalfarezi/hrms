@@ -346,6 +346,12 @@ class DailyPatrolTest extends TestCase
         ], $chart['data'][2026]['departments']);
         $this->assertSame([['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2025]['departments']);
 
+        // Rekap "Progress Perbaikan" per zona: setahun & per bulan, dengan jumlah per kategori.resiko.
+        $this->assertSame([1 => ['total' => 4, 'open' => 2, 'close' => 2, 'cells' => ['5r.C' => 4]]], $chart['data'][2026]['zonas']['all']);
+        $this->assertSame([1 => ['total' => 3, 'open' => 1, 'close' => 2, 'cells' => ['5r.C' => 3]]], $chart['data'][2026]['zonas']['months'][10]);
+        $this->assertSame([1 => ['total' => 1, 'open' => 1, 'close' => 0, 'cells' => ['5r.C' => 1]]], $chart['data'][2026]['zonas']['months'][1]);
+        $this->assertSame([], $chart['data'][2026]['zonas']['months'][11]);
+
         $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
             ->assertSee('data-stack-years=', false)
             ->assertSeeInOrder(['Cross Patrol', 'Temuan per bulan', '<option value="2026" selected>2026</option>'], false);

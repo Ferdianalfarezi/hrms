@@ -433,6 +433,185 @@
         modal.addEventListener('close', function () { body.innerHTML = ''; });
     })();
 
+    // Helper bersama modal Daily & Cross Patrol: gambar kanvas, tombol salin/unduh gambar, dan tabel rekap
+    // "kategori x resiko" ala form Excel (dipakai rekap Daily per departemen & Progress Perbaikan Cross per zona).
+    var PatrolImage = (function () {
+        // Kanvas putih resolusi 2x (tajam saat di-paste) dengan ukuran tampilan width x height.
+        function blankCanvas(width, height) {
+            var canvas = document.createElement('canvas');
+            canvas.width = width * 2;
+            canvas.height = height * 2;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            var ctx = canvas.getContext('2d');
+            ctx.scale(2, 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            return { canvas: canvas, ctx: ctx };
+        }
+
+        // Tombol "Salin gambar" + "Unduh PNG". getCanvas mengembalikan Promise<canvas> (grafik SVG perlu dimuat dulu).
+        function imageActions(getCanvas, getFileName) {
+            var actions = document.createElement('div');
+            actions.className = 'recap-actions';
+            var note = document.createElement('span');
+            note.className = 'recap-note';
+            note.setAttribute('aria-live', 'polite');
+            var copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'btn btn-sm';
+            copyBtn.textContent = 'Salin gambar';
+            var downloadBtn = document.createElement('button');
+            downloadBtn.type = 'button';
+            downloadBtn.className = 'btn btn-ghost btn-sm';
+            downloadBtn.textContent = 'Unduh PNG';
+            actions.append(note, copyBtn, downloadBtn);
+
+            function flash(text) { note.textContent = text; setTimeout(function () { if (note.textContent === text) note.textContent = ''; }, 3000); }
+            function download() {
+                return getCanvas().then(function (canvas) {
+                    var link = document.createElement('a');
+                    link.download = getFileName() + '.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            }
+            downloadBtn.addEventListener('click', function () { download(); });
+            copyBtn.addEventListener('click', function () {
+                // Salin gambar ke clipboard hanya diizinkan browser di HTTPS / localhost; selain itu diunduh sebagai PNG.
+                if (!window.isSecureContext || !navigator.clipboard || !window.ClipboardItem) {
+                    download().then(function () { flash('Browser tidak mengizinkan salin gambar di alamat ini, file PNG diunduh.'); });
+                    return;
+                }
+                var blob = getCanvas().then(function (canvas) {
+                    return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
+                });
+                navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+                    .then(function () { flash('Gambar tersalin, tinggal paste.'); })
+                    .catch(function () { download().then(function () { flash('Gagal menyalin, file PNG diunduh.'); }); });
+            });
+            return actions;
+        }
+
+        // Judul bagian + elemen di kanan (filter / tombol).
+        function sectionHead(text, right, first) {
+            var head = document.createElement('div');
+            head.className = 'recap-head';
+            if (first) head.style.marginTop = '4px';
+            var title = document.createElement('h3');
+            title.className = 'card-title';
+            title.textContent = text;
+            head.append(title, right);
+            return head;
+        }
+
+        /**
+         * Tabel rekap: No | label baris | grup kategori (tiap kategori dipecah per resiko) | TOTAL TEMUAN | OPEN | CLOSED.
+         * cfg: { rowHeader, rows: [{label, total, open, close, cells: {"kategori.resiko": n}}],
+         *        groups: [{label, cols: [{label, keys: [kategori]}]}], resiko: [{code, color}], statusGroup?: label,
+         *        colors: {no, label, group, kat, res, total, openHead, closedHead, openBody?, closedBody?}, targetWidth }
+         * Lebar kolom minimum; kalau tempatnya lebih lebar, semua kolom diperbesar supaya tabel penuh.
+         */
+        function recapTable(cfg) {
+            var C = cfg.colors;
+            var cols = [].concat.apply([], cfg.groups.map(function (g) { return g.cols; }));
+            var R = cfg.resiko;
+            var W = { no: 40, label: 120, res: 26, total: 92, open: 62, closed: 66 };
+            var natural = W.no + W.label + W.res * R.length * cols.length + W.total + W.open + W.closed;
+            var factor = Math.max(1, ((cfg.targetWidth || 0) - 1) / natural);
+            Object.keys(W).forEach(function (key) { W[key] = Math.floor(W[key] * factor); });
+            var catW = W.res * R.length;
+            var used = W.no + W.label + catW * cols.length + W.total + W.open + W.closed;
+            W.label += Math.max(0, Math.floor(natural * factor) - used);
+            var rowH = Math.round(26 * Math.min(factor, 1.2));
+            var headH = rowH * 3;
+            var width = W.no + W.label + catW * cols.length + W.total + W.open + W.closed + 1;
+            var height = headH + rowH * (cfg.rows.length + 1) + 1;
+            var font = getComputedStyle(document.body).fontFamily;
+            var fontBase = Math.round(12 * Math.min(factor, 1.15));
+
+            var c = blankCanvas(width, height);
+            var ctx = c.ctx;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 1;
+
+            // Kotak berisi teks di tengah; teks dikecilkan kalau tidak muat (mis. ELECTRICAL).
+            function cell(x, y, w, h, text, fill, opts) {
+                opts = opts || {};
+                if (fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
+                ctx.strokeStyle = '#7f7f7f';
+                ctx.strokeRect(x + .5, y + .5, w, h);
+                if (text === '' || text === null || text === undefined) return;
+                var size = fontBase;
+                do { ctx.font = (opts.bold ? '700 ' : '400 ') + size + 'px ' + font; size--; } while (size > 7 && ctx.measureText(String(text)).width > w - 6);
+                ctx.fillStyle = opts.color || '#000000';
+                ctx.fillText(String(text), x + w / 2, y + h / 2 + 1);
+            }
+
+            function countOf(row, col, code) {
+                return col.keys.reduce(function (n, key) { return n + ((row.cells || {})[key + '.' + code] || 0); }, 0);
+            }
+
+            // Header 3 baris.
+            var x = 0;
+            cell(x, 0, W.no, headH, 'No', C.no); x += W.no;
+            cell(x, 0, W.label, headH, cfg.rowHeader, C.label); x += W.label;
+            cfg.groups.forEach(function (g) {
+                cell(x, 0, catW * g.cols.length, rowH, g.label, C.group);
+                g.cols.forEach(function (col) {
+                    cell(x, rowH, catW, rowH, col.label, C.kat);
+                    R.forEach(function (r, k) { cell(x + k * W.res, rowH * 2, W.res, rowH, r.code, C.res, { bold: !!r.color, color: r.color }); });
+                    x += catW;
+                });
+            });
+            cell(x, 0, W.total, headH, 'TOTAL TEMUAN', C.total); x += W.total;
+            if (cfg.statusGroup) {
+                cell(x, 0, W.open + W.closed, rowH, cfg.statusGroup, C.openHead);
+                cell(x, rowH, W.open, rowH * 2, 'OPEN', C.openHead);
+                cell(x + W.open, rowH, W.closed, rowH * 2, 'CLOSED', C.closedHead);
+            } else {
+                cell(x, 0, W.open, headH, 'OPEN', C.openHead);
+                cell(x + W.open, 0, W.closed, headH, 'CLOSED', C.closedHead);
+            }
+
+            // Isi: sel kategori yang nol dibiarkan kosong, baris Total menampilkan 0.
+            var sums = {}, sumTotal = 0, sumOpen = 0, sumClose = 0;
+            cfg.rows.forEach(function (row, i) {
+                var y = headH + i * rowH;
+                x = 0;
+                cell(x, y, W.no, rowH, i + 1); x += W.no;
+                cell(x, y, W.label, rowH, row.label); x += W.label;
+                cols.forEach(function (col, ci) {
+                    R.forEach(function (r) {
+                        var v = countOf(row, col, r.code);
+                        sums[ci + '.' + r.code] = (sums[ci + '.' + r.code] || 0) + v;
+                        cell(x, y, W.res, rowH, v || ''); x += W.res;
+                    });
+                });
+                cell(x, y, W.total, rowH, row.total); x += W.total;
+                cell(x, y, W.open, rowH, row.open, C.openBody); x += W.open;
+                cell(x, y, W.closed, rowH, row.close, C.closedBody);
+                sumTotal += row.total; sumOpen += row.open; sumClose += row.close;
+            });
+            var sumY = headH + cfg.rows.length * rowH;
+            cell(0, sumY, W.no + W.label, rowH, 'Total', null, { bold: true });
+            x = W.no + W.label;
+            cols.forEach(function (col, ci) {
+                R.forEach(function (r) { cell(x, sumY, W.res, rowH, sums[ci + '.' + r.code] || 0); x += W.res; });
+            });
+            cell(x, sumY, W.total, rowH, sumTotal); x += W.total;
+            cell(x, sumY, W.open, rowH, sumOpen, C.openBody); x += W.open;
+            cell(x, sumY, W.closed, rowH, sumClose, C.closedBody);
+
+            c.canvas.setAttribute('role', 'img');
+            c.canvas.setAttribute('aria-label', (cfg.ariaLabel || 'Tabel rekap temuan') + '. Total ' + sumTotal + ' temuan, ' + sumOpen + ' open, ' + sumClose + ' closed.');
+            return c.canvas;
+        }
+
+        return { blankCanvas: blankCanvas, imageActions: imageActions, sectionHead: sectionHead, recapTable: recapTable };
+    })();
+
     // Temuan Daily Patrol per departemen: kartu ringkas (bar mendatar) + modal perbesar (batang Total/Open/Close + tabel).
     (function () {
         var card = document.querySelector('[data-temuan]');
@@ -448,6 +627,7 @@
         var MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         var KATEGORI = @json(\App\Modules\Sms\Models\DailyPatrol::KATEGORI);
         var RESIKO = @json(array_keys(\App\Modules\Sms\Models\DailyPatrol::RESIKO));
+        var blankCanvas = PatrolImage.blankCanvas, imageActions = PatrolImage.imageActions, sectionHead = PatrolImage.sectionHead;
 
         // Bulan "all" = rekap setahun; selain itu temuan bulan terpilih di tahun terpilih.
         // Kartu & modal punya pilihan bulan/tahun sendiri-sendiri, jadi helper menerima periode sebagai argumen.
@@ -593,173 +773,24 @@
             });
         }
 
-        // Tabel rekap ala form Excel: departemen x kategori (S/H/E) + Total / Open / Closed, digambar ke canvas
-        // supaya bisa langsung disalin / diunduh sebagai gambar.
+        // Rekap Daily: departemen x kategori (S/H/E), semua di bawah "STOP 6" seperti form referensi.
+        // Ergonomi/Kesehatan tidak punya kolom sendiri di form, jadi dihitung di kolom OTHER.
         function drawRecap(rows, targetWidth) {
-            var C = { head: '#ed7d31', no: '#f8cbad', group: '#00b0f0', kat: '#00b050', res: '#f8cbad', open: '#ffff00', closed: '#00b050', line: '#7f7f7f', text: '#000000' };
-            // Kolom sama seperti form referensi: semua di bawah "STOP 6" = 6 kategori Stop 6 + OTHER + 5R.
-            // Ergonomi/Kesehatan tidak punya kolom sendiri di form, jadi dihitung di kolom OTHER.
-            var cats = Object.keys(KATEGORI['Stop 6']).map(function (key) {
+            var stop6 = Object.keys(KATEGORI['Stop 6']).map(function (key) {
                 return { keys: [key], label: KATEGORI['Stop 6'][key].split(' (')[0].toUpperCase() };
-            }).concat([{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }]);
-            function countOf(row, c, r) {
-                return c.keys.reduce(function (n, key) { return n + ((row.cells || {})[key + '.' + r] || 0); }, 0);
-            }
-            // Lebar minimum per kolom; kalau modal lebih lebar, semua kolom diperbesar supaya tabel penuh selebar modal.
-            var W = { no: 40, dept: 120, res: 26, total: 92, open: 62, closed: 66 };
-            var natural = W.no + W.dept + W.res * RESIKO.length * cats.length + W.total + W.open + W.closed;
-            var factor = Math.max(1, ((targetWidth || 0) - 1) / natural);
-            Object.keys(W).forEach(function (key) { W[key] = Math.floor(W[key] * factor); });
-            var catW = W.res * RESIKO.length;
-            W.dept += Math.max(0, Math.floor(natural * factor) - (W.no + W.dept + catW * cats.length + W.total + W.open + W.closed));
-            var H = { head: Math.round(26 * Math.min(factor, 1.2)), row: Math.round(26 * Math.min(factor, 1.2)) };
-            var width = W.no + W.dept + catW * cats.length + W.total + W.open + W.closed + 1;
-            var headH = H.head * 3;
-            var height = headH + H.row * (rows.length + 1) + 1;
-            var font = getComputedStyle(document.body).fontFamily;
-            var fontBase = Math.round(12 * Math.min(factor, 1.15));
-            var scale = 2;
-
-            var canvas = document.createElement('canvas');
-            canvas.width = width * scale;
-            canvas.height = height * scale;
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-            var ctx = canvas.getContext('2d');
-            ctx.scale(scale, scale);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.lineWidth = 1;
-
-            // Kotak berisi teks di tengah; teks dikecilkan kalau tidak muat (mis. ELECTRICAL).
-            function cell(x, y, w, h, text, fill, bold) {
-                if (fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
-                ctx.strokeStyle = C.line;
-                ctx.strokeRect(x + .5, y + .5, w, h);
-                if (text === '' || text === null || text === undefined) return;
-                var size = fontBase;
-                do { ctx.font = (bold ? '700 ' : '400 ') + size + 'px ' + font; size--; } while (size > 7 && ctx.measureText(String(text)).width > w - 6);
-                ctx.fillStyle = C.text;
-                ctx.fillText(String(text), x + w / 2, y + h / 2 + 1);
-            }
-
-            // Header 3 baris: kolom tetap setinggi 3 baris; "STOP 6" membentang di atas semua kategori.
-            var x = 0;
-            cell(x, 0, W.no, headH, 'No', C.no); x += W.no;
-            cell(x, 0, W.dept, headH, 'Departemen', C.head); x += W.dept;
-            cell(x, 0, catW * cats.length, H.head, 'STOP 6', C.group);
-            cats.forEach(function (c) {
-                cell(x, H.head, catW, H.head, c.label, C.kat);
-                RESIKO.forEach(function (r, k) { cell(x + k * W.res, H.head * 2, W.res, H.head, r, C.res); });
-                x += catW;
             });
-            cell(x, 0, W.total, headH, 'TOTAL TEMUAN', C.head); x += W.total;
-            cell(x, 0, W.open, headH, 'OPEN', C.open); x += W.open;
-            cell(x, 0, W.closed, headH, 'CLOSED', C.closed);
-
-            // Isi: sel kosong dibiarkan kosong, baris Total menampilkan 0.
-            var sums = {}, sumTotal = 0, sumOpen = 0, sumClose = 0;
-            rows.forEach(function (row, i) {
-                var y = headH + i * H.row;
-                x = 0;
-                cell(x, y, W.no, H.row, i + 1); x += W.no;
-                cell(x, y, W.dept, H.row, row.department); x += W.dept;
-                cats.forEach(function (c, ci) {
-                    RESIKO.forEach(function (r) {
-                        var key = ci + '.' + r, v = countOf(row, c, r);
-                        sums[key] = (sums[key] || 0) + v;
-                        cell(x, y, W.res, H.row, v || ''); x += W.res;
-                    });
-                });
-                cell(x, y, W.total, H.row, row.total); x += W.total;
-                cell(x, y, W.open, H.row, row.open); x += W.open;
-                cell(x, y, W.closed, H.row, row.close);
-                sumTotal += row.total; sumOpen += row.open; sumClose += row.close;
+            return PatrolImage.recapTable({
+                rowHeader: 'Departemen',
+                rows: rows.map(function (row) { return { label: row.department, total: row.total, open: row.open, close: row.close, cells: row.cells }; }),
+                groups: [{ label: 'STOP 6', cols: stop6.concat([{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }]) }],
+                resiko: RESIKO.map(function (code) { return { code: code }; }),
+                colors: { no: '#f8cbad', label: '#ed7d31', group: '#00b0f0', kat: '#00b050', res: '#f8cbad', total: '#ed7d31', openHead: '#ffff00', closedHead: '#00b050' },
+                targetWidth: targetWidth,
+                ariaLabel: 'Tabel rekap temuan Daily Patrol per departemen, kategori dan resiko',
             });
-            var sumY = headH + rows.length * H.row;
-            cell(0, sumY, W.no + W.dept, H.row, 'Total', null, true);
-            x = W.no + W.dept;
-            cats.forEach(function (c, ci) {
-                RESIKO.forEach(function (r) { cell(x, sumY, W.res, H.row, sums[ci + '.' + r] || 0); x += W.res; });
-            });
-            cell(x, sumY, W.total, H.row, sumTotal); x += W.total;
-            cell(x, sumY, W.open, H.row, sumOpen); x += W.open;
-            cell(x, sumY, W.closed, H.row, sumClose);
-
-            canvas.setAttribute('role', 'img');
-            canvas.setAttribute('aria-label', 'Tabel rekap temuan Daily Patrol per departemen, kategori dan resiko. Total ' + sumTotal + ' temuan, ' + sumOpen + ' open, ' + sumClose + ' closed.');
-            return canvas;
         }
 
         function slug(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-
-        // Kanvas putih resolusi 2x (tajam saat di-paste) dengan ukuran tampilan width x height.
-        function blankCanvas(width, height) {
-            var canvas = document.createElement('canvas');
-            canvas.width = width * 2;
-            canvas.height = height * 2;
-            var ctx = canvas.getContext('2d');
-            ctx.scale(2, 2);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            return { canvas: canvas, ctx: ctx };
-        }
-
-        // Tombol "Salin gambar" + "Unduh PNG". getCanvas mengembalikan Promise<canvas> (grafik SVG perlu dimuat dulu).
-        function imageActions(getCanvas, getFileName) {
-            var actions = document.createElement('div');
-            actions.className = 'recap-actions';
-            var note = document.createElement('span');
-            note.className = 'recap-note';
-            note.setAttribute('aria-live', 'polite');
-            var copyBtn = document.createElement('button');
-            copyBtn.type = 'button';
-            copyBtn.className = 'btn btn-sm';
-            copyBtn.textContent = 'Salin gambar';
-            var downloadBtn = document.createElement('button');
-            downloadBtn.type = 'button';
-            downloadBtn.className = 'btn btn-ghost btn-sm';
-            downloadBtn.textContent = 'Unduh PNG';
-            actions.append(note, copyBtn, downloadBtn);
-
-            function flash(text) { note.textContent = text; setTimeout(function () { if (note.textContent === text) note.textContent = ''; }, 3000); }
-            function download() {
-                return getCanvas().then(function (canvas) {
-                    var link = document.createElement('a');
-                    link.download = getFileName() + '.png';
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                });
-            }
-            downloadBtn.addEventListener('click', function () { download(); });
-            copyBtn.addEventListener('click', function () {
-                // Salin gambar ke clipboard hanya diizinkan browser di HTTPS / localhost; selain itu diunduh sebagai PNG.
-                if (!window.isSecureContext || !navigator.clipboard || !window.ClipboardItem) {
-                    download().then(function () { flash('Browser tidak mengizinkan salin gambar di alamat ini, file PNG diunduh.'); });
-                    return;
-                }
-                var blob = getCanvas().then(function (canvas) {
-                    return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
-                });
-                navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-                    .then(function () { flash('Gambar tersalin, tinggal paste.'); })
-                    .catch(function () { download().then(function () { flash('Gagal menyalin, file PNG diunduh.'); }); });
-            });
-            return actions;
-        }
-
-        function sectionHead(text, actions, first) {
-            var head = document.createElement('div');
-            head.className = 'recap-head';
-            if (first) head.style.marginTop = '4px';
-            var title = document.createElement('h3');
-            title.className = 'card-title';
-            title.textContent = text;
-            head.append(title, actions);
-            return head;
-        }
 
         // Judul + legenda di bagian atas gambar supaya jelas periodenya saat di-paste di chat / dokumen.
         function drawImageHeader(ctx, title, x, y) {
@@ -1273,6 +1304,82 @@
             });
         }
 
+        // Tabel "Progress Perbaikan Cross Patrol" di modal perbesar: zona x kategori (resiko A/B/C) + Total / Open / Closed,
+        // dengan pilihan bulan (All = setahun) & tahun sendiri, bisa disalin / diunduh sebagai gambar.
+        var CROSS_KATEGORI = @json(\App\Modules\Sms\Models\CrossPatrol::KATEGORI);
+        var CROSS_ZONA = @json(\App\Modules\Sms\Models\CrossPatrol::ZONA);
+
+        function crossProgressSection(years, initialYear) {
+            var section = html('div');
+            var right = html('div', 'recap-actions');
+            var monthSelect = html('select');
+            monthSelect.setAttribute('aria-label', 'Bulan');
+            monthSelect.appendChild(new Option('All', 'all'));
+            MONTHS.forEach(function (label, i) { monthSelect.appendChild(new Option(label.charAt(0) + label.slice(1).toLowerCase(), String(i + 1))); });
+            var yearSelect = html('select');
+            yearSelect.setAttribute('aria-label', 'Tahun');
+            Object.keys(years).sort().reverse().forEach(function (year) { yearSelect.appendChild(new Option(year, year)); });
+            yearSelect.value = String(initialYear);
+            // Default bulan berjalan kalau tahun yang dibuka = tahun ini; tahun lain langsung rekap setahun.
+            monthSelect.value = Number(initialYear) === today.getFullYear() ? String(today.getMonth() + 1) : 'all';
+
+            var filter = html('div', 'temuan-tools');
+            filter.append(monthSelect, yearSelect);
+            var wrap = html('div', 'recap-wrap');
+            var canvas = null;
+
+            function period() {
+                return monthSelect.value === 'all' ? 'Tahun ' + yearSelect.value : MONTH_NAMES[monthSelect.value - 1] + ' ' + yearSelect.value;
+            }
+
+            var actions = PatrolImage.imageActions(function () { return Promise.resolve(canvas); }, function () {
+                return 'progress-perbaikan-cross-patrol-' + period().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            });
+            right.append(filter, actions);
+            section.append(PatrolImage.sectionHead('Progress Perbaikan Cross Patrol', right), wrap);
+
+            var stop6 = Object.keys(CROSS_KATEGORI['Stop 6']).map(function (key) {
+                return { keys: [key], label: CROSS_KATEGORI['Stop 6'][key].split(' (')[0].toUpperCase() };
+            });
+
+            section.render = function () {
+                var entry = years[yearSelect.value] || {};
+                var zonas = entry.zonas ? (monthSelect.value === 'all' ? entry.zonas.all : entry.zonas.months[monthSelect.value]) : {};
+                zonas = zonas || {};
+                var empty = { total: 0, open: 0, close: 0, cells: {} };
+                // Zona 1-9 selalu tampil; data lama tanpa zona (key 0) ditaruh di baris terakhir kalau ada.
+                var rows = CROSS_ZONA.map(function (zona) { return Object.assign({ label: 'ZONA ' + zona }, zonas[zona] || empty); });
+                if (zonas[0]) rows.push(Object.assign({ label: 'Tanpa zona' }, zonas[0]));
+
+                var next = PatrolImage.recapTable({
+                    rowHeader: 'Zona',
+                    rows: rows,
+                    // Ergonomi/Kesehatan tidak punya kolom sendiri di form, jadi dihitung di kolom OTHER.
+                    groups: [
+                        { label: 'STOP 6', cols: stop6 },
+                        { label: 'LAIN-LAIN', cols: [{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }] },
+                    ],
+                    resiko: [{ code: 'A', color: '#ff0000' }, { code: 'B', color: '#00b0f0' }, { code: 'C', color: '#000000' }],
+                    statusGroup: 'PERBAIKAN STATUS',
+                    colors: { no: '#ddd9c4', label: '#ddd9c4', group: '#ddd9c4', kat: '#ddd9c4', res: '#ffffff', total: '#ddd9c4', openHead: '#ddd9c4', closedHead: '#ddd9c4', openBody: '#ffff00', closedBody: '#00b050' },
+                    targetWidth: wrap.clientWidth,
+                    ariaLabel: 'Tabel progress perbaikan Cross Patrol ' + period() + ' per zona, kategori dan resiko',
+                });
+                if (canvas) canvas.replaceWith(next); else wrap.appendChild(next);
+                canvas = next;
+            };
+
+            monthSelect.addEventListener('change', section.render);
+            yearSelect.addEventListener('change', section.render);
+            if ('ResizeObserver' in window) {
+                var lastWidth = 0;
+                new ResizeObserver(function () {
+                    if (wrap.isConnected && wrap.clientWidth && wrap.clientWidth !== lastWidth) { lastWidth = wrap.clientWidth; section.render(); }
+                }).observe(wrap);
+            }
+            return section;
+        }
+
         // Cross Patrol: data semua tahun dikirim sekaligus; grafik kartu ganti saat tahun dipilih.
         var crossCard = document.querySelector('[data-stack-card="cross"]');
         if (crossCard) {
@@ -1302,6 +1409,9 @@
             select.addEventListener('change', function () { showTotal(); draw(crossPlot, crossChart(), reduceMotion ? null : 0); });
             crossCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
                 openModal('Grafik Temuan Cross Patrol', 'Per bulan · Tahun ' + select.value, crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles));
+                var progress = crossProgressSection(years, select.value);
+                document.getElementById('chart-modal-body').appendChild(progress);
+                progress.render();
             });
         }
     })();
