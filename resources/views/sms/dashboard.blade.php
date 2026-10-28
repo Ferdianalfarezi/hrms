@@ -591,12 +591,14 @@
         // supaya bisa langsung disalin / diunduh sebagai gambar.
         function drawRecap(rows) {
             var C = { head: '#ed7d31', no: '#f8cbad', group: '#00b0f0', kat: '#00b050', res: '#f8cbad', open: '#ffff00', closed: '#00b050', line: '#7f7f7f', text: '#000000' };
-            var groups = Object.keys(KATEGORI).map(function (name) {
-                return { name: name.toUpperCase(), items: Object.keys(KATEGORI[name]).map(function (key) {
-                    return { key: key, label: KATEGORI[name][key].split(' (')[0].toUpperCase() };
-                }) };
-            });
-            var cats = [].concat.apply([], groups.map(function (g) { return g.items; }));
+            // Kolom sama seperti form referensi: semua di bawah "STOP 6" = 6 kategori Stop 6 + OTHER + 5R.
+            // Ergonomi/Kesehatan tidak punya kolom sendiri di form, jadi dihitung di kolom OTHER.
+            var cats = Object.keys(KATEGORI['Stop 6']).map(function (key) {
+                return { keys: [key], label: KATEGORI['Stop 6'][key].split(' (')[0].toUpperCase() };
+            }).concat([{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }]);
+            function countOf(row, c, r) {
+                return c.keys.reduce(function (n, key) { return n + ((row.cells || {})[key + '.' + r] || 0); }, 0);
+            }
             var W = { no: 40, dept: 120, res: 26, total: 76, open: 62, closed: 66 };
             var H = { head: 26, row: 26 };
             var catW = W.res * RESIKO.length;
@@ -619,7 +621,7 @@
             ctx.textBaseline = 'middle';
             ctx.lineWidth = 1;
 
-            // Kotak berisi teks di tengah; teks dikecilkan kalau tidak muat (mis. ERGONOMI/KESEHATAN).
+            // Kotak berisi teks di tengah; teks dikecilkan kalau tidak muat (mis. ELECTRICAL).
             function cell(x, y, w, h, text, fill, bold) {
                 if (fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
                 ctx.strokeStyle = C.line;
@@ -631,17 +633,15 @@
                 ctx.fillText(String(text), x + w / 2, y + h / 2 + 1);
             }
 
-            // Header 3 baris: kolom tetap setinggi 3 baris, kategori dikelompokkan per grup (STOP 6 / OTHER).
+            // Header 3 baris: kolom tetap setinggi 3 baris; "STOP 6" membentang di atas semua kategori.
             var x = 0;
             cell(x, 0, W.no, headH, 'No', C.no); x += W.no;
             cell(x, 0, W.dept, headH, 'Departemen', C.head); x += W.dept;
-            groups.forEach(function (g) {
-                cell(x, 0, catW * g.items.length, H.head, g.name, C.group);
-                g.items.forEach(function (c) {
-                    cell(x, H.head, catW, H.head, c.label, C.kat);
-                    RESIKO.forEach(function (r, k) { cell(x + k * W.res, H.head * 2, W.res, H.head, r, C.res); });
-                    x += catW;
-                });
+            cell(x, 0, catW * cats.length, H.head, 'STOP 6', C.group);
+            cats.forEach(function (c) {
+                cell(x, H.head, catW, H.head, c.label, C.kat);
+                RESIKO.forEach(function (r, k) { cell(x + k * W.res, H.head * 2, W.res, H.head, r, C.res); });
+                x += catW;
             });
             cell(x, 0, W.total, headH, 'TOTAL TEMUAN', C.head); x += W.total;
             cell(x, 0, W.open, headH, 'OPEN', C.open); x += W.open;
@@ -654,9 +654,9 @@
                 x = 0;
                 cell(x, y, W.no, H.row, i + 1); x += W.no;
                 cell(x, y, W.dept, H.row, row.department); x += W.dept;
-                cats.forEach(function (c) {
+                cats.forEach(function (c, ci) {
                     RESIKO.forEach(function (r) {
-                        var key = c.key + '.' + r, v = (row.cells || {})[key] || 0;
+                        var key = ci + '.' + r, v = countOf(row, c, r);
                         sums[key] = (sums[key] || 0) + v;
                         cell(x, y, W.res, H.row, v || ''); x += W.res;
                     });
@@ -669,8 +669,8 @@
             var sumY = headH + rows.length * H.row;
             cell(0, sumY, W.no + W.dept, H.row, 'Total', null, true);
             x = W.no + W.dept;
-            cats.forEach(function (c) {
-                RESIKO.forEach(function (r) { cell(x, sumY, W.res, H.row, sums[c.key + '.' + r] || 0); x += W.res; });
+            cats.forEach(function (c, ci) {
+                RESIKO.forEach(function (r) { cell(x, sumY, W.res, H.row, sums[ci + '.' + r] || 0); x += W.res; });
             });
             cell(x, sumY, W.total, H.row, sumTotal); x += W.total;
             cell(x, sumY, W.open, H.row, sumOpen); x += W.open;
