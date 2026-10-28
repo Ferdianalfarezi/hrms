@@ -5,7 +5,6 @@ namespace App\Support;
 use App\Models\Application;
 use App\Models\User;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Dashboard umum sebuah modul (dipakai SMS) berbasis data akun login.
@@ -21,20 +20,6 @@ class ModuleDashboard
         $totalUsers = User::count();
         $activeUsers = User::where('is_active', true)->count();
         $usersWithoutAccess = User::doesntHave('applications')->count();
-
-        $memberIds = DB::table('user_app_roles')->where('application_id', $application->id)->pluck('user_id');
-        $members = $memberIds->count();
-
-        $roleCounts = DB::table('user_app_roles')
-            ->where('application_id', $application->id)
-            ->selectRaw('role_id, count(*) as total')
-            ->groupBy('role_id')
-            ->pluck('total', 'role_id');
-
-        $roles = $application->roles()->orderBy('id')->get()->map(fn ($role) => [
-            'code' => $role->code,
-            'count' => (int) ($roleCounts[$role->id] ?? 0),
-        ]);
 
         // User baru 7 hari terakhir, dihitung di PHP supaya tidak bergantung pada fungsi tanggal DB.
         $since = Carbon::today()->subDays(6);
@@ -58,11 +43,7 @@ class ModuleDashboard
         return [
             'application' => $application,
             'myApplications' => $myApplications,
-            'bigStats' => [
-                ['label' => 'Akun', 'value' => $totalUsers, 'icon' => 'users'],
-                ['label' => "Akses {$application->name}", 'value' => $members, 'icon' => 'lock'],
-                ['label' => 'Admin', 'value' => $roles->firstWhere('code', 'admin')['count'] ?? 0, 'icon' => 'shield'],
-            ],
+            'bigStats' => [],
             'pills' => [],
             'pillOutlines' => [],
             'growth' => [

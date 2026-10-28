@@ -208,6 +208,7 @@
         @endif
     </div>
 
+    @if ($bigStats)
     <div class="bigstats">
         @foreach ($bigStats as $stat)
             <div class="bigstat" style="--j: {{ $loop->index }};">
@@ -219,6 +220,7 @@
             </div>
         @endforeach
     </div>
+    @endif
 </section>
 <section class="dash-grid">
     {{-- Profil user yang login --}}
