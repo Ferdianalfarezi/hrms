@@ -35,8 +35,11 @@ class CrossPatrolController extends Controller
         $access = $this->accessViewData($request->user());
         $filters = $this->filters($request);
 
-        $patrols = $this->filteredQuery($request, $filters)
-            ->with('department')
+        $filtered = $this->filteredQuery($request, $filters);
+        $statusCounts = $this->statusCounts($filtered);
+
+        $patrols = $filtered
+            ->with(['department', 'closer:id,name'])
             ->orderByDesc('tanggal')
             ->orderByDesc('id')
             ->paginate(20)
@@ -46,6 +49,7 @@ class CrossPatrolController extends Controller
             ...$access,
             ...$filters,
             'patrols' => $patrols,
+            'statusCounts' => $statusCounts,
             'plantOptions' => $this->visibleTo(CrossPatrol::query(), $request->user())->distinct()->orderBy('plant')->pluck('plant'),
             'zonas' => CrossPatrol::ZONA,
             'resikos' => CrossPatrol::RESIKO,

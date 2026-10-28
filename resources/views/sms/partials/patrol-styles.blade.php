@@ -31,6 +31,10 @@
     .status-pill { display: inline-block; padding: 5px 16px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1.5px solid; white-space: nowrap; }
     .status-open { color: #b45309; border-color: #f59e0b; background: #fffbeb; }
     .status-closed { color: var(--success); border-color: #34d399; background: var(--success-bg); }
+    .closed-by { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .closed-by b { color: var(--text); font-weight: 600; }
+    .summary .chip.chip-open { background: #fffbeb; color: #b45309; }
+    .summary .chip.chip-closed { background: var(--success-bg); color: var(--success); }
 
     table.patrol .c-finding .sub { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
 

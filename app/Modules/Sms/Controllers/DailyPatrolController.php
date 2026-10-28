@@ -29,15 +29,19 @@ class DailyPatrolController extends Controller
         $status = (string) $request->query('status');
         $department = $access['canFilterDepartment'] ? (string) $request->query('department') : '';
 
-        $patrols = $this->visibleTo(DailyPatrol::query(), $user)
-            ->with('department')
+        $filtered = $this->visibleTo(DailyPatrol::query(), $user)
             ->when(in_array($status, [DailyPatrol::STATUS_OPEN, DailyPatrol::STATUS_CLOSED], true), fn ($query) => $query->where('status', $status))
             ->when(ctype_digit($department), fn ($query) => $query->where('department_id', $department))
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('finding', 'like', "%{$search}%")
                 ->orWhere('potensi_bahaya', 'like', "%{$search}%")
                 ->orWhere('pic', 'like', "%{$search}%")
-                ->orWhere('pic_patrol', 'like', "%{$search}%")))
+                ->orWhere('pic_patrol', 'like', "%{$search}%")));
+
+        $statusCounts = $this->statusCounts($filtered);
+
+        $patrols = $filtered
+            ->with(['department', 'closer:id,name'])
             ->orderByDesc('tanggal')
             ->orderByDesc('id')
             ->paginate(20)
@@ -46,6 +50,7 @@ class DailyPatrolController extends Controller
         return view('sms.daily-patrols.index', [
             ...$access,
             'patrols' => $patrols,
+            'statusCounts' => $statusCounts,
             'search' => $search,
             'status' => $status,
             'department' => $department,

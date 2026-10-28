@@ -117,6 +117,13 @@ class CrossPatrolTest extends TestCase
         ]))->assertSessionHasNoErrors();
         $this->assertSame('closed', $patrol->fresh()->status);
         $this->assertNotNull($patrol->fresh()->closed_at);
+        $this->assertSame($admin->id, $patrol->fresh()->closed_by);
+
+        // Daftar menampilkan penutup di bawah badge & ringkasan jumlah Open / Close.
+        $this->patrol($this->psd, ['finding' => 'Temuan Lain']);
+        $this->actingAs($admin)->get('/sms/cross-patrols')->assertOk()
+            ->assertSee('oleh <b>'.e($admin->name).'</b>', false)
+            ->assertSeeInOrder(['Open <b>1</b>', 'Close <b>1</b>'], false);
     }
 
     public function test_pic_and_patroler_must_be_chosen_from_karyawan(): void

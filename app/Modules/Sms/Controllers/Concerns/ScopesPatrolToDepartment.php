@@ -97,7 +97,19 @@ trait ScopesPatrolToDepartment
     }
 
     /**
-     * Simpan foto baru & tentukan status/closed_at saat edit. Mengembalikan [data, file lama yang perlu dihapus].
+     * Jumlah temuan Open & Close sesuai filter yang sedang dipakai (semua halaman, bukan hanya halaman ini).
+     *
+     * @return array{open: int, closed: int}
+     */
+    private function statusCounts(Builder $query): array
+    {
+        $counts = (clone $query)->toBase()->reorder()->selectRaw('status, count(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
+
+        return ['open' => (int) ($counts['open'] ?? 0), 'closed' => (int) ($counts['closed'] ?? 0)];
+    }
+
+    /**
+     * Simpan foto baru & tentukan status/closed_at/closed_by saat edit. Mengembalikan [data, file lama yang perlu dihapus].
      */
     private function applyPhotosAndStatus(Request $request, Model $patrol, array $data): array
     {
@@ -113,7 +125,10 @@ trait ScopesPatrolToDepartment
             }
         }
 
-        $data['closed_at'] = $data['status'] === 'closed' ? ($patrol->closed_at ?? now()) : null;
+        // Waktu & user penutup dicatat saat pertama kali jadi Close; dikosongkan lagi kalau dibuka kembali.
+        $closing = $data['status'] === 'closed';
+        $data['closed_at'] = $closing ? ($patrol->closed_at ?? now()) : null;
+        $data['closed_by'] = $closing ? ($patrol->closed_at ? $patrol->closed_by : $request->user()->id) : null;
 
         return [$data, array_filter($oldFiles)];
     }

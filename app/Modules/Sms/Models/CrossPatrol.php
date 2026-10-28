@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['tanggal', 'plant', 'zona', 'finding', 'foto', 'efek', 'resiko', 'area', 'department_id', 'rekomendasi', 'target', 'pic',
-    'foto_perbaikan', 'kategori', 'patroler', 'status', 'closed_at', 'created_by', 'updated_by'])]
+    'foto_perbaikan', 'kategori', 'patroler', 'status', 'closed_at', 'closed_by', 'created_by', 'updated_by'])]
 class CrossPatrol extends Model
 {
     public const STATUS_OPEN = 'open';
@@ -91,5 +91,11 @@ class CrossPatrol extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /** User yang mengubah status menjadi Close. */
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
     }
 }

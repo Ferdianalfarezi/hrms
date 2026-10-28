@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
 class GrafikCrossPatrol
 {
     /**
-     * @return array{years: list<int>, selected: int, data: array<int, array{open: list<int>, close: list<int>, departments: list<array{department: string, values: list<int>, total: int}>}>}
+     * @return array{years: list<int>, selected: int, data: array<int, array{open: list<int>, close: list<int>, departments: list<array{department: string, values: list<int>, total: int, open: int, close: int}>}>}
      */
     public static function build(Carbon $today): array
     {
@@ -28,9 +28,10 @@ class GrafikCrossPatrol
 
             $years[$year] ??= ['open' => array_fill(0, 12, 0), 'close' => array_fill(0, 12, 0), 'departments' => []];
             $years[$year][$patrol->isClosed() ? 'close' : 'open'][$month]++;
-            $years[$year]['departments'][$department] ??= ['department' => $department, 'values' => array_fill(0, 12, 0), 'total' => 0];
+            $years[$year]['departments'][$department] ??= ['department' => $department, 'values' => array_fill(0, 12, 0), 'total' => 0, 'open' => 0, 'close' => 0];
             $years[$year]['departments'][$department]['values'][$month]++;
             $years[$year]['departments'][$department]['total']++;
+            $years[$year]['departments'][$department][$patrol->isClosed() ? 'close' : 'open']++;
         }
 
         // Tahun berjalan selalu ada di pilihan walau belum ada temuan.

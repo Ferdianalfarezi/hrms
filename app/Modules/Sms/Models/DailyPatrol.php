@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['tanggal', 'finding', 'foto', 'potensi_bahaya', 'department_id', 'plant', 'rekomendasi', 'resiko', 'kategori',
-    'target', 'pic', 'pic_patrol', 'foto_perbaikan', 'status', 'closed_at', 'created_by', 'updated_by'])]
+    'target', 'pic', 'pic_patrol', 'foto_perbaikan', 'status', 'closed_at', 'closed_by', 'created_by', 'updated_by'])]
 class DailyPatrol extends Model
 {
     public const STATUS_OPEN = 'open';
@@ -102,5 +102,11 @@ class DailyPatrol extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** User yang mengubah status menjadi Close. */
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
     }
 }

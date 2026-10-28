@@ -65,6 +65,8 @@
     table.heat-table td.heat.zero { color: var(--faint); }
     table.heat-table td.dept-name { text-align: left; white-space: nowrap; font-weight: 600; }
     table.heat-table tr.sum-row td { font-weight: 700; border-top: 1px solid var(--line); }
+    table.heat-table .status-col { font-weight: 600; white-space: nowrap; }
+    table.heat-table th.status-col .swatch { margin-right: 5px; vertical-align: -1px; }
     .heat-scale { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 11px; color: var(--muted); }
     .heat-scale i { width: 18px; height: 10px; border-radius: 3px; background: var(--h); }
 @endsection
@@ -809,9 +811,15 @@
             headRow.appendChild(html('th', '', 'Departemen'));
             labels.forEach(function (label) { headRow.appendChild(html('th', '', label)); });
             headRow.appendChild(html('th', '', 'Jumlah'));
+            SERIES.forEach(function (s) {
+                var th = html('th', 'status-col');
+                th.append(swatch(s.color), s.label);
+                headRow.appendChild(th);
+            });
             table.appendChild(html('thead')).appendChild(headRow);
             var body = table.appendChild(html('tbody'));
             var monthTotals = labels.map(function () { return 0; });
+            var statusTotals = { open: 0, close: 0 };
             departments.forEach(function (d) {
                 var tr = html('tr');
                 tr.appendChild(html('td', 'dept-name', d.department));
@@ -829,12 +837,26 @@
                 var all = html('td', '', d.total);
                 all.style.fontWeight = '700';
                 tr.appendChild(all);
+                // Dari jumlah itu, berapa yang masih Open & sudah Close.
+                SERIES.forEach(function (s) {
+                    var v = d[s.key] || 0;
+                    statusTotals[s.key] += v;
+                    var td = html('td', 'status-col', v);
+                    td.style.color = s.color;
+                    td.title = d.department + ' · ' + s.label + ': ' + v + ' temuan';
+                    tr.appendChild(td);
+                });
                 body.appendChild(tr);
             });
             var sumRow = html('tr', 'sum-row');
             sumRow.appendChild(html('td', 'dept-name', 'Total'));
             monthTotals.forEach(function (v) { sumRow.appendChild(html('td', '', v)); });
             sumRow.appendChild(html('td', '', sum(monthTotals)));
+            SERIES.forEach(function (s) {
+                var td = html('td', 'status-col', statusTotals[s.key]);
+                td.style.color = s.color;
+                sumRow.appendChild(td);
+            });
             body.appendChild(sumRow);
             wrap.appendChild(table);
 

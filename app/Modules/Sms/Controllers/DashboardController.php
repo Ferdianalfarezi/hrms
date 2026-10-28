@@ -67,7 +67,7 @@ class DashboardController extends Controller
     /**
      * Jumlah temuan Daily Patrol per departemen per hari (index 0 = 6 hari lalu, 6 = hari ini), urut nama departemen.
      *
-     * @return list<array{department: string, values: list<int>, total: int}>
+     * @return list<array{department: string, values: list<int>, total: int, open: int, close: int}>
      */
     private function dailyPerDepartment(Collection $patrols, Carbon $since): array
     {
@@ -76,9 +76,10 @@ class DashboardController extends Controller
 
         foreach ($patrols as $patrol) {
             $department = $names[$patrol->department_id] ?? '-';
-            $rows[$department] ??= ['department' => $department, 'values' => array_fill(0, 7, 0), 'total' => 0];
+            $rows[$department] ??= ['department' => $department, 'values' => array_fill(0, 7, 0), 'total' => 0, 'open' => 0, 'close' => 0];
             $rows[$department]['values'][(int) $since->diffInDays($patrol->tanggal->copy()->startOfDay())]++;
             $rows[$department]['total']++;
+            $rows[$department][$patrol->isClosed() ? 'close' : 'open']++;
         }
 
         ksort($rows);

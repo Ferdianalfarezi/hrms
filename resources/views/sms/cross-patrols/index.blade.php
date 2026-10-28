@@ -97,6 +97,8 @@
     @endif
     <div class="summary">
         <span class="chip">Total <b>{{ $patrols->total() }}</b></span>
+        <span class="chip chip-open">Open <b>{{ $statusCounts['open'] }}</b></span>
+        <span class="chip chip-closed">Close <b>{{ $statusCounts['closed'] }}</b></span>
     </div>
 </form>
 
@@ -136,6 +138,9 @@
                         <td>
                             @if ($patrol->isClosed())
                                 <span class="status-pill status-closed" title="Ditutup {{ $patrol->closed_at?->format('d/m/Y H:i') }}">Close</span>
+                                @if ($patrol->closer)
+                                    <span class="closed-by">oleh <b>{{ $patrol->closer->name }}</b></span>
+                                @endif
                             @else
                                 <span class="status-pill status-open">Open</span>
                             @endif

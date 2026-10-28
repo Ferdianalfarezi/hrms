@@ -233,8 +233,9 @@ class DailyPatrolTest extends TestCase
     public function test_upload_repair_photo_and_close(): void
     {
         $patrol = $this->patrol($this->psd);
+        $closer = $this->deptAdmin($this->psd);
 
-        $this->actingAs($this->deptAdmin($this->psd))
+        $this->actingAs($closer)
             ->put("/sms/daily-patrols/{$patrol->id}", $this->payload([
                 'foto' => null,
                 'foto_perbaikan' => UploadedFile::fake()->image('perbaikan.jpg'),
@@ -245,14 +246,28 @@ class DailyPatrolTest extends TestCase
         $patrol->refresh();
         $this->assertSame('closed', $patrol->status);
         $this->assertNotNull($patrol->closed_at);
+        $this->assertSame($closer->id, $patrol->closed_by);
         $this->assertSame('daily-patrol/a.jpg', $patrol->foto); // foto temuan tidak diganti
         Storage::disk('public')->assertExists($patrol->foto_perbaikan);
 
-        // Dibuka lagi: closed_at dikosongkan.
-        $this->actingAs($this->deptAdmin($this->psd))
+        // Daftar menampilkan penutup di bawah badge & ringkasan jumlah Open / Close.
+        $this->patrol($this->psd, ['finding' => 'Temuan Lain']);
+        $this->actingAs($this->smsAdmin())->get('/sms/daily-patrols')->assertOk()
+            ->assertSee('oleh <b>'.e($closer->name).'</b>', false)
+            ->assertSeeInOrder(['Open <b>1</b>', 'Close <b>1</b>'], false);
+
+        // Disimpan ulang oleh user lain tetap tercatat penutup pertama.
+        $this->actingAs($this->smsAdmin())
+            ->put("/sms/daily-patrols/{$patrol->id}", $this->payload(['foto' => null, 'department_id' => $this->psd->id, 'status' => 'closed']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame($closer->id, $patrol->fresh()->closed_by);
+
+        // Dibuka lagi: closed_at & closed_by dikosongkan.
+        $this->actingAs($closer)
             ->put("/sms/daily-patrols/{$patrol->id}", $this->payload(['foto' => null, 'status' => 'open']))
             ->assertSessionHasNoErrors();
         $this->assertNull($patrol->fresh()->closed_at);
+        $this->assertNull($patrol->fresh()->closed_by);
     }
 
     public function test_department_admin_cannot_touch_other_department(): void
@@ -297,8 +312,8 @@ class DailyPatrolTest extends TestCase
         $this->assertSame([0, 0, 0, 0, 0, 1, 1], array_column($chart['bars'], 'open'));
         $this->assertSame([0, 0, 0, 0, 0, 0, 1], array_column($chart['bars'], 'close'));
         $this->assertSame([
-            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 1, 1], 'total' => 2],
-            ['department' => 'PWD', 'values' => [0, 0, 0, 0, 0, 0, 1], 'total' => 1],
+            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 1, 1], 'total' => 2, 'open' => 2, 'close' => 0],
+            ['department' => 'PWD', 'values' => [0, 0, 0, 0, 0, 0, 1], 'total' => 1, 'open' => 0, 'close' => 1],
         ], $chart['departments']);
 
         Carbon::setTestNow();
@@ -326,10 +341,10 @@ class DailyPatrolTest extends TestCase
         $this->assertSame([1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], $chart['data'][2026]['open']);
         $this->assertSame([0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0], $chart['data'][2026]['close']);
         $this->assertSame([
-            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0], 'total' => 2],
-            ['department' => 'PWD', 'values' => [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], 'total' => 2],
+            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0], 'total' => 2, 'open' => 1, 'close' => 1],
+            ['department' => 'PWD', 'values' => [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], 'total' => 2, 'open' => 1, 'close' => 1],
         ], $chart['data'][2026]['departments']);
-        $this->assertSame([['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 'total' => 1]], $chart['data'][2025]['departments']);
+        $this->assertSame([['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2025]['departments']);
 
         $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
             ->assertSee('data-stack-years=', false)
