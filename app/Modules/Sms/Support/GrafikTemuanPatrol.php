@@ -10,26 +10,29 @@ use Illuminate\Support\Carbon;
  * Data grafik "Temuan Daily Patrol" per departemen (Total / Open / Close), dikelompokkan per tahun & bulan.
  * Semua tahun dikirim sekaligus supaya pilihan tahun & bulan di dashboard bisa ganti tanpa reload.
  * Default yang dipilih: bulan & tahun berjalan; pilihan bulan "all" = rekap setahun.
+ * "cells" = jumlah temuan per "kategori.resiko" (mis. "apparatus.S") untuk tabel rekap di modal perbesar.
  */
 class GrafikTemuanPatrol
 {
     /**
-     * @return array{years: list<int>, selected: int, selectedMonth: int, data: array<int, array{all: list<array{department: string, total: int, open: int, close: int}>, months: array<int, list<array{department: string, total: int, open: int, close: int}>>}>}
+     * @return array{years: list<int>, selected: int, selectedMonth: int, data: array<int, array{all: list<array{department: string, total: int, open: int, close: int, cells: array<string, int>}>, months: array<int, list<array{department: string, total: int, open: int, close: int, cells: array<string, int>}>>}>}
      */
     public static function build(Carbon $today): array
     {
         $names = Department::pluck('name', 'id');
         $counts = [];
 
-        foreach (DailyPatrol::query()->select(['department_id', 'tanggal', 'status'])->cursor() as $patrol) {
+        foreach (DailyPatrol::query()->select(['department_id', 'tanggal', 'status', 'kategori', 'resiko'])->cursor() as $patrol) {
             $year = $patrol->tanggal->year;
             $department = $names[$patrol->department_id] ?? '-';
             $status = $patrol->isClosed() ? 'close' : 'open';
+            $cell = $patrol->kategori.'.'.$patrol->resiko;
 
             foreach (['all', $patrol->tanggal->month] as $period) {
-                $counts[$year][$period][$department] ??= ['department' => $department, 'total' => 0, 'open' => 0, 'close' => 0];
+                $counts[$year][$period][$department] ??= ['department' => $department, 'total' => 0, 'open' => 0, 'close' => 0, 'cells' => []];
                 $counts[$year][$period][$department]['total']++;
                 $counts[$year][$period][$department][$status]++;
+                $counts[$year][$period][$department]['cells'][$cell] = ($counts[$year][$period][$department]['cells'][$cell] ?? 0) + 1;
             }
         }
 
@@ -50,8 +53,8 @@ class GrafikTemuanPatrol
     }
 
     /**
-     * @param  array<string, array{department: string, total: int, open: int, close: int}>  $rows
-     * @return list<array{department: string, total: int, open: int, close: int}>
+     * @param  array<string, array{department: string, total: int, open: int, close: int, cells: array<string, int>}>  $rows
+     * @return list<array{department: string, total: int, open: int, close: int, cells: array<string, int>}>
      */
     private static function sorted(array $rows): array
     {

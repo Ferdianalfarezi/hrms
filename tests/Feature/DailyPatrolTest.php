@@ -430,7 +430,7 @@ class DailyPatrolTest extends TestCase
         $this->patrol($this->psd);
         $this->patrol($this->psd, ['status' => 'closed']);
         $this->patrol($this->pwd, ['status' => 'closed']);
-        $this->patrol($this->psd, ['tanggal' => '2026-09-30']);
+        $this->patrol($this->psd, ['tanggal' => '2026-09-30', 'kategori' => 'drop', 'resiko' => 'E']);
         $this->patrol($this->pwd, ['tanggal' => '2025-05-01']);
 
         $chart = GrafikTemuanPatrol::build(Carbon::today());
@@ -441,18 +441,18 @@ class DailyPatrolTest extends TestCase
         $this->assertSame(10, $chart['selectedMonth']);
 
         $this->assertSame([
-            ['department' => 'PSD', 'total' => 2, 'open' => 1, 'close' => 1],
-            ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1],
+            ['department' => 'PSD', 'total' => 2, 'open' => 1, 'close' => 1, 'cells' => ['fire.S' => 2]],
+            ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1, 'cells' => ['fire.S' => 1]],
         ], $chart['data'][2026]['months'][10]);
-        $this->assertSame([['department' => 'PSD', 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2026]['months'][9]);
+        $this->assertSame([['department' => 'PSD', 'total' => 1, 'open' => 1, 'close' => 0, 'cells' => ['drop.E' => 1]]], $chart['data'][2026]['months'][9]);
         $this->assertSame([], $chart['data'][2026]['months'][11]);
 
         // Pilihan bulan "All" = rekap setahun.
         $this->assertSame([
-            ['department' => 'PSD', 'total' => 3, 'open' => 2, 'close' => 1],
-            ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1],
+            ['department' => 'PSD', 'total' => 3, 'open' => 2, 'close' => 1, 'cells' => ['fire.S' => 2, 'drop.E' => 1]],
+            ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1, 'cells' => ['fire.S' => 1]],
         ], $chart['data'][2026]['all']);
-        $this->assertSame([['department' => 'PWD', 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2025]['all']);
+        $this->assertSame([['department' => 'PWD', 'total' => 1, 'open' => 1, 'close' => 0, 'cells' => ['fire.S' => 1]]], $chart['data'][2025]['all']);
 
         // Kartu "User Terbaru" diganti grafik temuan.
         $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
