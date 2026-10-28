@@ -589,7 +589,7 @@
 
         // Tabel rekap ala form Excel: departemen x kategori (S/H/E) + Total / Open / Closed, digambar ke canvas
         // supaya bisa langsung disalin / diunduh sebagai gambar.
-        function drawRecap(rows) {
+        function drawRecap(rows, targetWidth) {
             var C = { head: '#ed7d31', no: '#f8cbad', group: '#00b0f0', kat: '#00b050', res: '#f8cbad', open: '#ffff00', closed: '#00b050', line: '#7f7f7f', text: '#000000' };
             // Kolom sama seperti form referensi: semua di bawah "STOP 6" = 6 kategori Stop 6 + OTHER + 5R.
             // Ergonomi/Kesehatan tidak punya kolom sendiri di form, jadi dihitung di kolom OTHER.
@@ -599,13 +599,19 @@
             function countOf(row, c, r) {
                 return c.keys.reduce(function (n, key) { return n + ((row.cells || {})[key + '.' + r] || 0); }, 0);
             }
-            var W = { no: 40, dept: 120, res: 26, total: 76, open: 62, closed: 66 };
-            var H = { head: 26, row: 26 };
+            // Lebar minimum per kolom; kalau modal lebih lebar, semua kolom diperbesar supaya tabel penuh selebar modal.
+            var W = { no: 40, dept: 120, res: 26, total: 92, open: 62, closed: 66 };
+            var natural = W.no + W.dept + W.res * RESIKO.length * cats.length + W.total + W.open + W.closed;
+            var factor = Math.max(1, ((targetWidth || 0) - 1) / natural);
+            Object.keys(W).forEach(function (key) { W[key] = Math.floor(W[key] * factor); });
             var catW = W.res * RESIKO.length;
+            W.dept += Math.max(0, Math.floor(natural * factor) - (W.no + W.dept + catW * cats.length + W.total + W.open + W.closed));
+            var H = { head: Math.round(26 * Math.min(factor, 1.2)), row: Math.round(26 * Math.min(factor, 1.2)) };
             var width = W.no + W.dept + catW * cats.length + W.total + W.open + W.closed + 1;
             var headH = H.head * 3;
             var height = headH + H.row * (rows.length + 1) + 1;
             var font = getComputedStyle(document.body).fontFamily;
+            var fontBase = Math.round(12 * Math.min(factor, 1.15));
             var scale = 2;
 
             var canvas = document.createElement('canvas');
@@ -627,7 +633,7 @@
                 ctx.strokeStyle = C.line;
                 ctx.strokeRect(x + .5, y + .5, w, h);
                 if (text === '' || text === null || text === undefined) return;
-                var size = 12;
+                var size = fontBase;
                 do { ctx.font = (bold ? '700 ' : '400 ') + size + 'px ' + font; size--; } while (size > 7 && ctx.measureText(String(text)).width > w - 6);
                 ctx.fillStyle = C.text;
                 ctx.fillText(String(text), x + w / 2, y + h / 2 + 1);
@@ -706,9 +712,15 @@
 
             var wrap = document.createElement('div');
             wrap.className = 'recap-wrap';
-            var canvas = drawRecap(rows);
-            wrap.appendChild(canvas);
+            var canvas = null;
             section.append(head, wrap);
+
+            // Digambar setelah modal tampil (lebar modal baru diketahui saat itu) dan ulang saat lebar berubah.
+            section.render = function () {
+                var next = drawRecap(rows, wrap.clientWidth);
+                if (canvas) canvas.replaceWith(next); else wrap.appendChild(next);
+                canvas = next;
+            };
 
             var fileName = 'rekap-temuan-daily-patrol-' + periodLabel().toLowerCase().replace(/\s+/g, '-') + '.png';
             function flash(text) { note.textContent = text; setTimeout(function () { if (note.textContent === text) note.textContent = ''; }, 3000); }
@@ -803,14 +815,16 @@
             });
             wrap.appendChild(table);
             body.appendChild(wrap);
-            body.appendChild(recapSection(rows));
+            var recap = recapSection(rows);
+            body.appendChild(recap);
 
             modal.showModal();
             drawBars(plot, rows, true);
+            recap.render();
             if ('ResizeObserver' in window) {
                 var lastWidth = plot.clientWidth;
                 new ResizeObserver(function () {
-                    if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; drawBars(plot, rows, false); }
+                    if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; drawBars(plot, rows, false); recap.render(); }
                 }).observe(plot);
             }
         });
