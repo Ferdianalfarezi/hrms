@@ -56,6 +56,7 @@
     .recap-head .card-title { margin: 0; }
     .recap-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .recap-note { font-size: 12px; color: var(--muted); }
+    .recap-actions.chart-actions { justify-content: flex-end; margin-bottom: 10px; }
     .recap-wrap { overflow-x: auto; }
     .recap-wrap canvas { display: block; }
     .modal-filter { margin-bottom: 4px; }
@@ -408,8 +409,13 @@
                 document.getElementById('chart-modal-sub').textContent = template.dataset.subtitle;
                 body.innerHTML = '';
                 body.appendChild(template.content.cloneNode(true));
+                var plot = body.querySelector('.chart-plot');
+                var series = JSON.parse(plot.dataset.chart).series;
+                body.insertBefore(PatrolImage.chartActions(plot, template.dataset.title + ' · ' + template.dataset.subtitle, series.map(function (s) {
+                    return { label: s.label, color: s.color, dashed: s.target };
+                })), body.firstChild);
                 modal.showModal();
-                watch(body.querySelector('.chart-plot'), 150);
+                watch(plot, 150);
             });
         });
         modal.querySelector('[data-close]').addEventListener('click', function () { modal.close(); });
@@ -593,7 +599,78 @@
             return c.canvas;
         }
 
-        return { blankCanvas: blankCanvas, imageActions: imageActions, sectionHead: sectionHead, recapTable: recapTable };
+        // Judul + legenda di atas gambar grafik. legend: [{label, color, dashed?}] (dashed = garis target putus-putus).
+        function drawImageHeader(ctx, title, legend, x, y) {
+            var font = getComputedStyle(document.body).fontFamily;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 15px ' + font;
+            ctx.fillText(title, x, y + 9);
+            var lx = x;
+            ctx.font = '400 12px ' + font;
+            legend.forEach(function (item) {
+                ctx.fillStyle = item.color;
+                if (item.dashed) {
+                    ctx.strokeStyle = item.color;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(lx, y + 35);
+                    ctx.lineTo(lx + 14, y + 35);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                } else {
+                    ctx.fillRect(lx, y + 30, 10, 10);
+                }
+                var swatchW = item.dashed ? 19 : 15;
+                ctx.fillStyle = '#475569';
+                ctx.fillText(item.label, lx + swatchW, y + 35);
+                lx += swatchW + ctx.measureText(item.label).width + 16;
+            });
+        }
+
+        // Grafik SVG di modal -> PNG: style dari CSS disalin ke elemen SVG supaya ikut tergambar.
+        function chartCanvas(plot, title, legend) {
+            var svg = plot.querySelector('svg');
+            if (!svg) return Promise.reject(new Error('Grafik belum tampil.'));
+            var clone = svg.cloneNode(true);
+            var originals = svg.querySelectorAll('*'), copies = clone.querySelectorAll('*');
+            originals.forEach(function (node, i) {
+                var style = getComputedStyle(node);
+                ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'font-size', 'font-family', 'font-weight'].forEach(function (prop) {
+                    copies[i].style.setProperty(prop, style.getPropertyValue(prop));
+                });
+                copies[i].removeAttribute('class');
+            });
+            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            var width = Number(svg.getAttribute('width')), height = Number(svg.getAttribute('height'));
+            var source = new XMLSerializer().serializeToString(clone);
+
+            return new Promise(function (resolve, reject) {
+                var img = new Image();
+                img.onload = function () {
+                    var pad = 20, headH = 56;
+                    var c = blankCanvas(width + pad * 2, height + headH + pad * 2);
+                    drawImageHeader(c.ctx, title, legend, pad, pad);
+                    c.ctx.drawImage(img, pad, pad + headH, width, height);
+                    resolve(c.canvas);
+                };
+                img.onerror = reject;
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+            });
+        }
+
+        function slug(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+        // Baris tombol "Salin gambar" + "Unduh PNG" (rata kanan) untuk grafik SVG di dalam plot.
+        function chartActions(plot, title, legend) {
+            var actions = imageActions(function () { return chartCanvas(plot, title, legend); }, function () { return slug(title); });
+            actions.classList.add('chart-actions');
+            return actions;
+        }
+
+        return { blankCanvas: blankCanvas, imageActions: imageActions, sectionHead: sectionHead, recapTable: recapTable, chartCanvas: chartCanvas, chartActions: chartActions, slug: slug };
     })();
 
     // Temuan Daily Patrol per departemen: kartu ringkas (bar mendatar) + modal perbesar (batang Total/Open/Close + tabel).
@@ -777,53 +854,10 @@
         function slug(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 
         // Judul + legenda di bagian atas gambar supaya jelas periodenya saat di-paste di chat / dokumen.
-        function drawImageHeader(ctx, title, x, y) {
-            var font = getComputedStyle(document.body).fontFamily;
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-            ctx.fillStyle = '#0f172a';
-            ctx.font = '700 15px ' + font;
-            ctx.fillText(title, x, y + 9);
-            var lx = x;
-            ctx.font = '400 12px ' + font;
-            ['total', 'open', 'close'].forEach(function (key) {
-                ctx.fillStyle = COLORS[key];
-                ctx.fillRect(lx, y + 30, 10, 10);
-                ctx.fillStyle = '#475569';
-                ctx.fillText(LABELS[key], lx + 15, y + 35);
-                lx += 15 + ctx.measureText(LABELS[key]).width + 16;
-            });
-        }
-
-        // Grafik batang (SVG di modal) -> PNG: style dari CSS disalin ke elemen SVG supaya ikut tergambar.
         function chartCanvas(plot, title) {
-            var svg = plot.querySelector('svg');
-            if (!svg) return Promise.reject(new Error('Grafik belum tampil.'));
-            var clone = svg.cloneNode(true);
-            var originals = svg.querySelectorAll('*'), copies = clone.querySelectorAll('*');
-            originals.forEach(function (node, i) {
-                var style = getComputedStyle(node);
-                ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'font-size', 'font-family', 'font-weight'].forEach(function (prop) {
-                    copies[i].style.setProperty(prop, style.getPropertyValue(prop));
-                });
-                copies[i].removeAttribute('class');
-            });
-            clone.setAttribute('xmlns', NS);
-            var width = Number(svg.getAttribute('width')), height = Number(svg.getAttribute('height'));
-            var source = new XMLSerializer().serializeToString(clone);
-
-            return new Promise(function (resolve, reject) {
-                var img = new Image();
-                img.onload = function () {
-                    var pad = 20, headH = 56;
-                    var c = blankCanvas(width + pad * 2, height + headH + pad * 2);
-                    drawImageHeader(c.ctx, title, pad, pad);
-                    c.ctx.drawImage(img, pad, pad + headH, width, height);
-                    resolve(c.canvas);
-                };
-                img.onerror = reject;
-                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
-            });
+            return PatrolImage.chartCanvas(plot, title, ['total', 'open', 'close'].map(function (key) {
+                return { label: LABELS[key], color: COLORS[key] };
+            }));
         }
 
         // Tabel ringkasan Total / Open / Close per departemen -> PNG.
@@ -1265,10 +1299,9 @@
             body.innerHTML = '';
             var legend = html('div', 'chart-legend');
             SERIES.forEach(function (s) { var item = html('span'); item.append(swatch(s.color), s.label); legend.appendChild(item); });
-            body.appendChild(legend);
             var plot = html('div', 'chart-plot chart-plot-lg');
             plot.innerHTML = '<div class="chart-tip" hidden></div>';
-            body.appendChild(plot);
+            body.append(PatrolImage.chartActions(plot, title + ' · ' + subtitle, SERIES), legend, plot);
             body.appendChild(totalsTable(chart));
             if (extra) {
                 var heading = html('h3', 'card-title', 'Temuan per Departemen');

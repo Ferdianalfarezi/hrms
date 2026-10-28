@@ -24,7 +24,6 @@ class ModuleDashboard
 
         $memberIds = DB::table('user_app_roles')->where('application_id', $application->id)->pluck('user_id');
         $members = $memberIds->count();
-        $activeMembers = User::whereIn('id', $memberIds)->where('is_active', true)->count();
 
         $roleCounts = DB::table('user_app_roles')
             ->where('application_id', $application->id)
@@ -33,10 +32,8 @@ class ModuleDashboard
             ->pluck('total', 'role_id');
 
         $roles = $application->roles()->orderBy('id')->get()->map(fn ($role) => [
-            'label' => $role->name,
             'code' => $role->code,
             'count' => (int) ($roleCounts[$role->id] ?? 0),
-            'percent' => self::percent($roleCounts[$role->id] ?? 0, $members),
         ]);
 
         // User baru 7 hari terakhir, dihitung di PHP supaya tidak bergantung pada fungsi tanggal DB.
@@ -66,8 +63,8 @@ class ModuleDashboard
                 ['label' => "Akses {$application->name}", 'value' => $members, 'icon' => 'lock'],
                 ['label' => 'Admin', 'value' => $roles->firstWhere('code', 'admin')['count'] ?? 0, 'icon' => 'shield'],
             ],
-            'pills' => $roles->filter(fn ($role) => $role['count'] > 0)->values()->all(),
-            'pillOutlines' => [['label' => 'Akun aktif', 'count' => $activeMembers]],
+            'pills' => [],
+            'pillOutlines' => [],
             'growth' => [
                 'title' => 'Pertumbuhan',
                 'total' => $bars->sum('count'),

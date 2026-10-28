@@ -187,6 +187,7 @@
     <div style="flex: 1; min-width: 280px;">
         <div class="module-tag">{{ $application->name }} · {{ $subtitle ?? $application->description }}</div>
         <h1 class="welcome">Selamat datang, {{ $viewer->first_name }}</h1>
+        @if ($pills || $pillOutlines)
         <div class="pillbars">
             @foreach ($pills as $item)
                 <div class="pillbar" style="flex: {{ max($item['percent'], 14) }}; --j: {{ $loop->index }};">
@@ -204,6 +205,7 @@
                 @endforeach
             @endif
         </div>
+        @endif
     </div>
 
     <div class="bigstats">
