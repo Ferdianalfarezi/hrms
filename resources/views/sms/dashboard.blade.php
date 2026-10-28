@@ -171,6 +171,12 @@
         <div class="card-head">
             <h2 class="card-title">Temuan Daily Patrol</h2>
             <div class="temuan-tools">
+                <select data-temuan-month aria-label="Bulan">
+                    <option value="all">All</option>
+                    @foreach (\App\Modules\Sms\Support\GrafikKecelakaan::MONTHS as $index => $monthLabel)
+                        <option value="{{ $index + 1 }}" @selected($index + 1 === $grafikTemuan['selectedMonth'])>{{ ucfirst(strtolower($monthLabel)) }}</option>
+                    @endforeach
+                </select>
                 <select data-temuan-year aria-label="Tahun">
                     @foreach ($grafikTemuan['years'] as $year)
                         <option value="{{ $year }}" @selected($year === $grafikTemuan['selected'])>{{ $year }}</option>
@@ -425,19 +431,35 @@
         var LABELS = { total: 'Total', open: 'Open', close: 'Close' };
         var data = JSON.parse(card.dataset.temuan);
         var select = card.querySelector('[data-temuan-year]');
+        var monthSelect = card.querySelector('[data-temuan-month]');
         var rowsBox = card.querySelector('[data-temuan-rows]');
+        var MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-        function rowsOf(year) { return data[year] || []; }
+        // Bulan "all" = rekap setahun; selain itu temuan bulan terpilih di tahun terpilih.
+        function currentRows() {
+            var year = data[select.value];
+            if (!year) return [];
+            return monthSelect.value === 'all' ? year.all : (year.months[monthSelect.value] || []);
+        }
+
+        function periodLabel() {
+            return monthSelect.value === 'all' ? 'Tahun ' + select.value : MONTH_NAMES[monthSelect.value - 1] + ' ' + select.value;
+        }
+
+        function emptyText() {
+            return monthSelect.value === 'all' ? 'Belum ada temuan di tahun ini.' : 'Belum ada temuan di bulan ini.';
+        }
 
         function sum(rows, key) { return rows.reduce(function (n, row) { return n + row[key]; }, 0); }
 
         // delay: ms sebelum bar memanjang (dashboard baru dibuka: tunggu kartunya tampil).
         function renderCompact(delay) {
-            var rows = rowsOf(select.value);
+            var rows = currentRows();
             var max = Math.max.apply(null, rows.map(function (row) { return row.total; }).concat([1]));
             rowsBox.innerHTML = '';
             if (!rows.length) {
-                rowsBox.innerHTML = '<div class="temuan-empty">Belum ada temuan di tahun ini.</div>';
+                rowsBox.innerHTML = '<div class="temuan-empty"></div>';
+                rowsBox.firstChild.textContent = emptyText();
             }
             rows.forEach(function (row) {
                 var line = document.createElement('div');
@@ -553,15 +575,16 @@
         }
 
         select.addEventListener('change', function () { renderCompact(0); });
+        monthSelect.addEventListener('change', function () { renderCompact(0); });
         renderCompact(1000);
 
         // Modal perbesar memakai #chart-modal yang sama dengan grafik kecelakaan.
         card.querySelector('[data-temuan-expand]').addEventListener('click', function () {
-            var rows = rowsOf(select.value);
+            var rows = currentRows();
             var modal = document.getElementById('chart-modal');
             var body = document.getElementById('chart-modal-body');
             document.getElementById('chart-modal-title').textContent = 'Grafik Temuan Daily Patrol';
-            document.getElementById('chart-modal-sub').textContent = 'Tahun : ' + select.value;
+            document.getElementById('chart-modal-sub').textContent = periodLabel();
             body.innerHTML = '';
 
             var legend = document.createElement('div');
@@ -579,7 +602,7 @@
             if (!rows.length) {
                 var empty = document.createElement('p');
                 empty.className = 'muted';
-                empty.textContent = 'Belum ada temuan di tahun ini.';
+                empty.textContent = emptyText();
                 body.appendChild(empty);
                 modal.showModal();
                 return;

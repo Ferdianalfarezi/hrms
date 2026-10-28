@@ -430,22 +430,36 @@ class DailyPatrolTest extends TestCase
         $this->patrol($this->psd);
         $this->patrol($this->psd, ['status' => 'closed']);
         $this->patrol($this->pwd, ['status' => 'closed']);
+        $this->patrol($this->psd, ['tanggal' => '2026-09-30']);
         $this->patrol($this->pwd, ['tanggal' => '2025-05-01']);
 
         $chart = GrafikTemuanPatrol::build(Carbon::today());
 
+        // Default: bulan & tahun berjalan.
         $this->assertSame([2026, 2025], $chart['years']);
         $this->assertSame(2026, $chart['selected']);
+        $this->assertSame(10, $chart['selectedMonth']);
+
         $this->assertSame([
             ['department' => 'PSD', 'total' => 2, 'open' => 1, 'close' => 1],
             ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1],
-        ], $chart['data'][2026]);
-        $this->assertSame([['department' => 'PWD', 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2025]);
+        ], $chart['data'][2026]['months'][10]);
+        $this->assertSame([['department' => 'PSD', 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2026]['months'][9]);
+        $this->assertSame([], $chart['data'][2026]['months'][11]);
+
+        // Pilihan bulan "All" = rekap setahun.
+        $this->assertSame([
+            ['department' => 'PSD', 'total' => 3, 'open' => 2, 'close' => 1],
+            ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1],
+        ], $chart['data'][2026]['all']);
+        $this->assertSame([['department' => 'PWD', 'total' => 1, 'open' => 1, 'close' => 0]], $chart['data'][2025]['all']);
 
         // Kartu "User Terbaru" diganti grafik temuan.
         $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
             ->assertSee('Temuan Daily Patrol')
             ->assertSee('data-temuan=', false)
+            ->assertSee('<option value="all">All</option>', false)
+            ->assertSee('<option value="10" selected>Oct</option>', false)
             ->assertDontSee('User Terbaru');
 
         Carbon::setTestNow();
