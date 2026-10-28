@@ -296,7 +296,7 @@ class DailyPatrolTest extends TestCase
 
     public function test_dashboard_layout_has_no_seven_day_daily_card(): void
     {
-        // Baris atas: profil, hari tanpa kecelakaan, temuan Daily Patrol, Cross Patrol; lalu Work & Traffic Accident bertumpuk.
+        // Baris atas: profil, temuan Daily Patrol, Cross Patrol, hari tanpa kecelakaan; lalu Work & Traffic Accident bersebelahan.
         $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
             ->assertDontSee('<h2 class="card-title">Pertumbuhan</h2>', false)
             ->assertDontSee('<h2 class="card-title">Jam Kerja</h2>', false)

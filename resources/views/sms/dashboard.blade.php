@@ -27,10 +27,10 @@
 
     #chart-modal { width: min(1100px, calc(100% - 32px)); }
 
-    /* Susunan dashboard SMS: baris atas profil | hari tanpa kecelakaan | temuan Daily Patrol | Cross Patrol,
-       lalu grafik Work Accident dan Traffic Accident bertumpuk selebar penuh. */
+    /* Susunan dashboard SMS: baris atas profil | temuan Daily Patrol | Cross Patrol | hari tanpa kecelakaan (pojok kanan),
+       lalu grafik Work Accident dan Traffic Accident bersebelahan. */
     .dash-grid {
-        grid-template-areas: "profile hari temuan cross" "work work work work" "traffic traffic traffic traffic";
+        grid-template-areas: "profile temuan cross hari" "work work traffic traffic";
     }
     .dash-grid .a-side { display: contents; }
     .a-hari { grid-area: hari; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -38,12 +38,11 @@
     .a-temuan { grid-area: temuan; }
     .a-cross { grid-area: cross; }
     .a-cross .chart-plot-sm { flex: 1 1 auto; height: auto; min-height: 160px; }
-    .chart-card .chart-plot-sm { height: 200px; }
     @media (max-width: 1100px) {
-        .dash-grid { grid-template-areas: "profile hari" "temuan cross" "work work" "traffic traffic"; }
+        .dash-grid { grid-template-areas: "profile hari" "temuan cross" "work traffic"; }
     }
     @media (max-width: 640px) {
-        .dash-grid { grid-template-areas: "profile" "hari" "temuan" "cross" "work" "traffic"; }
+        .dash-grid { grid-template-areas: "profile" "temuan" "cross" "hari" "work" "traffic"; }
     }
 
     /* Kartu temuan Daily Patrol per departemen (kolom kanan): bar mendatar Open + Close, total di ujung. */
