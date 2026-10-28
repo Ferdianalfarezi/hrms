@@ -40,6 +40,7 @@
     .recap-note { font-size: 12px; color: var(--muted); }
     .recap-wrap { overflow-x: auto; }
     .recap-wrap canvas { display: block; }
+    .modal-filter { margin-bottom: 4px; }
     .temuan-tools { display: flex; align-items: center; gap: 6px; }
     .temuan-tools select { width: auto; padding: 6px 28px 6px 12px; font-size: 12px; border-radius: 999px; }
     .temuan-rows { display: grid; gap: 10px; margin-top: 12px; }
@@ -449,19 +450,24 @@
         var RESIKO = @json(array_keys(\App\Modules\Sms\Models\DailyPatrol::RESIKO));
 
         // Bulan "all" = rekap setahun; selain itu temuan bulan terpilih di tahun terpilih.
-        function currentRows() {
-            var year = data[select.value];
-            if (!year) return [];
-            return monthSelect.value === 'all' ? year.all : (year.months[monthSelect.value] || []);
+        // Kartu & modal punya pilihan bulan/tahun sendiri-sendiri, jadi helper menerima periode sebagai argumen.
+        function rowsFor(year, month) {
+            var entry = data[year];
+            if (!entry) return [];
+            return month === 'all' ? entry.all : (entry.months[month] || []);
         }
 
-        function periodLabel() {
-            return monthSelect.value === 'all' ? 'Tahun ' + select.value : MONTH_NAMES[monthSelect.value - 1] + ' ' + select.value;
+        function labelFor(year, month) {
+            return month === 'all' ? 'Tahun ' + year : MONTH_NAMES[month - 1] + ' ' + year;
         }
 
-        function emptyText() {
-            return monthSelect.value === 'all' ? 'Belum ada temuan di tahun ini.' : 'Belum ada temuan di bulan ini.';
+        function emptyFor(month) {
+            return month === 'all' ? 'Belum ada temuan di tahun ini.' : 'Belum ada temuan di bulan ini.';
         }
+
+        function currentRows() { return rowsFor(select.value, monthSelect.value); }
+
+        function emptyText() { return emptyFor(monthSelect.value); }
 
         function sum(rows, key) { return rows.reduce(function (n, row) { return n + row[key]; }, 0); }
 
@@ -687,13 +693,22 @@
             return canvas;
         }
 
-        function recapSection(rows) {
-            var section = document.createElement('div');
-            var head = document.createElement('div');
-            head.className = 'recap-head';
-            var title = document.createElement('h3');
-            title.className = 'card-title';
-            title.textContent = 'Rekap per Kategori & Resiko';
+        function slug(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+        // Kanvas putih resolusi 2x (tajam saat di-paste) dengan ukuran tampilan width x height.
+        function blankCanvas(width, height) {
+            var canvas = document.createElement('canvas');
+            canvas.width = width * 2;
+            canvas.height = height * 2;
+            var ctx = canvas.getContext('2d');
+            ctx.scale(2, 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            return { canvas: canvas, ctx: ctx };
+        }
+
+        // Tombol "Salin gambar" + "Unduh PNG". getCanvas mengembalikan Promise<canvas> (grafik SVG perlu dimuat dulu).
+        function imageActions(getCanvas, getFileName) {
             var actions = document.createElement('div');
             actions.className = 'recap-actions';
             var note = document.createElement('span');
@@ -708,89 +723,150 @@
             downloadBtn.className = 'btn btn-ghost btn-sm';
             downloadBtn.textContent = 'Unduh PNG';
             actions.append(note, copyBtn, downloadBtn);
-            head.append(title, actions);
 
-            var wrap = document.createElement('div');
-            wrap.className = 'recap-wrap';
-            var canvas = null;
-            section.append(head, wrap);
-
-            // Digambar setelah modal tampil (lebar modal baru diketahui saat itu) dan ulang saat lebar berubah.
-            section.render = function () {
-                var next = drawRecap(rows, wrap.clientWidth);
-                if (canvas) canvas.replaceWith(next); else wrap.appendChild(next);
-                canvas = next;
-            };
-
-            var fileName = 'rekap-temuan-daily-patrol-' + periodLabel().toLowerCase().replace(/\s+/g, '-') + '.png';
             function flash(text) { note.textContent = text; setTimeout(function () { if (note.textContent === text) note.textContent = ''; }, 3000); }
             function download() {
-                var link = document.createElement('a');
-                link.download = fileName;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
+                return getCanvas().then(function (canvas) {
+                    var link = document.createElement('a');
+                    link.download = getFileName() + '.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
             }
-            downloadBtn.addEventListener('click', download);
+            downloadBtn.addEventListener('click', function () { download(); });
             copyBtn.addEventListener('click', function () {
                 // Salin gambar ke clipboard hanya diizinkan browser di HTTPS / localhost; selain itu diunduh sebagai PNG.
                 if (!window.isSecureContext || !navigator.clipboard || !window.ClipboardItem) {
-                    download();
-                    flash('Browser tidak mengizinkan salin gambar di alamat ini, file PNG diunduh.');
+                    download().then(function () { flash('Browser tidak mengizinkan salin gambar di alamat ini, file PNG diunduh.'); });
                     return;
                 }
-                var blob = new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
+                var blob = getCanvas().then(function (canvas) {
+                    return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
+                });
                 navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
                     .then(function () { flash('Gambar tersalin, tinggal paste.'); })
-                    .catch(function () { download(); flash('Gagal menyalin, file PNG diunduh.'); });
+                    .catch(function () { download().then(function () { flash('Gagal menyalin, file PNG diunduh.'); }); });
             });
-            return section;
+            return actions;
         }
 
-        select.addEventListener('change', function () { renderCompact(0); });
-        monthSelect.addEventListener('change', function () { renderCompact(0); });
-        renderCompact(1000);
+        function sectionHead(text, actions, first) {
+            var head = document.createElement('div');
+            head.className = 'recap-head';
+            if (first) head.style.marginTop = '4px';
+            var title = document.createElement('h3');
+            title.className = 'card-title';
+            title.textContent = text;
+            head.append(title, actions);
+            return head;
+        }
 
-        // Modal perbesar memakai #chart-modal yang sama dengan grafik kecelakaan.
-        card.querySelector('[data-temuan-expand]').addEventListener('click', function () {
-            var rows = currentRows();
-            var modal = document.getElementById('chart-modal');
-            var body = document.getElementById('chart-modal-body');
-            document.getElementById('chart-modal-title').textContent = 'Grafik Temuan Daily Patrol';
-            document.getElementById('chart-modal-sub').textContent = periodLabel();
-            body.innerHTML = '';
-
-            var legend = document.createElement('div');
-            legend.className = 'chart-legend';
+        // Judul + legenda di bagian atas gambar supaya jelas periodenya saat di-paste di chat / dokumen.
+        function drawImageHeader(ctx, title, x, y) {
+            var font = getComputedStyle(document.body).fontFamily;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 15px ' + font;
+            ctx.fillText(title, x, y + 9);
+            var lx = x;
+            ctx.font = '400 12px ' + font;
             ['total', 'open', 'close'].forEach(function (key) {
-                var item = document.createElement('span');
-                var swatch = document.createElement('i');
-                swatch.className = 'swatch';
-                swatch.style.setProperty('--c', COLORS[key]);
-                item.append(swatch, LABELS[key].toUpperCase());
-                legend.appendChild(item);
+                ctx.fillStyle = COLORS[key];
+                ctx.fillRect(lx, y + 30, 10, 10);
+                ctx.fillStyle = '#475569';
+                ctx.fillText(LABELS[key], lx + 15, y + 35);
+                lx += 15 + ctx.measureText(LABELS[key]).width + 16;
             });
-            body.appendChild(legend);
+        }
 
-            if (!rows.length) {
-                var empty = document.createElement('p');
-                empty.className = 'muted';
-                empty.textContent = emptyText();
-                body.appendChild(empty);
-                modal.showModal();
-                return;
+        // Grafik batang (SVG di modal) -> PNG: style dari CSS disalin ke elemen SVG supaya ikut tergambar.
+        function chartCanvas(plot, title) {
+            var svg = plot.querySelector('svg');
+            if (!svg) return Promise.reject(new Error('Grafik belum tampil.'));
+            var clone = svg.cloneNode(true);
+            var originals = svg.querySelectorAll('*'), copies = clone.querySelectorAll('*');
+            originals.forEach(function (node, i) {
+                var style = getComputedStyle(node);
+                ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'font-size', 'font-family', 'font-weight'].forEach(function (prop) {
+                    copies[i].style.setProperty(prop, style.getPropertyValue(prop));
+                });
+                copies[i].removeAttribute('class');
+            });
+            clone.setAttribute('xmlns', NS);
+            var width = Number(svg.getAttribute('width')), height = Number(svg.getAttribute('height'));
+            var source = new XMLSerializer().serializeToString(clone);
+
+            return new Promise(function (resolve, reject) {
+                var img = new Image();
+                img.onload = function () {
+                    var pad = 20, headH = 56;
+                    var c = blankCanvas(width + pad * 2, height + headH + pad * 2);
+                    drawImageHeader(c.ctx, title, pad, pad);
+                    c.ctx.drawImage(img, pad, pad + headH, width, height);
+                    resolve(c.canvas);
+                };
+                img.onerror = reject;
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+            });
+        }
+
+        // Tabel ringkasan Total / Open / Close per departemen -> PNG.
+        function summaryCanvas(rows, title, targetWidth) {
+            var font = getComputedStyle(document.body).fontFamily;
+            var pad = 20, headH = 34, rowH = 30, firstW = 90, lastW = 76;
+            var colW = Math.max(64, Math.floor(((targetWidth || 0) - pad * 2 - firstW - lastW) / Math.max(rows.length, 1)));
+            var tableW = firstW + colW * rows.length + lastW;
+            var c = blankCanvas(tableW + pad * 2, headH + rowH * 4 + pad * 2);
+            var ctx = c.ctx;
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'left';
+            ctx.font = '700 15px ' + font;
+            ctx.fillText(title, pad, pad + 9);
+
+            function box(x, y, w, h, text, opts) {
+                opts = opts || {};
+                if (opts.fill) { ctx.fillStyle = opts.fill; ctx.fillRect(x, y, w, h); }
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.strokeRect(x + .5, y + .5, w, h);
+                var size = 12;
+                do { ctx.font = (opts.bold ? '700 ' : '400 ') + size + 'px ' + font; size--; } while (size > 8 && ctx.measureText(String(text)).width > w - 8);
+                ctx.fillStyle = '#0f172a';
+                if (opts.swatch) {
+                    ctx.textAlign = 'left';
+                    var tw = ctx.measureText(String(text)).width, sx = x + (w - tw - 16) / 2;
+                    ctx.fillStyle = opts.swatch;
+                    ctx.fillRect(sx, y + h / 2 - 5, 10, 10);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillText(String(text), sx + 16, y + h / 2 + 1);
+                } else {
+                    ctx.textAlign = 'center';
+                    ctx.fillText(String(text), x + w / 2, y + h / 2 + 1);
+                }
             }
 
-            var plot = document.createElement('div');
-            plot.className = 'chart-plot chart-plot-lg';
-            plot.innerHTML = '<div class="chart-tip" hidden></div>';
-            body.appendChild(plot);
+            var top = pad + headH, x = pad;
+            box(x, top, firstW, rowH, '', { fill: '#eef3fb' }); x += firstW;
+            rows.forEach(function (row) { box(x, top, colW, rowH, row.department, { fill: '#eef3fb', bold: true }); x += colW; });
+            box(x, top, lastW, rowH, 'Jumlah', { fill: '#eef3fb', bold: true });
+            ['total', 'open', 'close'].forEach(function (key, k) {
+                var y = top + rowH * (k + 1);
+                x = pad;
+                box(x, y, firstW, rowH, LABELS[key], { swatch: COLORS[key] }); x += firstW;
+                rows.forEach(function (row) { box(x, y, colW, rowH, row[key]); x += colW; });
+                box(x, y, lastW, rowH, sum(rows, key), { bold: true });
+            });
+            return c.canvas;
+        }
 
+        function summaryTable(rows) {
             var wrap = document.createElement('div');
             wrap.className = 'table-wrap';
             var table = document.createElement('table');
             table.className = 'chart-table';
             var head = '<thead><tr><th></th>';
-            rows.forEach(function (row) { head += '<th></th>'; });
+            rows.forEach(function () { head += '<th></th>'; });
             table.innerHTML = head + '<th>Jumlah</th></tr></thead><tbody></tbody>';
             table.querySelectorAll('thead th').forEach(function (th, i) { if (i > 0 && i <= rows.length) th.textContent = rows[i - 1].department; });
             ['total', 'open', 'close'].forEach(function (key) {
@@ -814,18 +890,116 @@
                 table.tBodies[0].appendChild(tr);
             });
             wrap.appendChild(table);
-            body.appendChild(wrap);
-            var recap = recapSection(rows);
-            body.appendChild(recap);
+            return wrap;
+        }
 
+        select.addEventListener('change', function () { renderCompact(0); });
+        monthSelect.addEventListener('change', function () { renderCompact(0); });
+        renderCompact(1000);
+
+        // Modal perbesar memakai #chart-modal yang sama dengan grafik kecelakaan.
+        // Punya pilihan bulan & tahun sendiri (awalnya sama dengan kartu) yang mengatur grafik, ringkasan & rekap.
+        var modalState = null;
+        card.querySelector('[data-temuan-expand]').addEventListener('click', function () {
+            var modal = document.getElementById('chart-modal');
+            var body = document.getElementById('chart-modal-body');
+            document.getElementById('chart-modal-title').textContent = 'Grafik Temuan Daily Patrol';
+            body.innerHTML = '';
+
+            var filter = document.createElement('div');
+            filter.className = 'temuan-tools modal-filter';
+            var modalMonth = monthSelect.cloneNode(true);
+            var modalYear = select.cloneNode(true);
+            modalMonth.removeAttribute('data-temuan-month');
+            modalYear.removeAttribute('data-temuan-year');
+            modalMonth.value = monthSelect.value;
+            modalYear.value = select.value;
+            filter.append(modalMonth, modalYear);
+            var content = document.createElement('div');
+            body.append(filter, content);
+
+            function render(animate) {
+                var rows = rowsFor(modalYear.value, modalMonth.value);
+                var period = labelFor(modalYear.value, modalMonth.value);
+                var fileBase = slug(period);
+                document.getElementById('chart-modal-sub').textContent = period;
+                content.innerHTML = '';
+                modalState = null;
+
+                if (!rows.length) {
+                    var empty = document.createElement('p');
+                    empty.className = 'muted';
+                    empty.textContent = emptyFor(modalMonth.value);
+                    content.appendChild(empty);
+                    return;
+                }
+
+                // 1. Grafik batang.
+                var plot = document.createElement('div');
+                plot.className = 'chart-plot chart-plot-lg';
+                plot.style.marginTop = '8px';
+                plot.innerHTML = '<div class="chart-tip" hidden></div>';
+                var legend = document.createElement('div');
+                legend.className = 'chart-legend';
+                ['total', 'open', 'close'].forEach(function (key) {
+                    var item = document.createElement('span');
+                    var swatch = document.createElement('i');
+                    swatch.className = 'swatch';
+                    swatch.style.setProperty('--c', COLORS[key]);
+                    item.append(swatch, LABELS[key].toUpperCase());
+                    legend.appendChild(item);
+                });
+                content.append(
+                    sectionHead('Grafik Temuan per Departemen', imageActions(function () {
+                        return chartCanvas(plot, 'Grafik Temuan Daily Patrol · ' + period);
+                    }, function () { return 'grafik-temuan-daily-patrol-' + fileBase; }), true),
+                    legend, plot
+                );
+
+                // 2. Ringkasan Total / Open / Close.
+                var summary = summaryTable(rows);
+                content.append(
+                    sectionHead('Ringkasan', imageActions(function () {
+                        return Promise.resolve(summaryCanvas(rows, 'Ringkasan Temuan Daily Patrol · ' + period, summary.clientWidth));
+                    }, function () { return 'ringkasan-temuan-daily-patrol-' + fileBase; })),
+                    summary
+                );
+
+                // 3. Rekap kategori x resiko (canvas, selebar modal).
+                var recapWrap = document.createElement('div');
+                recapWrap.className = 'recap-wrap';
+                var recapCanvas = null;
+                content.append(
+                    sectionHead('Rekap per Kategori & Resiko', imageActions(function () {
+                        return Promise.resolve(recapCanvas);
+                    }, function () { return 'rekap-temuan-daily-patrol-' + fileBase; })),
+                    recapWrap
+                );
+
+                function redraw(withAnimation) {
+                    drawBars(plot, rows, withAnimation);
+                    var next = drawRecap(rows, recapWrap.clientWidth);
+                    if (recapCanvas) recapCanvas.replaceWith(next); else recapWrap.appendChild(next);
+                    recapCanvas = next;
+                }
+                modalState = { plot: plot, width: plot.clientWidth, redraw: redraw };
+                if (modal.open) redraw(animate);
+            }
+
+            modalMonth.addEventListener('change', function () { render(true); });
+            modalYear.addEventListener('change', function () { render(true); });
+            render(true);
             modal.showModal();
-            drawBars(plot, rows, true);
-            recap.render();
-            if ('ResizeObserver' in window) {
-                var lastWidth = plot.clientWidth;
+            if (modalState) { modalState.width = modalState.plot.clientWidth; modalState.redraw(true); }
+
+            // Satu observer untuk semua pembukaan modal: gambar ulang saat lebar modal berubah.
+            if ('ResizeObserver' in window && !body.dataset.temuanObserved) {
+                body.dataset.temuanObserved = '1';
                 new ResizeObserver(function () {
-                    if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; drawBars(plot, rows, false); recap.render(); }
-                }).observe(plot);
+                    if (!modalState || !modalState.plot.isConnected) return;
+                    var width = modalState.plot.clientWidth;
+                    if (width !== modalState.width) { modalState.width = width; modalState.redraw(false); }
+                }).observe(body);
             }
         });
     })();
