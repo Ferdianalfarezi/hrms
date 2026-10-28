@@ -28,7 +28,10 @@
     #chart-modal { width: min(1100px, calc(100% - 32px)); }
 
     /* Kartu temuan Daily Patrol per departemen (kolom kanan): bar mendatar Open + Close, total di ujung. */
-    .temuan-card .card-head { margin-bottom: 8px; }
+    /* Judul di atas, filter bulan/tahun + tombol perbesar di bawahnya supaya judul tidak terlipat. */
+    .temuan-card .card-head { margin-bottom: 8px; flex-direction: column; align-items: stretch; }
+    .temuan-card .card-head .card-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .temuan-tools .mini-btn { margin-left: auto; }
     .temuan-tools { display: flex; align-items: center; gap: 6px; }
     .temuan-tools select { width: auto; padding: 6px 28px 6px 12px; font-size: 12px; border-radius: 999px; }
     .temuan-rows { display: grid; gap: 10px; margin-top: 12px; }
