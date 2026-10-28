@@ -1,4 +1,4 @@
-{{-- Dashboard SMS memakai template dashboard modul; kartu Data Diri & kalender diganti grafik Work & Traffic Accident. --}}
+{{-- Dashboard SMS memakai template dashboard modul, dengan susunan grid sendiri (lihat .dash-grid di bawah). --}}
 @extends('dashboard.module')
 
 @section('styles')
@@ -26,6 +26,25 @@
     .chart-tip div span:last-child { margin-left: auto; padding-left: 12px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 
     #chart-modal { width: min(1100px, calc(100% - 32px)); }
+
+    /* Susunan dashboard SMS: baris atas profil | hari tanpa kecelakaan | temuan Daily Patrol | Cross Patrol,
+       lalu grafik Work Accident dan Traffic Accident bertumpuk selebar penuh. */
+    .dash-grid {
+        grid-template-areas: "profile hari temuan cross" "work work work work" "traffic traffic traffic traffic";
+    }
+    .dash-grid .a-side { display: contents; }
+    .a-hari { grid-area: hari; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .a-hari > .card { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .a-temuan { grid-area: temuan; }
+    .a-cross { grid-area: cross; }
+    .a-cross .chart-plot-sm { flex: 1 1 auto; height: auto; min-height: 160px; }
+    .chart-card .chart-plot-sm { height: 200px; }
+    @media (max-width: 1100px) {
+        .dash-grid { grid-template-areas: "profile hari" "temuan cross" "work work" "traffic traffic"; }
+    }
+    @media (max-width: 640px) {
+        .dash-grid { grid-template-areas: "profile" "hari" "temuan" "cross" "work" "traffic"; }
+    }
 
     /* Kartu temuan Daily Patrol per departemen (kolom kanan): bar mendatar Open + Close, total di ujung. */
     /* Judul di atas, filter bulan/tahun + tombol perbesar di bawahnya supaya judul tidak terlipat. */
@@ -64,7 +83,7 @@
     table.chart-table td { padding: 7px 6px; text-align: center; font-variant-numeric: tabular-nums; color: var(--text); }
     table.chart-table td.series-name { text-align: left; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 
-    /* Kartu grafik Daily Patrol (7 hari) & Cross Patrol (per bulan): batang bertumpuk Open + Close. */
+    /* Kartu grafik Cross Patrol (per bulan): batang bertumpuk Open + Close. */
     .stack-card { display: flex; flex-direction: column; min-width: 0; }
     .stack-card .card-head { margin-bottom: 2px; align-items: flex-start; }
     .stack-card .chart-plot-sm { height: 160px; margin: 8px 0 10px; }
@@ -84,49 +103,13 @@
 @endsection
 
 @section('progress')
-    {{-- Kartu "Pertumbuhan" diganti grafik temuan Daily Patrol 7 hari terakhir (Open / Close bertumpuk). --}}
-    @php
-        $dailyChart = [
-            'labels' => array_column($dailyHariIni['bars'], 'label'),
-            'titles' => array_column($dailyHariIni['bars'], 'title'),
-            'highlight' => count($dailyHariIni['bars']) - 1,
-            'open' => array_column($dailyHariIni['bars'], 'open'),
-            'close' => array_column($dailyHariIni['bars'], 'close'),
-            'departments' => $dailyHariIni['departments'],
-        ];
-    @endphp
-    <div class="card a-progress stack-card" style="--i: 1;" data-stack-card="daily" data-stack="{{ json_encode($dailyChart) }}">
-        <div class="card-head">
-            <div style="min-width: 0;">
-                <h2 class="card-title">Daily Patrol</h2>
-                <div class="muted small">7 hari terakhir</div>
-            </div>
-            <div class="temuan-tools">
-                <button type="button" class="mini-btn" data-stack-expand title="Perbesar" aria-label="Perbesar grafik Daily Patrol">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                </button>
-                @can('sms-patrol')
-                    <a href="{{ route('sms.daily-patrols.index') }}" class="mini-btn" title="Buka Daily Patrol">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
-                    </a>
-                @endcan
-            </div>
-        </div>
-        <div class="chart-plot chart-plot-sm" data-stack-plot role="img"
-             aria-label="Grafik temuan Daily Patrol 7 hari terakhir, Open dan Close. Hari ini {{ $dailyHariIni['total'] }} temuan.">
-            <div class="chart-tip" hidden></div>
-        </div>
-        <div class="chart-legend chart-legend-sm">
-            <span><i class="swatch" style="--c: #eb6834;"></i>Open</span>
-            <span><i class="swatch" style="--c: #1baf7a;"></i>Close</span>
-            <span>Hari ini <b>{{ $dailyHariIni['total'] }}</b> temuan</span>
-        </div>
-    </div>
+    {{-- Kartu bawaan "Pertumbuhan" tidak dipakai di dashboard SMS. @hasSection butuh isi yang tidak kosong, jadi diisi komentar HTML. --}}
+    <!-- Kartu Pertumbuhan tidak dipakai di dashboard SMS -->
 @endsection
 
 @section('clock')
     {{-- Kartu "Jam Kerja" diganti grafik temuan Cross Patrol per bulan; detail per departemen di tooltip & modal perbesar. --}}
-    <div class="card a-clock stack-card" style="--i: 2;" data-stack-card="cross" data-stack-years="{{ json_encode($grafikCross['data']) }}">
+    <div class="card a-cross stack-card" style="--i: 4;" data-stack-card="cross" data-stack-years="{{ json_encode($grafikCross['data']) }}">
         <div class="card-head">
             <div style="min-width: 0;">
                 <h2 class="card-title">Cross Patrol</h2>
@@ -161,14 +144,15 @@
 @endsection
 
 @section('grid-bottom')
-    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['work'], 'area' => 'info', 'index' => 5, 'key' => 'work'])
-    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['traffic'], 'area' => 'calendar', 'index' => 6, 'key' => 'traffic'])
+    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['work'], 'area' => 'work', 'index' => 5, 'key' => 'work'])
+    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['traffic'], 'area' => 'traffic', 'index' => 6, 'key' => 'traffic'])
 @endsection
 
 @section('side-top')
     {{-- Kartu "Status Akun" diganti 2 kartu: hari tanpa Work Accident & hari tanpa Traffic Accident. --}}
+    <div class="a-hari">
     @foreach ($hariTanpa as $item)
-        <div class="card" style="--i: 3;" data-hari-tanpa="{{ $item['tipe'] }}">
+        <div class="card" style="--i: 2;" data-hari-tanpa="{{ $item['tipe'] }}">
             <div class="status-top" style="gap: 12px;">
                 <h2 class="card-title" style="min-width: 0;">Hari Tanpa {{ $item['label'] }}</h2>
                 <b data-count style="white-space: nowrap;">{{ $item['value'] }}</b>
@@ -176,10 +160,11 @@
             <div class="muted small" style="margin-top: 10px;">{{ $item['note'] }}</div>
         </div>
     @endforeach
+    </div>
 @endsection
 
 @section('side-bottom')
-    <div class="card team-card temuan-card" style="--i: 4;" data-temuan="{{ json_encode($grafikTemuan['data']) }}">
+    <div class="card temuan-card a-temuan" style="--i: 3;" data-temuan="{{ json_encode($grafikTemuan['data']) }}">
         <div class="card-head">
             <h2 class="card-title">Temuan Daily Patrol</h2>
             <div class="temuan-tools">
@@ -1034,7 +1019,7 @@
             }
         });
     })();
-    // Kartu Daily Patrol (7 hari) & Cross Patrol (per bulan): batang bertumpuk Open + Close, tooltip per batang,
+    // Kartu Cross Patrol (per bulan): batang bertumpuk Open + Close, tooltip per batang,
     // dan modal perbesar (grafik besar + tabel; Cross Patrol ditambah heatmap departemen x bulan).
     (function () {
         var NS = 'http://www.w3.org/2000/svg';
@@ -1156,9 +1141,11 @@
         function watch(plot, getChart, animateDelay) {
             draw(plot, getChart(), reduceMotion ? null : animateDelay);
             if (!('ResizeObserver' in window)) return;
-            var lastWidth = plot.clientWidth;
+            // Lebar & tinggi dipantau: plot Cross Patrol mengisi tinggi kartu, yang ikut berubah saat isi kartu sebelahnya berubah.
+            var lastSize = plot.clientWidth + 'x' + plot.clientHeight;
             new ResizeObserver(function () {
-                if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; draw(plot, getChart(), null); }
+                var size = plot.clientWidth + 'x' + plot.clientHeight;
+                if (plot.isConnected && size !== lastSize) { lastSize = size; draw(plot, getChart(), null); }
             }).observe(plot);
         }
 
@@ -1291,17 +1278,6 @@
             }
             modal.showModal();
             watch(plot, function () { return chart; }, 100);
-        }
-
-        // Daily Patrol: data sudah jadi dari server.
-        var dailyCard = document.querySelector('[data-stack-card="daily"]');
-        if (dailyCard) {
-            var daily = JSON.parse(dailyCard.dataset.stack);
-            daily.details = detailsOf(daily.departments, daily.labels.length);
-            watch(dailyCard.querySelector('[data-stack-plot]'), function () { return daily; }, 900);
-            dailyCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
-                openModal('Grafik Temuan Daily Patrol', '7 hari terakhir', daily, heatTable(daily.departments, daily.labels, daily.titles));
-            });
         }
 
         // Tabel "Progress Perbaikan Cross Patrol" di modal perbesar: zona x kategori (resiko A/B/C) + Total / Open / Closed,

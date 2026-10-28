@@ -294,29 +294,16 @@ class DailyPatrolTest extends TestCase
         $this->assertSame(1, DailyPatrol::where('department_id', $this->pwd->id)->where('finding', 'like', 'Tutup%')->count());
     }
 
-    public function test_dashboard_daily_card_charts_open_and_close_for_last_seven_days(): void
+    public function test_dashboard_layout_has_no_seven_day_daily_card(): void
     {
-        Carbon::setTestNow('2026-10-22 10:00:00');
-
-        $this->patrol($this->psd, ['tanggal' => '2026-10-22']);
-        $this->patrol($this->pwd, ['tanggal' => '2026-10-22', 'status' => 'closed']);
-        $this->patrol($this->psd, ['tanggal' => '2026-10-21']);
-        $this->patrol($this->psd, ['tanggal' => '2026-10-15']); // 8 hari lalu: di luar grafik
-
-        $response = $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
+        // Baris atas: profil, hari tanpa kecelakaan, temuan Daily Patrol, Cross Patrol; lalu Work & Traffic Accident bertumpuk.
+        $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
             ->assertDontSee('<h2 class="card-title">Pertumbuhan</h2>', false)
             ->assertDontSee('<h2 class="card-title">Jam Kerja</h2>', false)
-            ->assertSeeInOrder(['Daily Patrol', '7 hari terakhir', 'Hari ini <b>2</b> temuan'], false);
-
-        $chart = $response->viewData('dailyHariIni');
-        $this->assertSame([0, 0, 0, 0, 0, 1, 1], array_column($chart['bars'], 'open'));
-        $this->assertSame([0, 0, 0, 0, 0, 0, 1], array_column($chart['bars'], 'close'));
-        $this->assertSame([
-            ['department' => 'PSD', 'values' => [0, 0, 0, 0, 0, 1, 1], 'total' => 2, 'open' => 2, 'close' => 0],
-            ['department' => 'PWD', 'values' => [0, 0, 0, 0, 0, 0, 1], 'total' => 1, 'open' => 0, 'close' => 1],
-        ], $chart['departments']);
-
-        Carbon::setTestNow();
+            ->assertDontSee('7 hari terakhir')
+            ->assertDontSee('data-stack-card="daily"', false)
+            ->assertSeeInOrder(['class="a-hari"', 'a-temuan', 'grid-area: work;', 'grid-area: traffic;'], false)
+            ->assertSee('class="card a-cross stack-card"', false);
     }
 
     public function test_dashboard_cross_chart_counts_per_month_and_department(): void
@@ -424,8 +411,7 @@ class DailyPatrolTest extends TestCase
 
         // Daftar Daily Patrol dibatasi departemennya, tapi dashboard tetap seluruh perusahaan.
         $this->actingAs($this->deptAdmin($this->psd))->get('/sms')->assertOk()
-            ->assertViewHas('dailyHariIni', fn (array $daily) => $daily['total'] === 2
-                && array_column($daily['departments'], 'department') === ['PSD', 'PWD']);
+            ->assertViewHas('grafikTemuan', fn (array $chart) => array_column($chart['data'][2026]['months'][10], 'department') === ['PSD', 'PWD']);
 
         Carbon::setTestNow();
     }
