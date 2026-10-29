@@ -670,7 +670,16 @@
             return actions;
         }
 
-        return { blankCanvas: blankCanvas, imageActions: imageActions, sectionHead: sectionHead, recapTable: recapTable, chartCanvas: chartCanvas, chartActions: chartActions, slug: slug };
+        // Tombol "Export Excel" (link unduhan .xlsx); href diisi pemanggil sesuai periode yang dipilih di modal.
+        function exportLink() {
+            var link = document.createElement('a');
+            link.className = 'btn btn-sm';
+            link.textContent = 'Export Excel';
+            link.setAttribute('data-turbo', 'false');
+            return link;
+        }
+
+        return { blankCanvas: blankCanvas, imageActions: imageActions, sectionHead: sectionHead, recapTable: recapTable, chartCanvas: chartCanvas, chartActions: chartActions, slug: slug, exportLink: exportLink };
     })();
 
     // Temuan Daily Patrol per departemen: kartu ringkas (bar mendatar) + modal perbesar (batang Total/Open/Close + tabel).
@@ -963,7 +972,10 @@
             modalYear.removeAttribute('data-temuan-year');
             modalMonth.value = monthSelect.value;
             modalYear.value = select.value;
-            filter.append(modalMonth, modalYear);
+            // Export Excel mengikuti bulan & tahun yang dipilih di modal.
+            var exportLink = PatrolImage.exportLink();
+            exportLink.style.marginLeft = 'auto';
+            filter.append(modalMonth, modalYear, exportLink);
             var content = document.createElement('div');
             body.append(filter, content);
 
@@ -972,6 +984,7 @@
                 var period = labelFor(modalYear.value, modalMonth.value);
                 var fileBase = slug(period);
                 document.getElementById('chart-modal-sub').textContent = period;
+                exportLink.href = @json(route('sms.dashboard.export.daily')) + '?' + new URLSearchParams({ year: modalYear.value, month: modalMonth.value });
                 content.innerHTML = '';
                 modalState = null;
 
@@ -1377,6 +1390,7 @@
                 canvas = next;
             };
 
+            section.filters = function () { return { month: monthSelect.value, year: yearSelect.value }; };
             monthSelect.addEventListener('change', section.render);
             yearSelect.addEventListener('change', section.render);
             if ('ResizeObserver' in window) {
@@ -1418,8 +1432,20 @@
             crossCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
                 openModal('Grafik Temuan Cross Patrol', 'Per bulan · Tahun ' + select.value, crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles));
                 var progress = crossProgressSection(years, select.value);
-                document.getElementById('chart-modal-body').appendChild(progress);
+                var modalBody = document.getElementById('chart-modal-body');
+                modalBody.appendChild(progress);
                 progress.render();
+
+                // Export Excel di baris tombol atas: tahun grafik + bulan/tahun tabel Progress Perbaikan.
+                var exportLink = PatrolImage.exportLink();
+                var year = select.value;
+                var updateExport = function () {
+                    var filters = progress.filters();
+                    exportLink.href = @json(route('sms.dashboard.export.cross')) + '?' + new URLSearchParams({ year: year, progress_year: filters.year, progress_month: filters.month });
+                };
+                progress.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', updateExport); });
+                updateExport();
+                modalBody.querySelector('.chart-actions').prepend(exportLink);
             });
         }
     })();

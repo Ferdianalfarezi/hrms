@@ -7,6 +7,9 @@ use App\Modules\Sms\Controllers\KecelakaanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class)->name('dashboard');
+// Export Excel isi modal perbesar grafik Daily Patrol & Cross Patrol di dashboard.
+Route::get('dashboard/export/daily', [DashboardController::class, 'exportDaily'])->name('dashboard.export.daily');
+Route::get('dashboard/export/cross', [DashboardController::class, 'exportCross'])->name('dashboard.export.cross');
 
 // Daily Patrol: tambah/edit/hapus lewat modal di halaman daftar.
 Route::resource('daily-patrols', DailyPatrolController::class)->only(['index', 'store', 'update', 'destroy']);

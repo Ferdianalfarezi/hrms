@@ -14,6 +14,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Tests\TestCase;
 
 class DailyPatrolTest extends TestCase
@@ -468,5 +471,95 @@ class DailyPatrolTest extends TestCase
         $this->assertModelMissing($patrol);
         Storage::disk('public')->assertMissing('daily-patrol/a.jpg');
         Storage::disk('public')->assertMissing('daily-patrol/b.jpg');
+    }
+
+    private function loadExcel(TestResponse $response): Spreadsheet
+    {
+        $response->assertOk();
+        $this->assertStringContainsString('spreadsheetml', $response->headers->get('Content-Type'));
+        $path = tempnam(sys_get_temp_dir(), 'xlsx');
+        file_put_contents($path, $response->streamedContent());
+        $spreadsheet = IOFactory::load($path);
+        unlink($path);
+
+        return $spreadsheet;
+    }
+
+    public function test_dashboard_daily_modal_exports_excel_for_selected_period(): void
+    {
+        Carbon::setTestNow('2026-10-21 10:00:00');
+        $this->patrol($this->psd);
+        $this->patrol($this->psd, ['status' => 'closed']);
+        $this->patrol($this->pwd, ['status' => 'closed', 'kategori' => 'ergonomi', 'resiko' => 'H']);
+        $this->patrol($this->psd, ['tanggal' => '2026-09-30', 'kategori' => 'drop', 'resiko' => 'E']);
+
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')
+            ->assertSee('dashboard\/export\/daily', false);
+
+        $excel = $this->loadExcel($this->actingAs($this->deptAdmin($this->psd))->get('/sms/dashboard/export/daily?year=2026&month=10'));
+        $this->assertSame(['Ringkasan', 'Rekap Kategori & Resiko'], $excel->getSheetNames());
+
+        $summary = $excel->getSheet(0);
+        $this->assertStringContainsString('Oktober 2026', $summary->getCell('A1')->getValue());
+        $this->assertSame([['Departemen', 'Total', 'Open', 'Close'], ['PSD', 2, 1, 1], ['PWD', 1, 0, 1], ['Jumlah', 3, 1, 2]], $summary->rangeToArray('A3:D6', null, true, false));
+
+        // Rekap: fire.S di kolom R, ergonomi dihitung di OTHER (resiko H = kolom V), lalu TOTAL / OPEN / CLOSED.
+        $recap = $excel->getSheet(1);
+        $this->assertSame('STOP 6', $recap->getCell('C3')->getValue());
+        $this->assertSame('FIRE', $recap->getCell('R4')->getValue());
+        $this->assertSame('OTHER', $recap->getCell('U4')->getValue());
+        $this->assertSame([['PSD'], ['PWD']], $recap->rangeToArray('B6:B7', null, true, false));
+        $this->assertSame(2, $recap->getCell('R6')->getValue());
+        $this->assertNull($recap->getCell('R7')->getValue());
+        $this->assertSame(1, $recap->getCell('V7')->getValue());
+        $this->assertSame([[3, 1, 2]], $recap->rangeToArray('AA8:AC8', null, true, false));
+
+        // Setahun: temuan September ikut terhitung.
+        $year = $this->loadExcel($this->actingAs($this->deptAdmin($this->psd))->get('/sms/dashboard/export/daily?year=2026&month=all'))->getSheet(0);
+        $this->assertStringContainsString('Tahun 2026', $year->getCell('A1')->getValue());
+        $this->assertSame([['Jumlah', 4, 2, 2]], $year->rangeToArray('A6:D6', null, true, false));
+
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms/dashboard/export/daily?year=2026&month=13')->assertSessionHasErrors('month');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_dashboard_cross_modal_exports_excel_with_progress_period(): void
+    {
+        Carbon::setTestNow('2026-10-22 10:00:00');
+        $cross = fn (Department $department, string $tanggal, string $status = 'open', ?int $zona = 1) => CrossPatrol::create([
+            'tanggal' => $tanggal, 'plant' => 'Plant 1', 'zona' => $zona, 'finding' => 'Temuan', 'foto' => 'cross-patrol/a.jpg',
+            'efek' => '2R', 'resiko' => 'A', 'area' => 'OBEYA', 'department_id' => $department->id, 'rekomendasi' => 'Perbaiki',
+            'target' => '2026-10-30', 'pic' => 'Dedi', 'kategori' => 'apparatus', 'patroler' => 'Miftari', 'status' => $status,
+        ]);
+        $cross($this->psd, '2026-10-01');
+        $cross($this->pwd, '2026-10-15', 'closed', 3);
+        $cross($this->pwd, '2026-01-05');
+
+        $this->actingAs($this->deptAdmin($this->psd))->get('/sms')
+            ->assertSee('dashboard\/export\/cross', false);
+
+        $excel = $this->loadExcel($this->actingAs($this->deptAdmin($this->psd))->get('/sms/dashboard/export/cross?year=2026&progress_year=2026&progress_month=10'));
+        $this->assertSame(['Per Bulan', 'Per Departemen', 'Progress Perbaikan'], $excel->getSheetNames());
+
+        $monthly = $excel->getSheet(0);
+        $this->assertSame([null, 'JAN', 'FEB'], array_slice($monthly->rangeToArray('A3:N3', null, true, false)[0], 0, 3));
+        $this->assertSame([['Open', 1], ['Close', 0], ['Total', 1]], $monthly->rangeToArray('A4:B6', null, true, false));
+        $this->assertSame([[2], [1], [3]], $monthly->rangeToArray('N4:N6', null, true, false));
+
+        $departments = $excel->getSheet(1);
+        $this->assertSame(['PSD', 'PWD', 'Total'], array_column($departments->rangeToArray('A4:A6', null, true, false), 0));
+        $this->assertSame([[2, 1, 1]], $departments->rangeToArray('N5:P5', null, true, false));
+
+        // Progress Oktober: zona 1 open, zona 3 closed, kategori apparatus resiko A (kolom C).
+        $progress = $excel->getSheet(2);
+        $this->assertStringContainsString('Oktober 2026', $progress->getCell('A1')->getValue());
+        $this->assertSame('PERBAIKAN STATUS', $progress->getCell('AB3')->getValue());
+        $this->assertSame(['ZONA 1', 1], [$progress->getCell('B6')->getValue(), $progress->getCell('C6')->getValue()]);
+        $this->assertSame([[1, 0, 1]], $progress->rangeToArray('AA8:AC8', null, true, false));
+        $this->assertSame('Total', $progress->getCell('A15')->getValue());
+        $this->assertSame([[2, 1, 1]], $progress->rangeToArray('AA15:AC15', null, true, false));
+
+        Carbon::setTestNow();
     }
 }
