@@ -56,6 +56,11 @@
     .recap-head .card-title { margin: 0; }
     .recap-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .recap-note { font-size: 12px; color: var(--muted); }
+    /* Tombol ikon Excel / Salin / Unduh di modal, selalu sebaris. */
+    .icon-action { flex: none; cursor: pointer; transition: background .15s, color .15s; }
+    .icon-action:hover { background: var(--soft-2); color: var(--primary); }
+    .icon-action.icon-excel { background: #1d6f42; border-color: #1d6f42; color: #fff; }
+    .icon-action.icon-excel:hover { background: #185c37; color: #fff; }
     .recap-actions.chart-actions { justify-content: flex-end; margin-bottom: 10px; }
     .recap-wrap { overflow-x: auto; }
     .recap-wrap canvas { display: block; }
@@ -440,6 +445,23 @@
             return { canvas: canvas, ctx: ctx };
         }
 
+        // Tombol aksi di modal berupa ikon bulat; teksnya jadi tooltip & label aksesibilitas.
+        var ICONS = {
+            copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+            download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+            excel: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 13l5 5M14 13l-5 5"/>',
+        };
+
+        function iconButton(tag, label, icon, extraClass) {
+            var button = document.createElement(tag);
+            if (tag === 'button') button.type = 'button';
+            button.className = 'mini-btn icon-action' + (extraClass ? ' ' + extraClass : '');
+            button.title = label;
+            button.setAttribute('aria-label', label);
+            button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>';
+            return button;
+        }
+
         // Tombol "Salin gambar" + "Unduh PNG". getCanvas mengembalikan Promise<canvas> (grafik SVG perlu dimuat dulu).
         function imageActions(getCanvas, getFileName) {
             var actions = document.createElement('div');
@@ -447,14 +469,8 @@
             var note = document.createElement('span');
             note.className = 'recap-note';
             note.setAttribute('aria-live', 'polite');
-            var copyBtn = document.createElement('button');
-            copyBtn.type = 'button';
-            copyBtn.className = 'btn btn-sm';
-            copyBtn.textContent = 'Salin gambar';
-            var downloadBtn = document.createElement('button');
-            downloadBtn.type = 'button';
-            downloadBtn.className = 'btn btn-ghost btn-sm';
-            downloadBtn.textContent = 'Unduh PNG';
+            var copyBtn = iconButton('button', 'Salin gambar', ICONS.copy);
+            var downloadBtn = iconButton('button', 'Unduh PNG', ICONS.download);
             actions.append(note, copyBtn, downloadBtn);
 
             function flash(text) { note.textContent = text; setTimeout(function () { if (note.textContent === text) note.textContent = ''; }, 3000); }
@@ -670,11 +686,9 @@
             return actions;
         }
 
-        // Tombol "Export Excel" (link unduhan .xlsx); href diisi pemanggil sesuai periode yang dipilih di modal.
+        // Tombol "Export Excel" (link unduhan .xlsx, ikon hijau); href diisi pemanggil sesuai periode yang dipilih di modal.
         function exportLink() {
-            var link = document.createElement('a');
-            link.className = 'btn btn-sm';
-            link.textContent = 'Export Excel';
+            var link = iconButton('a', 'Export Excel', ICONS.excel, 'icon-excel');
             link.setAttribute('data-turbo', 'false');
             return link;
         }
@@ -1445,7 +1459,8 @@
                 };
                 progress.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', updateExport); });
                 updateExport();
-                modalBody.querySelector('.chart-actions').prepend(exportLink);
+                var chartActions = modalBody.querySelector('.chart-actions');
+                chartActions.insertBefore(exportLink, chartActions.querySelector('.icon-action'));
             });
         }
     })();
