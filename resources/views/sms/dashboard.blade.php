@@ -986,10 +986,9 @@
             modalYear.removeAttribute('data-temuan-year');
             modalMonth.value = monthSelect.value;
             modalYear.value = select.value;
-            // Export Excel mengikuti bulan & tahun yang dipilih di modal.
+            // Export Excel mengikuti bulan & tahun yang dipilih di modal; ikonnya sebaris dengan Salin/Unduh grafik.
             var exportLink = PatrolImage.exportLink();
-            exportLink.style.marginLeft = 'auto';
-            filter.append(modalMonth, modalYear, exportLink);
+            filter.append(modalMonth, modalYear);
             var content = document.createElement('div');
             body.append(filter, content);
 
@@ -1025,12 +1024,11 @@
                     item.append(swatch, LABELS[key].toUpperCase());
                     legend.appendChild(item);
                 });
-                content.append(
-                    sectionHead('Grafik Temuan per Departemen', imageActions(function () {
-                        return chartCanvas(plot, 'Grafik Temuan Daily Patrol · ' + period);
-                    }, function () { return 'grafik-temuan-daily-patrol-' + fileBase; }), true),
-                    legend, plot
-                );
+                var chartButtons = imageActions(function () {
+                    return chartCanvas(plot, 'Grafik Temuan Daily Patrol · ' + period);
+                }, function () { return 'grafik-temuan-daily-patrol-' + fileBase; });
+                chartButtons.insertBefore(exportLink, chartButtons.querySelector('.icon-action'));
+                content.append(sectionHead('Grafik Temuan per Departemen', chartButtons, true), legend, plot);
 
                 // 2. Ringkasan Total / Open / Close.
                 var summary = summaryTable(rows);
