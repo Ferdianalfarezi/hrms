@@ -325,6 +325,20 @@
     {{-- Turbo: pindah menu & submit form tanpa reload penuh (hanya isi <body> yang diganti). --}}
     <script type="module" src="{{ asset('vendor/turbo/turbo.es2017-esm.js') }}"></script>
     <script>
+        // Request AJAX (fetch) yang mendapat 419 (sesi habis) langsung diarahkan ke halaman login.
+        if (!window.hrFetchGuarded) {
+            window.hrFetchGuarded = true;
+            var hrOriginalFetch = window.fetch;
+            window.fetch = function () {
+                return hrOriginalFetch.apply(this, arguments).then(function (response) {
+                    if (response.status === 419) {
+                        window.location.assign(@json(route('login')));
+                    }
+                    return response;
+                });
+            };
+        }
+
         // Modal yang sedang terbuka ditutup sebelum halaman disimpan ke cache Turbo,
         // supaya saat tombol Back ditekan halaman tidak muncul dengan modal terbuka.
         document.addEventListener('turbo:before-cache', function () {

@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class LoginTest extends TestCase
@@ -138,5 +140,28 @@ class LoginTest extends TestCase
             ->assertRedirect(route('login'));
 
         $this->assertGuest();
+    }
+
+    private function registerExpiredPageRoute(): void
+    {
+        Route::middleware('web')->post('/_expired', fn () => throw new TokenMismatchException('CSRF token mismatch.'));
+    }
+
+    public function test_expired_page_redirects_to_login(): void
+    {
+        $this->registerExpiredPageRoute();
+
+        $this->post('/_expired')
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('nik');
+    }
+
+    public function test_expired_page_returns_login_url_for_json_requests(): void
+    {
+        $this->registerExpiredPageRoute();
+
+        $this->postJson('/_expired')
+            ->assertStatus(419)
+            ->assertJson(['redirect' => route('login')]);
     }
 }

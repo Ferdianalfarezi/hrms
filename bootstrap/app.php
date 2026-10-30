@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,4 +26,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Halaman kedaluwarsa (419, token CSRF tidak cocok / sesi habis) di modul mana pun
+        // tidak menampilkan error, tapi diarahkan ke halaman login.
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
+            }
+
+            $message = 'Sesi Anda telah berakhir. Silakan login kembali.';
+
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => $message, 'redirect' => route('login')], 419);
+            }
+
+            return redirect()->route('login')->withErrors(['nik' => $message]);
+        });
     })->create();
