@@ -13,34 +13,44 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Import export mesin fingerprint (format "data komparasi absen hrms.xls"): kolom AC-No, Name, Department, Date, Time.
- * Isinya hanya karyawan yang tidak absen di mesin. Upload ulang tanggal yang sama mengganti seluruh data tanggal itu.
+ * Import laporan kehadiran (format "Attendance Report"): kolom Attendance Date, Employee Code, Employee Name, Time In, Time Out.
+ * Isinya karyawan yang HADIR (tercatat di mesin). Satu upload = laporan satu hari kerja, yaitu tanggal terakhir di file.
  *
- * File .xls dari software mesin berupa stream BIFF tanpa kontainer OLE, jadi dibaca dengan parser kecil di bawah.
- * File yang sudah disimpan ulang lewat Excel sebagai .xlsx dibaca dengan OpenSpout.
+ * Attendance Date shift malam = tanggal mulai shift (mis. masuk 29/10 18:46, pulang 30/10 06:21 tercatat 29/10).
+ * Jadi hari kerja X = baris tanggal X-1 yang masuk malam (Time In >= 12:00) + baris tanggal X yang masuk pagi.
+ * Baris tanpa Time In dicatat di tanggal tap pulangnya, jadi dihitung untuk tanggal itu sendiri.
+ * Shift dibaca dari jam masuk, bukan dari rotasi grup, supaya karyawan yang tukar shift / belum punya grup tetap terbaca.
+ * Karyawan terdaftar yang tidak ditemukan dianggap tidak absen dan disimpan ke absensi_mesins.
+ * Upload ulang hari kerja yang sama mengganti seluruh data hari itu.
+ *
+ * File .xlsx dibaca dengan OpenSpout. File .xls berupa stream BIFF tanpa kontainer OLE dibaca dengan parser kecil di bawah.
  */
 class AbsensiMesinImport
 {
     /** Nama header yang dikenali (huruf kecil, tanpa spasi/tanda baca). */
     private const HEADERS = [
-        'nik' => ['acno', 'nik'],
-        'nama' => ['name', 'nama'],
-        'tanggal' => ['date', 'tanggal'],
+        'nik' => ['employeecode', 'nik'],
+        'tanggal' => ['attendancedate', 'tanggal'],
+        'masuk' => ['timein', 'jammasuk'],
     ];
 
-    /** Panjang minimal NIK; dipakai mengembalikan nol di depan kalau AC-No terbaca sebagai angka. */
+    /** Time In mulai jam ini dianggap shift malam (shift pagi masuk 05.00 - 08.00, shift malam 16.00 - 20.00). */
+    private const JAM_MULAI_MALAM = 12;
+
+    /** Panjang minimal NIK; dipakai mengembalikan nol di depan kalau Employee Code terbaca sebagai angka. */
     private const NIK_DIGITS = 4;
 
     /**
-     * @return array{tanggal: list<string>, total: int, dilewati: int}
+     * @return array{tanggal: string, hadir: int, total: int, dilewati: int, peringatan: ?string}
      */
     public function import(string $path, string $extension, ?int $userId): array
     {
         $rows = $this->readRows($path, Str::lower($extension));
         [$headerRow, $columns] = $this->locateHeader($rows);
 
-        // [Y-m-d][nik] => nama
-        $data = [];
+        // [Y-m-d][nik] => true, dipisah menurut jam masuk.
+        $pagi = [];
+        $malam = [];
         foreach (array_slice($rows, $headerRow + 1) as $cells) {
             $nik = $this->nik($cells[$columns['nik']] ?? null);
             if ($nik === null) {
@@ -49,44 +59,64 @@ class AbsensiMesinImport
 
             $tanggal = $this->date($cells[$columns['tanggal']] ?? null);
             if ($tanggal === null) {
-                throw new RuntimeException("Tanggal untuk AC-No {$nik} kosong atau formatnya tidak dikenali.");
+                throw new RuntimeException("Tanggal untuk Employee Code {$nik} kosong atau formatnya tidak dikenali.");
             }
 
-            $nama = $this->text($cells[$columns['nama']] ?? null);
-            // Mesin mengisi nama dengan AC-No kalau nama belum didaftarkan di mesin.
-            $data[$tanggal][$nik] = $nama === $nik ? null : $nama;
+            $jamMasuk = $this->hour($cells[$columns['masuk']] ?? null);
+            if ($jamMasuk !== null && $jamMasuk >= self::JAM_MULAI_MALAM) {
+                $malam[$tanggal][$nik] = true;
+            } else {
+                $pagi[$tanggal][$nik] = true;
+            }
         }
 
-        if ($data === []) {
+        if ($pagi === [] && $malam === []) {
             throw new RuntimeException('Tidak ada data karyawan di file.');
         }
 
-        ksort($data);
         $now = now();
+        $hariKerja = Carbon::createFromFormat('!Y-m-d', max([...array_keys($pagi), ...array_keys($malam)]));
+        $tanggal = $hariKerja->toDateString();
+        $kemarin = $hariKerja->copy()->subDay()->toDateString();
 
-        // AC-No yang tidak ada di data karyawan tidak disimpan (mis. karyawan sudah keluar / belum diinput).
-        $niks = collect($data)->flatMap(fn (array $karyawans) => array_map('strval', array_keys($karyawans)))->unique()->values();
+        // Hanya baris yang masuk ke hari kerja ini.
+        $hadir = ($pagi[$tanggal] ?? []) + ($malam[$kemarin] ?? []);
+
+        // Employee Code yang tidak ada di data karyawan hanya dihitung (mis. karyawan sudah keluar / belum diinput).
+        $niks = collect(array_keys($hadir))->map(fn ($nik) => (string) $nik);
         $terdaftar = array_flip(Karyawan::whereIn('nik', $niks)->pluck('nik')->all());
-        $dilewati = 0;
-        foreach ($data as $tanggal => $karyawans) {
-            $data[$tanggal] = array_intersect_key($karyawans, $terdaftar);
-            $dilewati += count($karyawans) - count($data[$tanggal]);
-        }
+        $dilewati = $niks->reject(fn (string $nik) => isset($terdaftar[$nik]))->count();
 
-        DB::transaction(function () use ($data, $userId, $now) {
-            foreach ($data as $tanggal => $karyawans) {
-                AbsensiMesin::whereDate('tanggal', $tanggal)->delete();
+        // Karyawan terdaftar (sudah masuk kerja pada hari itu) yang tidak ada di file: [nik] => nama.
+        $karyawanAktif = Karyawan::query()
+            ->where(fn ($query) => $query->whereNull('tanggal_masuk')->orWhereDate('tanggal_masuk', '<=', $tanggal))
+            ->get(['nik', 'nama']);
+        $tidakAbsen = $karyawanAktif
+            ->reject(fn (Karyawan $karyawan) => isset($hadir[$karyawan->nik]))
+            ->pluck('nama', 'nik')
+            ->all();
 
-                foreach (array_chunk($karyawans, 500, true) as $chunk) {
-                    AbsensiMesin::insert(array_map(fn ($nik, $nama) => [
-                        'tanggal' => $tanggal, 'nik' => (string) $nik, 'nama' => $nama, 'uploaded_by' => $userId,
-                        'created_at' => $now, 'updated_at' => $now,
-                    ], array_keys($chunk), $chunk));
-                }
+        $peringatan = isset($pagi[$kemarin]) || isset($malam[$kemarin]) ? null
+            : 'File tidak berisi tanggal '.$hariKerja->copy()->subDay()->format('d/m/Y').', jadi shift malam dianggap tidak absen.';
+
+        DB::transaction(function () use ($tanggal, $tidakAbsen, $userId, $now) {
+            AbsensiMesin::whereDate('tanggal', $tanggal)->delete();
+
+            foreach (array_chunk($tidakAbsen, 500, true) as $chunk) {
+                AbsensiMesin::insert(array_map(fn ($nik, $nama) => [
+                    'tanggal' => $tanggal, 'nik' => (string) $nik, 'nama' => $nama, 'uploaded_by' => $userId,
+                    'created_at' => $now, 'updated_at' => $now,
+                ], array_keys($chunk), $chunk));
             }
         });
 
-        return ['tanggal' => array_keys($data), 'total' => array_sum(array_map('count', $data)), 'dilewati' => $dilewati];
+        return [
+            'tanggal' => $tanggal,
+            'hadir' => $karyawanAktif->count() - count($tidakAbsen),
+            'total' => count($tidakAbsen),
+            'dilewati' => $dilewati,
+            'peringatan' => $peringatan,
+        ];
     }
 
     /**
@@ -227,7 +257,7 @@ class AbsensiMesinImport
     }
 
     /**
-     * Cari baris header (berisi AC-No dan Date) di 10 baris pertama.
+     * Cari baris header (berisi Employee Code dan Attendance Date) di 10 baris pertama.
      *
      * @param  list<list<mixed>>  $rows
      * @return array{0: int, 1: array<string, int>}
@@ -248,11 +278,11 @@ class AbsensiMesinImport
             }
 
             if (isset($columns['nik'], $columns['tanggal'])) {
-                return [$index, $columns + ['nama' => -1]];
+                return [$index, $columns + ['masuk' => -1]];
             }
         }
 
-        throw new RuntimeException('Header tidak ditemukan. Pastikan ada kolom "AC-No" dan "Date" seperti export mesin absen.');
+        throw new RuntimeException('Header tidak ditemukan. Pastikan ada kolom "Employee Code" dan "Attendance Date" seperti file Attendance Report.');
     }
 
     private function nik(mixed $value): ?string
@@ -275,6 +305,24 @@ class AbsensiMesinImport
         $text = trim((string) $value);
 
         return $text === '' ? null : $text;
+    }
+
+    /**
+     * Jam dari Time In: teks "HH:MM", objek waktu, atau pecahan hari dari .xlsx. "-" atau kosong = null.
+     */
+    private function hour(mixed $value): ?int
+    {
+        if ($value instanceof DateTimeInterface) {
+            return (int) $value->format('G');
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (int) floor(fmod((float) $value, 1) * 24 + 1e-9);
+        }
+
+        $text = $this->text($value);
+
+        return $text !== null && preg_match('/^(\d{1,2})[:.]\d{2}/', $text, $match) ? (int) $match[1] : null;
     }
 
     /**

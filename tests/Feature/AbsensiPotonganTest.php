@@ -32,7 +32,7 @@ class AbsensiPotonganTest extends TestCase
         $this->psd = Department::create(['name' => 'PSD']);
         $pwd = Department::create(['name' => 'PWD']);
         $this->andi = Karyawan::create(['nik' => '0001', 'nama' => 'Andi PSD', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap']);
-        $this->budi = Karyawan::create(['nik' => '0002', 'nama' => 'Budi PWD', 'department_id' => $pwd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'potongan_absen' => 20000]);
+        $this->budi = Karyawan::create(['nik' => '0002', 'nama' => 'Budi PWD', 'department_id' => $pwd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap']);
         $this->hrmsAdmin = User::factory()->create();
         $this->hrmsAdmin->assignRole('hrms', 'admin');
     }
@@ -58,12 +58,7 @@ class AbsensiPotonganTest extends TestCase
         $save('I', 45)->assertOk()->assertJson(['menit_terlambat' => null]);
     }
 
-    public function test_new_karyawan_gets_default_deduction(): void
-    {
-        $this->assertSame(Karyawan::POTONGAN_ABSEN_DEFAULT, $this->andi->fresh()->potongan_absen);
-    }
-
-    public function test_deduction_is_rounded_up_per_30_minutes_times_employee_rate(): void
+    public function test_late_duration_is_summed_and_rounded_up_per_30_minutes(): void
     {
         Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-13', 'kode' => 'DT<', 'menit_terlambat' => 10]);  // 1x
         Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => 'DT>', 'menit_terlambat' => 45]);  // 2x
@@ -74,9 +69,9 @@ class AbsensiPotonganTest extends TestCase
         $rows = $this->actingAs($this->hrmsAdmin)->get(route('hrms.absensi.potongan', ['bulan' => '2026-10']))
             ->assertOk()
             ->viewData('rows')
-            ->mapWithKeys(fn (array $row) => [$row['karyawan']->nik => [$row['jumlah'], $row['blok'], $row['potongan']]]);
+            ->mapWithKeys(fn (array $row) => [$row['karyawan']->nik => [$row['jumlah'], $row['menit'], $row['blok']]]);
 
-        $this->assertSame(['0001' => [2, 3, 150000], '0002' => [1, 3, 60000]], $rows->all());
+        $this->assertSame(['0001' => [2, 55, 3], '0002' => [1, 61, 3]], $rows->all());
     }
 
     public function test_department_admin_only_sees_own_department(): void
@@ -89,37 +84,17 @@ class AbsensiPotonganTest extends TestCase
         $this->actingAs($deptAdmin)->get(route('hrms.absensi.potongan'))
             ->assertOk()
             ->assertSee('Andi PSD')
-            ->assertSee('Rp 100.000')
+            ->assertSee('45 mnt')
+            ->assertDontSee('Rp ')
             ->assertDontSee('Budi PWD');
     }
 
-    public function test_only_hrms_admin_can_change_deduction_rate(): void
+    public function test_karyawan_table_no_longer_shows_deduction_amount(): void
     {
-        $data = ['nik' => '0001', 'nama' => 'Andi PSD', 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'department_id' => $this->psd->id, 'potongan_absen' => 75000];
-        $deptAdmin = User::factory()->create();
-        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
-
-        $this->actingAs($deptAdmin)->put(route('hrms.karyawans.update', $this->andi), $data)->assertSessionHasNoErrors();
-        $this->assertSame(Karyawan::POTONGAN_ABSEN_DEFAULT, $this->andi->fresh()->potongan_absen);
-
-        $this->actingAs($this->hrmsAdmin)->put(route('hrms.karyawans.update', $this->andi), $data)->assertSessionHasNoErrors();
-        $this->assertSame(75000, $this->andi->fresh()->potongan_absen);
-    }
-
-    public function test_deduction_column_in_karyawan_table_is_only_shown_to_hrms_admin(): void
-    {
-        $deptAdmin = User::factory()->create();
-        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
-
         $this->actingAs($this->hrmsAdmin)->get(route('hrms.karyawans.index'))
             ->assertOk()
-            ->assertSee('Potongan Absen / 30 mnt')
-            ->assertSee('Rp 20.000');
-
-        $this->actingAs($deptAdmin)->get(route('hrms.karyawans.index'))
-            ->assertOk()
             ->assertSee('Andi PSD')
-            ->assertDontSee('Potongan Absen / 30 mnt')
-            ->assertDontSee('Rp '.number_format(Karyawan::POTONGAN_ABSEN_DEFAULT, 0, ',', '.'));
+            ->assertDontSee('Potongan Absen / 30')
+            ->assertDontSee('potongan_absen');
     }
 }

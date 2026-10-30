@@ -163,7 +163,6 @@ class KaryawanController extends Controller
             'tanggal_masuk' => ['nullable', 'date'],
             'status' => ['required', Rule::in(Karyawan::STATUS)],
             'group' => ['nullable', 'string', 'max:20'],
-            'potongan_absen' => ['nullable', 'integer', 'min:0', 'max:10000000'],
         ], [
             'nik.required' => 'NIK wajib diisi.',
             'nik.regex' => 'NIK hanya boleh berisi angka.',
@@ -176,9 +175,6 @@ class KaryawanController extends Controller
             'tanggal_masuk.date' => 'Tanggal masuk tidak valid.',
             'status.required' => 'Pilih status karyawan.',
             'status.in' => 'Status tidak valid.',
-            'potongan_absen.integer' => 'Potongan absen harus berupa angka (rupiah).',
-            'potongan_absen.min' => 'Potongan absen tidak boleh minus.',
-            'potongan_absen.max' => 'Potongan absen maksimal Rp 10.000.000.',
             'max' => 'Isian terlalu panjang (maks. :max karakter).',
         ]);
 
@@ -187,11 +183,6 @@ class KaryawanController extends Controller
         // Admin Departemen hanya boleh memakai departemen yang dipegangnya; satu departemen = otomatis.
         if (! $request->user()->isModuleAdmin('hrms')) {
             $data['department_id'] = $this->departmentForDepartmentAdmin($request, $data['department_id'] ?? null);
-        }
-
-        // Potongan absen hanya diatur Admin HRMS. Kosong = pakai default (karyawan baru) / tidak diubah (edit).
-        if (! $request->user()->isModuleAdmin('hrms') || ! isset($data['potongan_absen'])) {
-            unset($data['potongan_absen']);
         }
 
         return $data;

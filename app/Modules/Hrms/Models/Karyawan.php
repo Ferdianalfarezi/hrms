@@ -9,15 +9,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group', 'potongan_absen'])]
+#[Fillable(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group'])]
 class Karyawan extends Model
 {
     public const JENIS_KELAMIN = ['Laki-laki', 'Perempuan'];
 
     public const STATUS = ['Tetap', 'PKWT 1', 'PKWT 2', 'PKWT 3', 'Pemagangan'];
-
-    /** Potongan gaji default (rupiah) per 30 menit datang terlambat. */
-    public const POTONGAN_ABSEN_DEFAULT = 50000;
 
     /**
      * Get the attributes that should be cast.
@@ -29,7 +26,6 @@ class Karyawan extends Model
         return [
             'tgl_lahir' => 'date',
             'tanggal_masuk' => 'date',
-            'potongan_absen' => 'integer',
         ];
     }
 

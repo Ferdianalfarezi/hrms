@@ -42,7 +42,7 @@ class AbsensiKomparasiController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'extensions:xls,xlsx', 'max:10240'],
         ], [
-            'file.required' => 'Pilih file export mesin absen terlebih dahulu.',
+            'file.required' => 'Pilih file Attendance Report terlebih dahulu.',
             'file.extensions' => 'File harus berformat .xls atau .xlsx.',
             'file.max' => 'Ukuran file maksimal 10 MB.',
         ]);
@@ -55,14 +55,16 @@ class AbsensiKomparasiController extends Controller
             return redirect()->route('hrms.absensi.komparasi')->withErrors(['file' => $exception->getMessage()]);
         }
 
-        $diberitahu = collect($result['tanggal'])
-            ->sum(fn (string $tanggal) => KomparasiAbsensi::beritahuAdminDepartemen(Carbon::createFromFormat('!Y-m-d', $tanggal)));
+        $hariKerja = Carbon::createFromFormat('!Y-m-d', $result['tanggal']);
+        $diberitahu = KomparasiAbsensi::beritahuAdminDepartemen($hariKerja);
 
         return redirect()
-            ->route('hrms.absensi.komparasi', ['tanggal' => end($result['tanggal'])])
-            ->with('status', "Data mesin absen berhasil diupload: {$result['total']} karyawan disimpan"
-                .($result['dilewati'] > 0 ? ", {$result['dilewati']} AC-No dilewati karena tidak ada di data karyawan." : '.')
-                .($diberitahu > 0 ? " Notifikasi dikirim ke {$diberitahu} Admin Departemen." : ''));
+            ->route('hrms.absensi.komparasi', ['tanggal' => $hariKerja->toDateString()])
+            ->with('status', "Data mesin absen hari kerja {$hariKerja->format('d/m/Y')} berhasil diupload: "
+                ."{$result['hadir']} karyawan hadir, {$result['total']} karyawan tidak absen"
+                .($result['dilewati'] > 0 ? ", {$result['dilewati']} Employee Code dilewati karena tidak ada di data karyawan." : '.')
+                .($diberitahu > 0 ? " Notifikasi dikirim ke {$diberitahu} Admin Departemen." : '')
+                .($result['peringatan'] ? " {$result['peringatan']}" : ''));
     }
 
     private function parseDate(string $value): ?Carbon

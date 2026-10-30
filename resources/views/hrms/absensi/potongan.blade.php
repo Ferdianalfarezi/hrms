@@ -29,16 +29,15 @@
 
 @section('content')
 @php
-    $rupiah = fn (int $value) => 'Rp '.number_format($value, 0, ',', '.');
     $keep = array_filter(['department' => $department, 'q' => $search, 'semua' => $showAll ? 1 : null]);
-    $totalPotongan = $rows->sum('potongan');
+    $durasi = fn (int $menit) => $menit >= 60 ? intdiv($menit, 60).' jam'.($menit % 60 ? ' '.($menit % 60).' mnt' : '') : $menit.' mnt';
 @endphp
 
 <div class="pt-head">
     <div>
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Potongan Absen</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            Potongan gaji datang terlambat · {{ $bulan->translatedFormat('F Y') }}
+            Durasi datang terlambat · {{ $bulan->translatedFormat('F Y') }}
             @if ($lockedDepartments->isNotEmpty())
                 · departemen
                 @foreach ($lockedDepartments as $lockedDepartment)
@@ -49,8 +48,8 @@
     </div>
     <div class="summary">
         <span class="chip">{{ $rows->where('jumlah', '>', 0)->count() }} karyawan terlambat</span>
-        <span class="chip">{{ $rows->sum('jumlah') }}x DT · {{ number_format($rows->sum('menit'), 0, ',', '.') }} menit</span>
-        <span class="chip total">Total potongan <b>{{ $rupiah($totalPotongan) }}</b></span>
+        <span class="chip">{{ $rows->sum('jumlah') }}x DT · {{ $rows->sum('blok') }}x kelipatan 30 mnt</span>
+        <span class="chip total">Total terlambat <b>{{ $durasi($rows->sum('menit')) }}</b></span>
     </div>
 </div>
 
@@ -88,11 +87,10 @@
                     <th class="nowrap">NIK</th>
                     <th>Nama</th>
                     <th>Dept</th>
-                    <th class="num">Potongan / 30 mnt</th>
                     <th class="num">Jumlah DT</th>
                     <th class="num">Total Menit</th>
                     <th class="num" title="Kelipatan 30 menit, dibulatkan ke atas per kejadian">Kelipatan 30 mnt</th>
-                    <th class="num">Total Potongan</th>
+                    <th class="num">Durasi</th>
                     <th></th>
                 </tr>
             </thead>
@@ -112,17 +110,16 @@
                             @endif
                         </td>
                         <td>{{ $karyawan->department?->name ?? '-' }}</td>
-                        <td class="num">{{ $rupiah($karyawan->potongan_absen) }}</td>
                         <td class="num">{{ $row['jumlah'] }}</td>
                         <td class="num">{{ number_format($row['menit'], 0, ',', '.') }}</td>
                         <td class="num">{{ $row['blok'] }}</td>
-                        <td class="num money">{{ $rupiah($row['potongan']) }}</td>
+                        <td class="num money">{{ $durasi($row['menit']) }}</td>
                         <td style="text-align: right;">
                             @if ($row['jumlah'])
                                 <button type="button" class="btn btn-ghost btn-sm" data-detail="{{ $karyawan->id }}">Detail</button>
                                 <template id="detail-{{ $karyawan->id }}">
                                     <p class="muted small" style="margin: 0 0 12px;">
-                                        {{ $karyawan->nik }} - {{ $karyawan->nama }} · {{ $karyawan->department?->name ?? '-' }} · {{ $rupiah($karyawan->potongan_absen) }} per 30 menit
+                                        {{ $karyawan->nik }} - {{ $karyawan->nama }} · {{ $karyawan->department?->name ?? '-' }}
                                     </p>
                                     <div class="table-wrap">
                                         <table>
@@ -132,7 +129,6 @@
                                                     <th>Kode</th>
                                                     <th class="num">Menit</th>
                                                     <th class="num">Kelipatan</th>
-                                                    <th class="num">Potongan</th>
                                                     <th>Keterangan</th>
                                                 </tr>
                                             </thead>
@@ -143,7 +139,6 @@
                                                         <td class="nowrap"><i class="k k-tag k-orange">{{ $item['kode'] }}</i></td>
                                                         <td class="num">{{ $item['menit'] ?? '-' }}</td>
                                                         <td class="num">{{ $item['blok'] }}</td>
-                                                        <td class="num">{{ $rupiah($item['potongan']) }}</td>
                                                         <td class="small">
                                                             {{ $item['keterangan'] ?: '-' }}
                                                             @if ($item['menit'] === null)
@@ -161,8 +156,7 @@
                                                     <td colspan="2">Total</td>
                                                     <td class="num">{{ $row['menit'] }}</td>
                                                     <td class="num">{{ $row['blok'] }}</td>
-                                                    <td class="num money">{{ $rupiah($row['potongan']) }}</td>
-                                                    <td></td>
+                                                    <td class="money">{{ $durasi($row['menit']) }}</td>
                                                 </tr>
                                             </tfoot>
                                         </table>
@@ -173,7 +167,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="muted" style="text-align: center; padding: 32px;">
+                        <td colspan="9" class="muted" style="text-align: center; padding: 32px;">
                             Tidak ada karyawan yang datang terlambat di {{ $bulan->translatedFormat('F Y') }}.
                         </td>
                     </tr>
@@ -182,11 +176,11 @@
             @if ($rows->isNotEmpty())
                 <tfoot>
                     <tr>
-                        <td colspan="5">Total</td>
+                        <td colspan="4">Total</td>
                         <td class="num">{{ $rows->sum('jumlah') }}</td>
                         <td class="num">{{ number_format($rows->sum('menit'), 0, ',', '.') }}</td>
                         <td class="num">{{ $rows->sum('blok') }}</td>
-                        <td class="num money">{{ $rupiah($totalPotongan) }}</td>
+                        <td class="num money">{{ $durasi($rows->sum('menit')) }}</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -195,13 +189,12 @@
     </div>
 </div>
 <p class="muted small" style="margin-top: 12px;">
-    Potongan = kelipatan 30 menit (dibulatkan ke atas per kejadian, mis. 10 menit = 1x, 45 menit = 2x) &times; potongan absen per 30 menit karyawan.
-    Nilai potongan per karyawan diatur di menu Karyawan.
+    Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. 10 menit = 1x, 45 menit = 2x.
 </p>
 
 <dialog class="modal wide" id="detail-modal">
     <div class="modal-head">
-        <h2>Detail Potongan</h2>
+        <h2>Detail Keterlambatan</h2>
         <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
     </div>
     <div class="modal-body" id="detail-body"></div>

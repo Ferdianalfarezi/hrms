@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Satu baris dari export mesin fingerprint: karyawan dengan NIK ini tidak absen pada hari kerja "tanggal".
+ * Karyawan dengan NIK ini tidak absen di mesin pada hari kerja "tanggal": terdaftar di data karyawan tapi tidak ada di file Attendance Report.
  */
 #[Fillable(['tanggal', 'nik', 'nama', 'uploaded_by'])]
 class AbsensiMesin extends Model

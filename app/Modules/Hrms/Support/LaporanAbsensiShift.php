@@ -31,7 +31,7 @@ class LaporanAbsensiShift
     /** @var array<string, int> jumlah karyawan per grup */
     private array $headcount;
 
-    public function __construct()
+    public function __construct(private bool $denganGrafik = true)
     {
         $this->rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
         $this->headcount = Karyawan::whereNotNull('group')
@@ -42,6 +42,14 @@ class LaporanAbsensiShift
     public static function build(Carbon $tanggal): array
     {
         return (new self)->report($tanggal);
+    }
+
+    /**
+     * Sama seperti build(), tanpa menghitung grafik bulanan ('grafik' => null).
+     */
+    public static function buildTanpaGrafik(Carbon $tanggal): array
+    {
+        return (new self(denganGrafik: false))->report($tanggal);
     }
 
     private function report(Carbon $tanggal): array
@@ -128,7 +136,7 @@ class LaporanAbsensiShift
             'totals' => $totals,
             'headcount' => $headcount,
             'persen' => $headcount > 0 ? round($rows->count() / $headcount * 100, 1) : null,
-            'grafik' => $this->grafik($shift, $tanggal),
+            'grafik' => $this->denganGrafik ? $this->grafik($shift, $tanggal) : null,
         ];
     }
 

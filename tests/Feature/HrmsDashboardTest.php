@@ -7,6 +7,7 @@ use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Modules\Hrms\Support\HrmsDashboard;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -64,7 +65,7 @@ class HrmsDashboardTest extends TestCase
 
         $data = HrmsDashboard::build($this->hrmsAdmin());
 
-        $this->assertSame([4, 2, 2], array_column($data['bigStats'], 'value'));        // total, tetap, masuk 2026
+        $this->assertSame(['-', 4, 2, 2], array_column($data['bigStats'], 'value'));   // rotasi belum diatur, total, tetap, masuk 2026
         $this->assertSame(['Tetap' => 2, 'PKWT' => 1, 'Pemagangan' => 1], array_column($data['pills'], 'count', 'label'));
         $this->assertSame(['Laki-laki' => 2, 'Perempuan' => 2], array_column($data['pillOutlines'], 'count', 'label'));
         $this->assertSame(2, $data['growth']['total']);                                // Agt & Okt 2026
@@ -75,6 +76,17 @@ class HrmsDashboardTest extends TestCase
 
         $birthdays = collect($data['calendar']['days'])->flatMap(fn ($day) => array_column($day['events'], 'title'))->all();
         $this->assertSame(['Citra Dewi ulang tahun ke-25', 'Andi Saputra ulang tahun ke-36'], $birthdays);
+    }
+
+    public function test_shift_aktif_mengikuti_jadwal_rotasi(): void
+    {
+        // Acuan: grup A pagi mulai Senin 5 Okt, bertukar tiap minggu. Minggu 12 - 18 Okt: B pagi, A malam.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-05', 'grup_pagi' => 'A']);
+
+        $stats = HrmsDashboard::build($this->hrmsAdmin())['bigStats'];
+
+        $this->assertSame(['Shift Pagi' => 'B', 'Shift Malam' => 'A'], array_column(array_slice($stats, 0, 2), 'value', 'label'));
+        $this->actingAs($this->hrmsAdmin())->get('/hrms')->assertOk()->assertSee('Shift Malam');
     }
 
     public function test_absensi_hari_ini_memakai_data_mesin_absen(): void
@@ -112,7 +124,7 @@ class HrmsDashboardTest extends TestCase
 
         $data = HrmsDashboard::build($deptAdmin);
 
-        $this->assertSame(2, $data['bigStats'][0]['value']);
+        $this->assertSame(2, collect($data['bigStats'])->firstWhere('label', 'Karyawan')['value']);
         $this->assertSame('Departemen PSD', $data['subtitle']);
         $this->assertSame('Kehadiran Okt', $data['composition']['title']);
         $this->assertSame('Departemen PSD', $data['composition']['subtitle']);

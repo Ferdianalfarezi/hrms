@@ -12,8 +12,8 @@ use Illuminate\View\View;
 use Throwable;
 
 /**
- * Rekap potongan gaji karena datang terlambat (DT< / DT>) per karyawan dalam satu bulan.
- * Potongan = kelipatan 30 menit (dibulatkan ke atas) x potongan absen per 30 menit milik karyawan.
+ * Rekap durasi datang terlambat (DT< / DT>) per karyawan dalam satu bulan:
+ * jumlah kejadian, total menit, dan kelipatan 30 menit (dibulatkan ke atas per kejadian).
  */
 class AbsensiPotonganController extends Controller
 {
@@ -54,7 +54,6 @@ class AbsensiPotonganController extends Controller
                 'kode' => $absensi->kode,
                 'menit' => $absensi->menit_terlambat,
                 'blok' => Absensi::blokPotongan($absensi->menit_terlambat),
-                'potongan' => Absensi::blokPotongan($absensi->menit_terlambat) * $karyawan->potongan_absen,
                 'keterangan' => $absensi->keterangan,
                 'pending' => $absensi->pendingApproval !== null,
             ])->values();
@@ -65,7 +64,6 @@ class AbsensiPotonganController extends Controller
                 'jumlah' => $items->count(),
                 'menit' => $items->sum('menit'),
                 'blok' => $items->sum('blok'),
-                'potongan' => $items->sum('potongan'),
                 // DT lama (sebelum ada kolom menit) yang belum diisi menitnya: belum ikut terhitung.
                 'belumDiisi' => $items->whereNull('menit')->count(),
                 'pending' => $items->where('pending', true)->count(),

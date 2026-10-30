@@ -5,6 +5,8 @@ use App\Modules\Hrms\Controllers\AbsensiController;
 use App\Modules\Hrms\Controllers\AbsensiDetailController;
 use App\Modules\Hrms\Controllers\AbsensiKomparasiController;
 use App\Modules\Hrms\Controllers\AbsensiPotonganController;
+use App\Modules\Hrms\Controllers\AbsensiPresentaseController;
+use App\Modules\Hrms\Controllers\AbsensiResumeController;
 use App\Modules\Hrms\Controllers\DashboardController;
 use App\Modules\Hrms\Controllers\DepartmentController;
 use App\Modules\Hrms\Controllers\KaryawanController;
@@ -34,6 +36,12 @@ Route::delete('absensi/entries/{absensi}', [AbsensiController::class, 'destroyEn
 Route::get('absensi/detail', [AbsensiDetailController::class, 'index'])->name('absensi.detail');
 Route::get('absensi/detail/export', [AbsensiDetailController::class, 'export'])->name('absensi.detail.export');
 Route::post('absensi/rotasi', [AbsensiDetailController::class, 'storeRotasi'])->name('absensi.rotasi');
+
+// Resume absensi harian per shift & plant (khusus Admin HRMS).
+Route::get('absensi/resume', [AbsensiResumeController::class, 'index'])->name('absensi.resume');
+
+// Persentase ketidakhadiran bulanan per kelompok karyawan (khusus Admin HRMS).
+Route::get('absensi/presentase', [AbsensiPresentaseController::class, 'index'])->name('absensi.presentase');
 
 // Komparasi data mesin absen: upload data mesin + daftar yang belum ada keterangan (khusus Admin HRMS).
 Route::get('absensi/komparasi', [AbsensiKomparasiController::class, 'index'])->name('absensi.komparasi');

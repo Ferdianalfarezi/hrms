@@ -6,9 +6,29 @@
     .kmp-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
     .kmp-head input[type=date] { width: auto; border-radius: 999px; padding: 9px 14px; }
 
-    .upload { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 14px 20px; margin-bottom: 20px; }
-    .upload form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .upload input[type=file] { width: auto; font-size: 13px; }
+    .upload { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 20px; }
+    .up-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 260px; }
+    .up-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--navy); color: #fff; }
+    .up-ico svg { width: 17px; height: 17px; }
+    .up-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; font-size: 14px; }
+    .up-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .up-state { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #fff8e6; color: #92600a; }
+    .up-state.done { background: #e8f7ee; color: #1a7f45; }
+    .up-state::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    .upload form { display: flex; align-items: center; gap: 8px; }
+    .dz, .upload .btn { box-sizing: border-box; height: 34px; font-size: 13px; }
+    .dz { position: relative; display: inline-flex; align-items: center; gap: 8px; max-width: 280px; padding: 0 14px; border: 1px dashed var(--line-strong);
+        border-radius: 999px; background: var(--soft-2); cursor: pointer; transition: .15s; margin: 0; font-weight: 400; }
+    .upload .btn { padding: 0 18px; }
+    .dz input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .dz svg { width: 15px; height: 15px; flex: none; color: var(--primary); }
+    .dz-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+    .dz:hover, .dz.drag { border-color: var(--primary); background: #e8f0ff; }
+    .dz.has-file { border-style: solid; border-color: var(--primary); background: #eef4ff; }
+    .dz.has-file .dz-label { color: var(--text); font-weight: 600; }
+    .upload .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .upload .field-error { flex-basis: 100%; margin: 0; }
 
     .kmp-section { padding: 0; overflow: hidden; }
     .kmp-title { padding: 16px 20px 12px; }
@@ -34,14 +54,58 @@
 </div>
 
 <div class="card upload">
-    <span class="muted">Upload file export mesin absen (AC-No, Name, Date). Tanggal dibaca dari kolom Date di file.</span>
-    <form method="POST" action="{{ route('hrms.absensi.komparasi.store') }}" enctype="multipart/form-data">
+    <div class="up-info">
+        <span class="up-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg></span>
+        <div>
+            <div class="up-title">
+                Upload Attendance Report
+                <span @class(['up-state', 'done' => $uploaded])>{{ $uploaded ? 'Sudah diupload' : 'Belum diupload' }}</span>
+            </div>
+            <div class="up-desc">Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00) dan hari ini. Laporan untuk tanggal terakhir di file.</div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('hrms.absensi.komparasi.store') }}" enctype="multipart/form-data" id="kmp-upload">
         @csrf
-        <input type="file" name="file" accept=".xls,.xlsx" required aria-label="File export mesin absen">
-        <button type="submit" class="btn btn-sm">Upload</button>
+        <label class="dz" id="kmp-dz" title="Klik atau tarik file .xlsx / .xls ke sini (maks. 10 MB)">
+            <input type="file" name="file" accept=".xls,.xlsx" required aria-label="File Attendance Report" id="kmp-file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <span class="dz-label" id="kmp-dz-label">Pilih / tarik file .xlsx</span>
+        </label>
+        <button type="submit" class="btn" id="kmp-submit" disabled>Upload</button>
     </form>
-    @error('file') <div class="field-error" style="flex-basis: 100%;">{{ $message }}</div> @enderror
+    @error('file') <div class="field-error">{{ $message }}</div> @enderror
 </div>
+
+<script>
+    (function () {
+        var input = document.getElementById('kmp-file');
+        var zone = document.getElementById('kmp-dz');
+        var label = document.getElementById('kmp-dz-label');
+        var submit = document.getElementById('kmp-submit');
+        if (!input) return;
+
+        function render() {
+            var file = input.files[0];
+            zone.classList.toggle('has-file', !!file);
+            submit.disabled = !file;
+            label.textContent = file ? file.name : 'Pilih / tarik file .xlsx';
+        }
+
+        input.addEventListener('change', render);
+        ['dragenter', 'dragover'].forEach(function (type) {
+            zone.addEventListener(type, function () { zone.classList.add('drag'); });
+        });
+        ['dragleave', 'drop'].forEach(function (type) {
+            zone.addEventListener(type, function () { zone.classList.remove('drag'); });
+        });
+        document.getElementById('kmp-upload').addEventListener('submit', function () {
+            submit.disabled = true;
+            submit.textContent = 'Mengupload...';
+        });
+        render();
+    })();
+</script>
 
 <section class="card kmp-section">
     <div class="kmp-title">

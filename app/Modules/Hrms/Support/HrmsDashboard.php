@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Support\ModuleDashboard;
 use Illuminate\Support\Carbon;
 
@@ -48,6 +49,7 @@ class HrmsDashboard
             'subtitle' => $departmentLabel ?? $application->description,
             'myApplications' => $viewer->accessibleApplications(),
             'bigStats' => [
+                ...self::shiftAktif(),
                 ['label' => 'Karyawan', 'value' => $total, 'icon' => 'users'],
                 ['label' => 'Karyawan Tetap', 'value' => $tetap, 'icon' => 'badge'],
                 ['label' => 'Masuk '.now()->year, 'value' => $visible()->whereYear('tanggal_masuk', now()->year)->count(), 'icon' => 'calendar'],
@@ -95,6 +97,25 @@ class HrmsDashboard
                 caption: 'Karyawan yang berulang tahun minggu ini.',
                 empty: 'Tidak ada karyawan yang berulang tahun minggu ini.',
             ),
+        ];
+    }
+
+    /**
+     * Grup A/B yang shift pagi dan malam hari ini menurut jadwal rotasi (diatur di Laporan Detail).
+     *
+     * @return list<array{label: string, value: string, icon: string}>
+     */
+    private static function shiftAktif(): array
+    {
+        $grupPagi = ShiftRotasi::grupPagi(Carbon::today());
+
+        if ($grupPagi === null) {
+            return [['label' => 'Rotasi shift belum diatur', 'value' => '-', 'icon' => 'sun']];
+        }
+
+        return [
+            ['label' => 'Shift Pagi', 'value' => $grupPagi, 'icon' => 'sun'],
+            ['label' => 'Shift Malam', 'value' => ShiftRotasi::lawan($grupPagi), 'icon' => 'moon'],
         ];
     }
 

@@ -15,6 +15,8 @@ return [
         ['label' => 'Daftar', 'route' => 'hrms.absensi.index', 'active' => 'hrms.absensi.index', 'cannot' => ['manage-module', 'hrms']],
         ['label' => 'Timeline', 'route' => 'hrms.absensi.timeline', 'active' => 'hrms.absensi.timeline', 'cannot' => ['manage-module', 'hrms']],
         ['label' => 'Detail', 'route' => 'hrms.absensi.detail', 'active' => 'hrms.absensi.detail', 'can' => ['manage-module', 'hrms']],
+        ['label' => 'Resume', 'route' => 'hrms.absensi.resume', 'active' => 'hrms.absensi.resume', 'can' => ['manage-module', 'hrms']],
+        ['label' => 'Presentase', 'route' => 'hrms.absensi.presentase', 'active' => 'hrms.absensi.presentase', 'can' => ['manage-module', 'hrms']],
         ['label' => 'Komparasi Mesin', 'route' => 'hrms.absensi.komparasi', 'active' => 'hrms.absensi.komparasi*', 'can' => ['manage-module', 'hrms']],
         ['label' => 'Potongan Absen', 'route' => 'hrms.absensi.potongan', 'active' => 'hrms.absensi.potongan'],
         ['label' => 'Approval', 'route' => 'hrms.absensi.approval', 'active' => 'hrms.absensi.approval*', 'can' => ['manage-module', 'hrms'],

@@ -180,6 +180,8 @@
         'shield' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
         'badge' => '<circle cx="12" cy="8" r="6"/><path d="M15.5 13 17 22l-5-3-5 3 1.5-9"/>',
         'calendar' => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+        'sun' => '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+        'moon' => '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
     ];
 @endphp
 
@@ -216,7 +218,11 @@
                     <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{!! $icons[$stat['icon']] ?? $icons['users'] !!}</svg></div>
                     <div class="lbl">{{ $stat['label'] }}</div>
                 </div>
-                <div class="num" data-count>{{ number_format($stat['value'], 0, ',', '.') }}</div>
+                @if (is_numeric($stat['value']))
+                    <div class="num" data-count>{{ number_format($stat['value'], 0, ',', '.') }}</div>
+                @else
+                    <div class="num">{{ $stat['value'] }}</div>
+                @endif
             </div>
         @endforeach
     </div>
