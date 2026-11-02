@@ -46,6 +46,7 @@
 
         <nav class="tabs" aria-label="Menu utama">
             <div class="tabs-inner">
+                <span class="tab-pill" aria-hidden="true"></span>
                 @foreach ($navTabs as $tab)
                     <a href="{{ $tab['url'] }}" @class(['tab', 'active' => $tab['active']])>{{ $tab['label'] }}</a>
                 @endforeach

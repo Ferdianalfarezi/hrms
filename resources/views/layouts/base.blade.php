@@ -81,13 +81,23 @@
             flex: 1; display: flex; justify-content: flex-end; gap: 4px; overflow-x: auto; scrollbar-width: none;
         }
         .tabs::-webkit-scrollbar { display: none; }
-        .tabs-inner { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(255,255,255,.9); }
+        .tabs-inner { position: relative; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(255,255,255,.9); }
         .tab {
+            position: relative; z-index: 1;
             white-space: nowrap; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--muted);
-            transition: background .15s, color .15s;
+            transition: background .15s, color .25s;
         }
         .tab:hover { color: var(--text); background: rgba(255, 255, 255, .8); }
         .tab.active { background: var(--navy); color: #fff; box-shadow: 0 4px 12px rgba(30, 58, 138, .3); }
+        /* Pil navy yang bergeser ke tab aktif; setelah JS siap, warna tab aktif dipindah ke pil ini. */
+        .tab-pill {
+            position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; z-index: 0; opacity: 0; pointer-events: none;
+            border-radius: 999px; background: var(--navy); box-shadow: 0 4px 12px rgba(30, 58, 138, .3);
+        }
+        .tab-pill.animate { transition: transform .4s cubic-bezier(.65, 0, .35, 1), width .4s cubic-bezier(.65, 0, .35, 1); }
+        .tabs-inner.has-pill .tab-pill { opacity: 1; }
+        .tabs-inner.has-pill .tab.active { background: transparent; box-shadow: none; }
+        @media (prefers-reduced-motion: reduce) { .tab-pill.animate { transition: none; } }
         .top-actions { flex: none; display: flex; align-items: center; gap: 8px; }
         .icon-btn {
             width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
@@ -463,6 +473,107 @@
                 if (!frame) frame = requestAnimationFrame(update);
             });
             return true;
+        })();
+
+        // Menu utama: pil navy bergeser ke tab yang diklik, dan melanjutkan geserannya setelah halaman baru tampil.
+        window.hrTabPill = window.hrTabPill || (function () {
+            var KEY = 'tab-pill-from';
+
+            function parts() {
+                var inner = document.querySelector('.tabs-inner');
+                var pill = inner && inner.querySelector('.tab-pill');
+                return pill ? { inner: inner, pill: pill } : null;
+            }
+
+            // Posisi pil saat ini (termasuk saat masih bergeser), dibaca dari style terhitung.
+            function current(pill) {
+                var style = getComputedStyle(pill);
+                var x = style.transform && style.transform !== 'none' ? new DOMMatrix(style.transform).m41 : 0;
+                return { x: x, w: parseFloat(style.width) || 0 };
+            }
+
+            function set(pill, x, w) {
+                pill.style.transform = 'translateX(' + x + 'px)';
+                pill.style.width = w + 'px';
+            }
+
+            function moveTo(pill, tab, animate) {
+                pill.classList.toggle('animate', animate);
+                set(pill, tab.offsetLeft, tab.offsetWidth);
+            }
+
+            function save(pill) {
+                try { sessionStorage.setItem(KEY, JSON.stringify({ at: Date.now(), from: current(pill) })); } catch (e) {}
+            }
+
+            function take() {
+                try {
+                    var saved = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+                    sessionStorage.removeItem(KEY);
+                    return saved && Date.now() - saved.at < 5000 ? saved.from : null;
+                } catch (e) { return null; }
+            }
+
+            function sync() {
+                var p = parts();
+                if (!p) return;
+                var active = p.inner.querySelector('.tab.active');
+                if (!active) { p.inner.classList.remove('has-pill'); return; }
+
+                if (p.pill.dataset.ready) { moveTo(p.pill, active, true); return; }
+                p.pill.dataset.ready = '1';
+
+                var from = take();
+                if (from && from.w > 0) {
+                    p.pill.classList.remove('animate');
+                    set(p.pill, from.x, from.w);
+                    p.inner.classList.add('has-pill');
+                    p.pill.getBoundingClientRect(); // paksa posisi awal diterapkan sebelum animasi dimulai
+                    moveTo(p.pill, active, true);
+                } else {
+                    moveTo(p.pill, active, false);
+                    p.inner.classList.add('has-pill');
+                }
+            }
+
+            document.addEventListener('click', function (event) {
+                var tab = event.target.closest('.tabs-inner .tab');
+                if (!tab || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                var p = parts();
+                if (!p || !p.inner.classList.contains('has-pill') || tab.classList.contains('active')) return;
+
+                save(p.pill);
+                p.inner.querySelectorAll('.tab.active').forEach(function (other) {
+                    other.classList.remove('active');
+                    other.dataset.wasActive = '1';
+                });
+                tab.classList.add('active');
+                moveTo(p.pill, tab, true);
+            });
+            // Halaman yang disimpan di cache Turbo (tombol Back) dikembalikan ke tab aktif aslinya.
+            document.addEventListener('turbo:before-cache', function () {
+                var p = parts();
+                if (!p) return;
+                if (p.inner.querySelector('[data-was-active]')) {
+                    p.inner.querySelectorAll('.tab').forEach(function (tab) {
+                        tab.classList.toggle('active', !!tab.dataset.wasActive);
+                        delete tab.dataset.wasActive;
+                    });
+                }
+                delete p.pill.dataset.ready;
+            });
+            // Simpan posisi terakhir tepat sebelum Turbo mengganti isi halaman.
+            document.addEventListener('turbo:before-render', function () { var p = parts(); if (p) save(p.pill); });
+            document.addEventListener('turbo:render', sync);
+            document.addEventListener('turbo:load', sync);
+            document.addEventListener('DOMContentLoaded', sync);
+            window.addEventListener('resize', function () {
+                var p = parts();
+                var active = p && p.inner.querySelector('.tab.active');
+                if (active) moveTo(p.pill, active, false);
+            });
+
+            return { sync: sync };
         })();
 
         // Tombol × pada toast notifikasi: tandai sudah dibaca di server, lalu hilangkan.
