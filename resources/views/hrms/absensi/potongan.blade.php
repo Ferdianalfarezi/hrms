@@ -189,7 +189,7 @@
     </div>
 </div>
 <p class="muted small" style="margin-top: 12px;">
-    Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. 10 menit = 1x, 45 menit = 2x.
+    Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. 10 menit = 1x, 45 menit = 2x. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:00).
 </p>
 
 <dialog class="modal wide" id="detail-modal">

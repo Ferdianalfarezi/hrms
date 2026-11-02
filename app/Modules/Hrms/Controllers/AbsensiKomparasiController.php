@@ -23,10 +23,8 @@ class AbsensiKomparasiController extends Controller
     {
         Gate::authorize('manage-module', 'hrms');
 
-        // Default: tanggal upload terakhir, supaya setelah upload langsung terlihat hasilnya.
-        $terakhir = AbsensiMesin::max('tanggal');
-        $tanggal = $this->parseDate((string) $request->query('tanggal'))
-            ?? ($terakhir ? Carbon::parse($terakhir)->startOfDay() : Carbon::today());
+        // Default hari ini, supaya status upload tidak menyesatkan. Setelah upload, redirect membawa tanggal hari kerja file.
+        $tanggal = $this->parseDate((string) $request->query('tanggal')) ?? Carbon::today();
 
         return view('hrms.absensi.komparasi', [
             'tanggal' => $tanggal,
@@ -63,6 +61,7 @@ class AbsensiKomparasiController extends Controller
             ->with('status', "Data mesin absen hari kerja {$hariKerja->format('d/m/Y')} berhasil diupload: "
                 ."{$result['hadir']} karyawan hadir, {$result['total']} karyawan tidak absen"
                 .($result['dilewati'] > 0 ? ", {$result['dilewati']} Employee Code dilewati karena tidak ada di data karyawan." : '.')
+                .($result['terlambat'] > 0 ? " {$result['terlambat']} karyawan datang terlambat dicatat ke Potongan Absen." : '')
                 .($diberitahu > 0 ? " Notifikasi dikirim ke {$diberitahu} Admin Departemen." : '')
                 .($result['peringatan'] ? " {$result['peringatan']}" : ''));
     }

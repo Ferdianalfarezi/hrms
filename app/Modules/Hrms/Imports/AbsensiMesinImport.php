@@ -2,6 +2,7 @@
 
 namespace App\Modules\Hrms\Imports;
 
+use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Karyawan;
 use DateTimeInterface;
@@ -23,6 +24,10 @@ use Throwable;
  * Karyawan terdaftar yang tidak ditemukan dianggap tidak absen dan disimpan ke absensi_mesins.
  * Upload ulang hari kerja yang sama mengganti seluruh data hari itu.
  *
+ * Time In juga dipakai mencatat keterlambatan (kode DT< / DT>) ke tabel absensi: acuan shift pagi 07:00, shift malam 20:00.
+ * DT otomatis ditandai keterangan "Mesin absen: ..."; upload ulang memperbarui / menghapusnya. Kode lain atau DT yang
+ * diisi manual tidak ditimpa.
+ *
  * File .xlsx dibaca dengan OpenSpout. File .xls berupa stream BIFF tanpa kontainer OLE dibaca dengan parser kecil di bawah.
  */
 class AbsensiMesinImport
@@ -37,18 +42,26 @@ class AbsensiMesinImport
     /** Time In mulai jam ini dianggap shift malam (shift pagi masuk 05.00 - 08.00, shift malam 16.00 - 20.00). */
     private const JAM_MULAI_MALAM = 12;
 
+    /** Jam masuk acuan keterlambatan, dalam menit sejak 00:00. */
+    private const ACUAN_PAGI = 7 * 60;
+
+    private const ACUAN_MALAM = 20 * 60;
+
+    /** Penanda keterangan DT yang dibuat otomatis dari upload ini. */
+    public const PENANDA_DT = 'Mesin absen';
+
     /** Panjang minimal NIK; dipakai mengembalikan nol di depan kalau Employee Code terbaca sebagai angka. */
     private const NIK_DIGITS = 4;
 
     /**
-     * @return array{tanggal: string, hadir: int, total: int, dilewati: int, peringatan: ?string}
+     * @return array{tanggal: string, hadir: int, total: int, dilewati: int, terlambat: int, peringatan: ?string}
      */
     public function import(string $path, string $extension, ?int $userId): array
     {
         $rows = $this->readRows($path, Str::lower($extension));
         [$headerRow, $columns] = $this->locateHeader($rows);
 
-        // [Y-m-d][nik] => true, dipisah menurut jam masuk.
+        // [Y-m-d][nik] => menit Time In sejak 00:00 (null kalau kosong), dipisah menurut jam masuk.
         $pagi = [];
         $malam = [];
         foreach (array_slice($rows, $headerRow + 1) as $cells) {
@@ -62,11 +75,11 @@ class AbsensiMesinImport
                 throw new RuntimeException("Tanggal untuk Employee Code {$nik} kosong atau formatnya tidak dikenali.");
             }
 
-            $jamMasuk = $this->hour($cells[$columns['masuk']] ?? null);
-            if ($jamMasuk !== null && $jamMasuk >= self::JAM_MULAI_MALAM) {
-                $malam[$tanggal][$nik] = true;
+            $masuk = $this->minuteOfDay($cells[$columns['masuk']] ?? null);
+            if ($masuk !== null && $masuk >= self::JAM_MULAI_MALAM * 60) {
+                $malam[$tanggal][$nik] = $this->earliest($malam[$tanggal][$nik] ?? null, $masuk);
             } else {
-                $pagi[$tanggal][$nik] = true;
+                $pagi[$tanggal][$nik] = $this->earliest($pagi[$tanggal][$nik] ?? null, $masuk);
             }
         }
 
@@ -92,14 +105,19 @@ class AbsensiMesinImport
             ->where(fn ($query) => $query->whereNull('tanggal_masuk')->orWhereDate('tanggal_masuk', '<=', $tanggal))
             ->get(['nik', 'nama']);
         $tidakAbsen = $karyawanAktif
-            ->reject(fn (Karyawan $karyawan) => isset($hadir[$karyawan->nik]))
+            ->reject(fn (Karyawan $karyawan) => array_key_exists($karyawan->nik, $hadir))
             ->pluck('nama', 'nik')
             ->all();
 
         $peringatan = isset($pagi[$kemarin]) || isset($malam[$kemarin]) ? null
             : 'File tidak berisi tanggal '.$hariKerja->copy()->subDay()->format('d/m/Y').', jadi shift malam dianggap tidak absen.';
 
-        DB::transaction(function () use ($tanggal, $tidakAbsen, $userId, $now) {
+        $terlambat = [
+            ...$this->terlambat($pagi[$tanggal] ?? [], $tanggal, self::ACUAN_PAGI, 'pagi'),
+            ...$this->terlambat($malam[$kemarin] ?? [], $kemarin, self::ACUAN_MALAM, 'malam'),
+        ];
+
+        $dicatat = DB::transaction(function () use ($tanggal, $tidakAbsen, $userId, $now, $terlambat) {
             AbsensiMesin::whereDate('tanggal', $tanggal)->delete();
 
             foreach (array_chunk($tidakAbsen, 500, true) as $chunk) {
@@ -108,6 +126,8 @@ class AbsensiMesinImport
                     'created_at' => $now, 'updated_at' => $now,
                 ], array_keys($chunk), $chunk));
             }
+
+            return $this->simpanTerlambat($terlambat, $userId);
         });
 
         return [
@@ -115,8 +135,101 @@ class AbsensiMesinImport
             'hadir' => $karyawanAktif->count() - count($tidakAbsen),
             'total' => count($tidakAbsen),
             'dilewati' => $dilewati,
+            'terlambat' => $dicatat,
             'peringatan' => $peringatan,
         ];
+    }
+
+    /**
+     * Keterlambatan per karyawan terdaftar di satu tanggal shift. Menit 0 = tepat waktu (DT otomatis lama dihapus).
+     *
+     * @param  array<string, ?int>  $masuk  [nik] => menit Time In
+     * @return list<array{karyawan_id: int, tanggal: string, menit: int, keterangan: string}>
+     */
+    private function terlambat(array $masuk, string $tanggal, int $acuan, string $shift): array
+    {
+        $masuk = array_filter($masuk, fn (?int $menit) => $menit !== null);
+        if ($masuk === []) {
+            return [];
+        }
+
+        $ids = Karyawan::whereIn('nik', array_map('strval', array_keys($masuk)))->pluck('id', 'nik');
+        $jamAcuan = $this->jam($acuan);
+
+        return $ids->map(fn (int $id, int|string $nik) => [
+            'karyawan_id' => $id,
+            'tanggal' => $tanggal,
+            'menit' => min(max(0, $masuk[$nik] - $acuan), 720),
+            'keterangan' => self::PENANDA_DT.': Time In '.$this->jam($masuk[$nik])." (shift {$shift}, acuan {$jamAcuan})",
+        ])->values()->all();
+    }
+
+    /**
+     * Catat DT otomatis dan kembalikan jumlah DT yang tercatat.
+     * Absensi lain (kode selain DT, DT manual, atau yang sedang diajukan perubahan) tidak disentuh.
+     *
+     * @param  list<array{karyawan_id: int, tanggal: string, menit: int, keterangan: string}>  $terlambat
+     */
+    private function simpanTerlambat(array $terlambat, ?int $userId): int
+    {
+        if ($terlambat === []) {
+            return 0;
+        }
+
+        $tanggals = array_column($terlambat, 'tanggal');
+        $dicatat = 0;
+
+        $existing = Absensi::query()
+            ->withCount(['approvals', 'pendingApproval'])
+            ->whereIn('karyawan_id', array_column($terlambat, 'karyawan_id'))
+            ->whereDate('tanggal', '>=', min($tanggals))
+            ->whereDate('tanggal', '<=', max($tanggals))
+            ->get()
+            ->keyBy(fn (Absensi $absensi) => $absensi->karyawan_id.'|'.$absensi->tanggal->toDateString());
+
+        foreach ($terlambat as $item) {
+            $absensi = $existing[$item['karyawan_id'].'|'.$item['tanggal']] ?? null;
+            $kode = $item['menit'] > Absensi::MENIT_PER_POTONGAN ? 'DT>' : 'DT<';
+
+            if ($absensi === null) {
+                if ($item['menit'] > 0) {
+                    Absensi::create([
+                        'karyawan_id' => $item['karyawan_id'], 'tanggal' => $item['tanggal'], 'kode' => $kode,
+                        'menit_terlambat' => $item['menit'], 'keterangan' => $item['keterangan'],
+                        'created_by' => $userId, 'updated_by' => $userId,
+                    ]);
+                    $dicatat++;
+                }
+
+                continue;
+            }
+
+            $otomatis = Absensi::isTerlambat($absensi->kode) && str_starts_with((string) $absensi->keterangan, self::PENANDA_DT);
+            if (! $otomatis || $absensi->pending_approval_count > 0) {
+                continue;
+            }
+
+            if ($item['menit'] > 0) {
+                $absensi->update([
+                    'kode' => $kode, 'menit_terlambat' => $item['menit'], 'keterangan' => $item['keterangan'], 'updated_by' => $userId,
+                ]);
+                $dicatat++;
+            } elseif ($absensi->approvals_count === 0) {
+                $absensi->delete();
+            }
+        }
+
+        return $dicatat;
+    }
+
+    private function earliest(?int $current, ?int $menit): ?int
+    {
+        return $current === null ? $menit : ($menit === null ? $current : min($current, $menit));
+    }
+
+    private function jam(int $menit): string
+    {
+        return sprintf('%02d:%02d', intdiv($menit, 60), $menit % 60);
     }
 
     /**
@@ -308,21 +421,21 @@ class AbsensiMesinImport
     }
 
     /**
-     * Jam dari Time In: teks "HH:MM", objek waktu, atau pecahan hari dari .xlsx. "-" atau kosong = null.
+     * Menit sejak 00:00 dari Time In: teks "HH:MM", objek waktu, atau pecahan hari dari .xlsx. "-" atau kosong = null.
      */
-    private function hour(mixed $value): ?int
+    private function minuteOfDay(mixed $value): ?int
     {
         if ($value instanceof DateTimeInterface) {
-            return (int) $value->format('G');
+            return (int) $value->format('G') * 60 + (int) $value->format('i');
         }
 
         if (is_int($value) || is_float($value)) {
-            return (int) floor(fmod((float) $value, 1) * 24 + 1e-9);
+            return (int) floor(fmod((float) $value, 1) * 1440 + 1e-6);
         }
 
         $text = $this->text($value);
 
-        return $text !== null && preg_match('/^(\d{1,2})[:.]\d{2}/', $text, $match) ? (int) $match[1] : null;
+        return $text !== null && preg_match('/^(\d{1,2})[:.](\d{2})/', $text, $match) ? (int) $match[1] * 60 + (int) $match[2] : null;
     }
 
     /**

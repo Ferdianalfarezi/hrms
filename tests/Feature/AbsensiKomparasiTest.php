@@ -145,6 +145,45 @@ class AbsensiKomparasiTest extends TestCase
         $this->assertTrue($rows->every(fn ($row) => $row->tanggal->toDateString() === '2026-10-15'));
     }
 
+    public function test_upload_mencatat_datang_terlambat_dari_time_in(): void
+    {
+        $agus = $this->karyawan('0001', 'Agus Telat Pagi', 'A');
+        $bayu = $this->karyawan('0002', 'Bayu Telat Malam', 'B');
+        $cici = $this->karyawan('0003', 'Cici Tepat Waktu', 'A');
+        $dedi = $this->karyawan('0004', 'Dedi DT Manual', 'A');
+        $eka = $this->karyawan('0005', 'Eka Izin', 'A');
+
+        // DT otomatis dari upload sebelumnya yang ternyata tepat waktu: dihapus. DT manual dan kode lain tidak ditimpa.
+        Absensi::create(['karyawan_id' => $cici->id, 'tanggal' => '2026-10-15', 'kode' => 'DT<', 'menit_terlambat' => 5,
+            'keterangan' => 'Mesin absen: Time In 07:05 (shift pagi, acuan 07:00)']);
+        Absensi::create(['karyawan_id' => $dedi->id, 'tanggal' => '2026-10-15', 'kode' => 'DT<', 'menit_terlambat' => 10,
+            'keterangan' => 'Ban bocor']);
+        $this->absen($eka, '2026-10-15', 'I');
+
+        $this->actingAs($this->hrmsAdmin())
+            ->post(route('hrms.absensi.komparasi.store'), ['file' => $this->attendanceReport([
+                ['14/10/2026', '0001', 'Agus Telat Pagi', '07:30', '16:00'],
+                ['14/10/2026', '0002', 'Bayu Telat Malam', '20:45', '06:00'],
+                ['15/10/2026', '0001', 'Agus Telat Pagi', '07:12', '-'],
+                ['15/10/2026', '0003', 'Cici Tepat Waktu', '07:00', '-'],
+                ['15/10/2026', '0004', 'Dedi DT Manual', '07:40', '-'],
+                ['15/10/2026', '0005', 'Eka Izin', '08:00', '-'],
+            ])])
+            ->assertSessionHas('status', fn (string $status) => str_contains($status, '2 karyawan datang terlambat dicatat ke Potongan Absen.'));
+
+        // Shift pagi kemarin (Agus 14/10 07:30) bukan bagian hari kerja ini, jadi tidak dicatat.
+        $dt = Absensi::whereIn('kode', Absensi::KODE_TERLAMBAT)->orderBy('karyawan_id')->get()
+            ->map(fn (Absensi $absensi) => [$absensi->karyawan_id, $absensi->tanggal->toDateString(), $absensi->kode, $absensi->menit_terlambat])
+            ->all();
+        $this->assertSame([
+            [$agus->id, '2026-10-15', 'DT<', 12],
+            [$bayu->id, '2026-10-14', 'DT>', 45],
+            [$dedi->id, '2026-10-15', 'DT<', 10],
+        ], $dt);
+        $this->assertSame('I', Absensi::where('karyawan_id', $eka->id)->value('kode'));
+        $this->assertSame('Mesin absen: Time In 20:45 (shift malam, acuan 20:00)', Absensi::where('karyawan_id', $bayu->id)->value('keterangan'));
+    }
+
     public function test_upload_tanpa_tanggal_kemarin_memberi_peringatan(): void
     {
         $this->karyawan('0001', 'Agus Pagi', 'A');
@@ -191,6 +230,19 @@ class AbsensiKomparasiTest extends TestCase
             ->assertViewHas('belum', fn ($rows) => $rows->pluck('karyawan.nik')->all() === ['0001', '0004'])
             ->assertSee('Andi Belum')
             ->assertDontSee('Budi Izin');
+    }
+
+    public function test_tanpa_tanggal_menampilkan_hari_ini_bukan_upload_terakhir(): void
+    {
+        $this->travelTo('2026-11-02 09:00:00');
+        $this->mesin('2026-10-30', ['0001']);
+
+        $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.komparasi'))
+            ->assertOk()
+            ->assertViewHas('tanggal', fn ($tanggal) => $tanggal->toDateString() === '2026-11-02')
+            ->assertViewHas('uploaded', false)
+            ->assertSee('Belum diupload');
     }
 
     public function test_matriks_absensi_menandai_sel_tanpa_keterangan(): void
