@@ -147,8 +147,8 @@ class KecelakaanTest extends TestCase
 
         $this->actingAs($staff)->get('/sms')
             ->assertSeeInOrder([
-                'Hari Tanpa Work Accident', '<b data-count style="white-space: nowrap;">6 hari</b>', 'Terakhir 15 Oktober 2026 · PSD',
-                'Hari Tanpa Traffic Accident', '<b data-count style="white-space: nowrap;">20 hari</b>', 'Terakhir 01 Oktober 2026 · PWD',
+                'Hari Tanpa Work Accident', '<b data-count style="white-space: nowrap;">6 hari</b>', 'Terakhir 15 Oktober 2026 · Korban PSD · PSD',
+                'Hari Tanpa Traffic Accident', '<b data-count style="white-space: nowrap;">20 hari</b>', 'Terakhir 01 Oktober 2026 · Korban PWD · PWD',
             ], false);
 
         Carbon::setTestNow();
