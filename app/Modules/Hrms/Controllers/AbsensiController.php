@@ -9,6 +9,7 @@ use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Support\KomparasiAbsensi;
 use Closure;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,13 @@ class AbsensiController extends Controller
         $canFilterDepartment = $isAdmin || $lockedDepartments->count() > 1;
         $department = $canFilterDepartment ? (string) $request->query('department') : '';
         $group = (string) $request->query('group');
+        $status = $request->query('status') === 'tidak_masuk' ? 'tidak_masuk' : '';
+
+        // Filter bulan tanpa tanggal: bulan berjalan menyorot hari ini, bulan lain menyorot tanggal 1.
+        $bulan = $this->parseMonth((string) $request->query('bulan'));
+        if ($bulan && ! $this->parseDate((string) $request->query('tanggal'))) {
+            $tanggal = $bulan->isSameMonth(Carbon::today()) ? Carbon::today() : $bulan;
+        }
 
         $karyawans = Karyawan::query()
             ->visibleTo($user)
@@ -72,6 +80,10 @@ class AbsensiController extends Controller
             ->orderByRaw('LENGTH(nik)')
             ->orderBy('nik')
             ->get();
+
+        if ($status === 'tidak_masuk') {
+            $karyawans = $this->tidakMasuk($karyawans, $tanggal);
+        }
 
         $monthStart = $tanggal->copy()->startOfMonth();
         $monthEnd = $tanggal->copy()->endOfMonth();
@@ -110,6 +122,7 @@ class AbsensiController extends Controller
             'missingDepartment' => $user->isDepartmentAdmin() && $lockedDepartments->isEmpty(),
             'department' => $department,
             'group' => $group,
+            'status' => $status,
             'canFilterDepartment' => $canFilterDepartment,
             'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'groupOptions' => Karyawan::query()->visibleTo($user)->whereNotNull('group')->distinct()->orderBy('group')->pluck('group'),
@@ -453,6 +466,36 @@ class AbsensiController extends Controller
         ])->save();
 
         return response()->json(['kode' => $absensi->kode, 'menit_terlambat' => $absensi->menit_terlambat, 'keterangan' => $absensi->keterangan]);
+    }
+
+    /**
+     * Karyawan yang tidak masuk pada tanggal itu: punya kode tidak hadir (bukan DT/PC),
+     * atau tidak masuk di mesin absen tapi belum ada keterangan.
+     *
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @return Collection<int, Karyawan>
+     */
+    private function tidakMasuk(Collection $karyawans, Carbon $tanggal): Collection
+    {
+        $berkode = Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
+            ->whereDate('tanggal', $tanggal->toDateString())
+            ->whereIn('kode', Absensi::kodeTidakHadir())
+            ->pluck('karyawan_id')
+            ->flip();
+        $tanpaKeterangan = KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $tanggal, $tanggal);
+
+        return $karyawans
+            ->filter(fn (Karyawan $karyawan) => $berkode->has($karyawan->id) || isset($tanpaKeterangan[$karyawan->id][$tanggal->toDateString()]))
+            ->values();
+    }
+
+    private function parseMonth(string $value): ?Carbon
+    {
+        try {
+            return $value !== '' ? Carbon::createFromFormat('!Y-m', $value) : null;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function parseDate(string $value): ?Carbon

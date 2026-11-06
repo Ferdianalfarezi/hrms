@@ -5,11 +5,18 @@
 @section('styles')
     .abs-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
     .abs-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-    .abs-toolbar input[type=date] { width: auto; border-radius: 999px; padding: 9px 14px; }
+    /* Semua kontrol filter setinggi 44px supaya sejajar. */
+    .abs-toolbar input, .abs-toolbar select, .abs-toolbar .day-nav { height: 44px; }
+    .abs-toolbar input[type=date], .abs-toolbar input[type=month] {
+        width: auto; padding: 0 14px; font: inherit; font-size: 14px; color: var(--text);
+        background: var(--glass-strong); border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer;
+    }
+    .abs-toolbar input[type=date]::-webkit-calendar-picker-indicator,
+    .abs-toolbar input[type=month]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .55; }
     .abs-toolbar input[type=search] { width: 220px; border-radius: 999px; }
     .abs-toolbar select { width: auto; min-width: 150px; border-radius: 999px; }
     .day-nav { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 999px; overflow: hidden; background: var(--glass-strong); }
-    .day-nav a { padding: 9px 14px; font-size: 13px; font-weight: 600; color: var(--text); }
+    .day-nav a { display: inline-flex; align-items: center; padding: 0 14px; font-size: 13px; font-weight: 600; color: var(--text); }
     .day-nav a + a { border-left: 1px solid var(--line-strong); }
     .day-nav a:hover { background: #fff; }
 
@@ -23,7 +30,6 @@
     .day-summary .chip.hadir { background: var(--success-bg); color: var(--success); border-color: transparent; }
     .day-summary .chip.absen { background: #fee2e2; color: #b91c1c; border-color: transparent; }
     .day-summary .chip.hadir .pct, .day-summary .chip.absen .pct { color: inherit; opacity: .75; }
-    .day-summary .chip.tanpa-ket { background: #fee2e2; color: #b91c1c; border-color: transparent; }
 
     .legend-list { display: grid; gap: 8px; }
     .legend-item { display: flex; align-items: center; gap: 12px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); }
@@ -96,9 +102,11 @@
 
 @section('content')
 @php
-    $prev = $tanggal->copy()->subDay()->toDateString();
-    $next = $tanggal->copy()->addDay()->toDateString();
-    $keepFilters = array_filter(['department' => $department, 'group' => $group]);
+    // Filter "Tidak masuk" bernavigasi per tanggal; tampilan biasa per bulan.
+    $tidakMasuk = $status === 'tidak_masuk';
+    $prev = $tidakMasuk ? ['tanggal' => $tanggal->copy()->subDay()->toDateString()] : ['bulan' => $tanggal->copy()->subMonthNoOverflow()->format('Y-m')];
+    $next = $tidakMasuk ? ['tanggal' => $tanggal->copy()->addDay()->toDateString()] : ['bulan' => $tanggal->copy()->addMonthNoOverflow()->format('Y-m')];
+    $keepFilters = array_filter(['department' => $department, 'group' => $group, 'status' => $status]);
     // Kelas kolom tanggal dihitung sekali per hari, bukan per sel.
     $days = $days->map(fn (array $day) => [...$day, 'tdClass' => 'day'.($day['weekend'] ? ' sun' : '').($day['selected'] ? ' sel' : '')]);
 @endphp
@@ -107,7 +115,11 @@
     <div>
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Laporan Absensi Harian</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            {{ $tanggal->translatedFormat('l, d F Y') }} · {{ $karyawans->count() }} karyawan
+            @if ($tidakMasuk)
+                {{ $tanggal->translatedFormat('l, d F Y') }} · {{ $karyawans->count() }} karyawan tidak masuk
+            @else
+                {{ $tanggal->translatedFormat('F Y') }} · {{ $karyawans->count() }} karyawan
+            @endif
             @if ($lockedDepartments->isNotEmpty())
                 · departemen
                 @foreach ($lockedDepartments as $lockedDepartment)
@@ -139,11 +151,19 @@
 <div class="abs-toolbar-row">
 <form method="GET" class="abs-toolbar" id="abs-filter">
     <span class="day-nav">
-        <a href="{{ route($routeName, ['tanggal' => $prev, ...$keepFilters]) }}" title="Hari sebelumnya">&lsaquo;</a>
-        <a href="{{ route($routeName, $keepFilters) }}">Hari ini</a>
-        <a href="{{ route($routeName, ['tanggal' => $next, ...$keepFilters]) }}" title="Hari berikutnya">&rsaquo;</a>
+        <a href="{{ route($routeName, [...$prev, ...$keepFilters]) }}" title="{{ $tidakMasuk ? 'Hari' : 'Bulan' }} sebelumnya">&lsaquo;</a>
+        <a href="{{ route($routeName, $keepFilters) }}">{{ $tidakMasuk ? 'Hari ini' : 'Bulan ini' }}</a>
+        <a href="{{ route($routeName, [...$next, ...$keepFilters]) }}" title="{{ $tidakMasuk ? 'Hari' : 'Bulan' }} berikutnya">&rsaquo;</a>
     </span>
-    <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal">
+    @if ($tidakMasuk)
+        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal tidak masuk">
+    @else
+        <input type="month" name="bulan" value="{{ $tanggal->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="Bulan">
+    @endif
+    <select name="status" onchange="this.form.requestSubmit()" aria-label="Status">
+        <option value="">Semua karyawan</option>
+        <option value="tidak_masuk" @selected($tidakMasuk)>Tidak masuk</option>
+    </select>
     @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()">
             <option value="">Semua departemen</option>
@@ -277,7 +297,7 @@
             @empty
                 <tr>
                     <td colspan="{{ 6 + $days->count() + count($kodes) + 1 }}" class="muted" style="text-align: left; padding: 32px;">
-                        Tidak ada karyawan untuk ditampilkan.
+                        {{ $tidakMasuk ? 'Tidak ada karyawan yang tidak masuk di tanggal ini.' : 'Tidak ada karyawan untuk ditampilkan.' }}
                     </td>
                 </tr>
             @endforelse
@@ -416,30 +436,18 @@
                 else setNumber(cell, day[cell.dataset.foot] || 0);
             });
 
+            // Ringkasan tanggal terpilih cukup hadir & tidak hadir. Tidak hadir = kode tidak hadir
+            // + tidak masuk di mesin absen yang belum ada keterangan (sel merah).
             var today = perDay[selectedDay] || { _absen: 0 };
-            var hadir = headcount - today._absen;
+            var tanpaKet = table.querySelectorAll('tbody tr[data-row] .cell.tanpa-ket[data-day="' + selectedDay + '"]').length;
+            var tidakHadir = today._absen + tanpaKet;
+            var hadir = headcount - tidakHadir;
             var pct = function (value) {
                 return headcount ? (Math.round(value * 1000 / headcount) / 10).toString().replace('.', ',') + '%' : '0%';
             };
-            var html = '<span class="chip hadir">Hadir <b>' + hadir + '</b><span class="pct">' + pct(hadir) + '</span></span>'
-                + '<span class="chip absen">Tidak hadir <b>' + today._absen + '</b><span class="pct">' + pct(today._absen) + '</span></span>';
-            // Mesin absen: tidak masuk tapi belum ada kode (sel merah) pada tanggal terpilih.
-            var tanpaKet = table.querySelectorAll('tbody tr[data-row] .cell.tanpa-ket[data-day="' + selectedDay + '"]').length;
-            if (tanpaKet) {
-                html += '<span class="chip tanpa-ket">Tidak hadir tanpa keterangan <b>' + tanpaKet + '</b></span>';
-            }
-            Object.keys(kodes).forEach(function (kode) {
-                if (today[kode]) {
-                    html += '<span class="chip"><i class="k k-tag k-' + kodes[kode].tone + '">' + kode.replace('<', '&lt;').replace('>', '&gt;') + '</i><b>' + today[kode] + '</b></span>';
-                }
-            });
-            var summary = document.getElementById('day-summary');
-            summary.innerHTML = html;
-            // Kode berisi "<" / ">" jadi diisi lewat textContent supaya aman.
-            var i = 0;
-            Object.keys(kodes).forEach(function (kode) {
-                if (today[kode]) summary.querySelectorAll('.chip i')[i++].textContent = kode;
-            });
+            document.getElementById('day-summary').innerHTML =
+                '<span class="chip hadir">Hadir <b>' + hadir + '</b><span class="pct">' + pct(hadir) + '</span></span>'
+                + '<span class="chip absen">Tidak hadir <b>' + tidakHadir + '</b><span class="pct">' + pct(tidakHadir) + '</span></span>';
         }
 
         // Pencarian cepat di browser (tidak mengubah angka rekap).

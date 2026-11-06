@@ -27,6 +27,13 @@ class ApplicationSeeder extends Seeder
                 // dept_admin mengisi Daily Patrol untuk departemen (area) yang dipilihkan untuknya.
                 'roles' => ['admin' => 'Admin SMS', 'staff' => 'Staff SMS', 'dept_admin' => 'Admin Departemen'],
             ],
+            'iso' => [
+                'name' => 'ISO',
+                'description' => 'Dokumen ISO: Procedures, Forms & SOP',
+                'sort_order' => 3,
+                // dept_admin mengelola dokumen departemennya sendiri dan bisa melihat dokumen umum.
+                'roles' => ['admin' => 'Admin ISO', 'dept_admin' => 'Admin Departemen'],
+            ],
         ];
 
         foreach ($modules as $code => $module) {

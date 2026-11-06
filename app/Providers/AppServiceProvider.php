@@ -36,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('sms-patrol', fn (User $user) => $user->canAccessApplication('sms')
             && ($user->isModuleAdmin('sms') || $user->isDepartmentAdmin('sms')));
 
+        // Dokumen ISO: Admin ISO (semua departemen) dan Admin Departemen ISO (departemennya + dokumen umum).
+        Gate::define('iso-documents', fn (User $user) => $user->canAccessApplication('iso')
+            && ($user->isModuleAdmin('iso') || $user->isDepartmentAdmin('iso')));
+
         Gate::policy(Karyawan::class, KaryawanPolicy::class);
 
         View::composer('layouts.app', function ($view) {

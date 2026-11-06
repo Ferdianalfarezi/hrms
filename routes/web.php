@@ -22,7 +22,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Setiap modul punya prefix, nama route, dan pengecekan akses sendiri.
-    foreach (['hrms', 'sms'] as $module) {
+    foreach (['hrms', 'sms', 'iso'] as $module) {
         Route::middleware("module:{$module}")
             ->prefix($module)
             ->name("{$module}.")

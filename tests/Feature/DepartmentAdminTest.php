@@ -132,9 +132,10 @@ class DepartmentAdminTest extends TestCase
     {
         $super = User::factory()->superadmin()->create();
 
-        $this->assertSame(['hrms', 'sms'], $super->accessibleApplications()->pluck('code')->all());
+        $this->assertSame(['hrms', 'sms', 'iso'], $super->accessibleApplications()->pluck('code')->all());
         $this->actingAs($super)->get('/hrms/karyawans')->assertOk()->assertSee('Budi PWD')->assertSee('Import Excel');
         $this->actingAs($super)->get('/sms')->assertOk();
+        $this->actingAs($super)->get('/iso/procedures')->assertOk()->assertSee('+ Upload File');
         $this->actingAs($super)->get('/hrms/departments')->assertOk();
         $this->actingAs($super)->get('/')->assertOk()->assertSee('Super Admin');
     }

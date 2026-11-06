@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Hrms\Models\Absensi;
+use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use Database\Seeders\ApplicationSeeder;
@@ -69,7 +70,8 @@ class AbsensiTest extends TestCase
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi')
             ->assertOk()
             ->assertSee('Laporan Absensi Harian')
-            ->assertSee('Kamis, 15 Oktober 2026')
+            ->assertSee('Oktober 2026 · 2 karyawan')
+            ->assertSee('name="bulan" value="2026-10"', false)
             ->assertSee('id="selected-day"', false)
             ->assertSee('data-month="2026-10"', false)
             ->assertSee('data-day="31"', false)   // 31 hari di Oktober
@@ -157,14 +159,49 @@ class AbsensiTest extends TestCase
 
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=2026-09-03')
             ->assertOk()
-            ->assertSee('Kamis, 03 September 2026')
+            ->assertSee('September 2026 · 2 karyawan')
             ->assertSee('data-kode="CT"', false)
             ->assertDontSee('data-kode="A"', false)          // tanda Oktober tidak ikut
             ->assertSee('data-month="2026-09"', false)
             ->assertDontSee('data-day="31"', false); // September 30 hari
 
         // Tanggal tidak valid kembali ke hari ini.
-        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=bukan-tanggal')->assertSee('Kamis, 15 Oktober 2026');
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=bukan-tanggal')->assertSee('Oktober 2026 · 2 karyawan');
+    }
+
+    public function test_month_filter_shows_whole_month_without_date(): void
+    {
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-09-03', 'kode' => 'CT']);
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?bulan=2026-09')
+            ->assertOk()
+            ->assertSee('September 2026 · 2 karyawan')
+            ->assertSee('data-month="2026-09"', false)
+            ->assertSee('data-kode="CT"', false)
+            ->assertDontSee('name="tanggal" value=', false);
+
+        // Bulan berjalan tetap menyorot hari ini.
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?bulan=2026-10')->assertSee('Keterangan 15 Okt');
+    }
+
+    public function test_tidak_masuk_filter_lists_only_absent_employees_on_that_date(): void
+    {
+        $citra = Karyawan::create(['nik' => '0003', 'nama' => 'Citra Terlambat', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Perempuan', 'status' => 'Tetap', 'group' => 'NS']);
+        $dodi = Karyawan::create(['nik' => '0004', 'nama' => 'Dodi Mesin', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'group' => 'NS']);
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $this->budi->id, 'tanggal' => '2026-10-13', 'kode' => 'I']);
+        Absensi::create(['karyawan_id' => $citra->id, 'tanggal' => '2026-10-14', 'kode' => 'DT<', 'menit_terlambat' => 10]);
+        // Tidak masuk di mesin absen, belum ada keterangan.
+        AbsensiMesin::create(['tanggal' => '2026-10-14', 'nik' => $dodi->nik]);
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?status=tidak_masuk&tanggal=2026-10-14')
+            ->assertOk()
+            ->assertSee('Rabu, 14 Oktober 2026 · 2 karyawan tidak masuk')
+            ->assertSee('name="tanggal" value="2026-10-14"', false)
+            ->assertSee('Andi PSD')
+            ->assertSee('Dodi Mesin')
+            ->assertDontSee('Budi PWD')
+            ->assertDontSee('Citra Terlambat');
     }
 
     public function test_group_filter_and_access_control(): void
