@@ -330,6 +330,19 @@
             </div>
             <div class="modal-body">
                 <div class="alert" id="abs-error" hidden></div>
+                <div style="margin-bottom: 16px;">
+                    <label for="abs-alasan">Alasan</label>
+                    <select id="abs-alasan">
+                        <option value="">Pilih alasan (kode terisi otomatis)...</option>
+                        @foreach (\App\Modules\Hrms\Models\Absensi::ALASAN as $kategoriAlasan => $alasans)
+                            <optgroup label="{{ $kategoriAlasan }}">
+                                @foreach ($alasans as $alasan => $kodeAlasan)
+                                    <option value="{{ $alasan }}" data-alasan-kode="{{ $kodeAlasan }}">{{ $alasan }} ({{ $kodeAlasan }})</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                </div>
                 <div class="kode-grid">
                     <label class="kode-opt">
                         <input type="radio" name="kode" value="">
@@ -470,6 +483,24 @@
         }
         form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.addEventListener('change', syncMenit); });
 
+        // Pilih alasan: isi keterangan dan pilih kode bawaannya, kecuali kode yang dipilih sudah satu kategori (mis. SD untuk sakit).
+        var alasanSelect = document.getElementById('abs-alasan');
+        var kategoriKode = {{ Js::from(array_values(\App\Modules\Hrms\Models\Absensi::KATEGORI)) }};
+        alasanSelect.addEventListener('change', function () {
+            var option = alasanSelect.selectedOptions[0];
+            if (!option || !option.value) return;
+            form.elements.keterangan.value = option.value;
+            var kode = option.dataset.alasanKode;
+            var checked = form.querySelector('input[name=kode]:checked');
+            var sameKategori = checked && kategoriKode.some(function (kodes) {
+                return kodes.indexOf(kode) !== -1 && kodes.indexOf(checked.value) !== -1;
+            });
+            if (!sameKategori) {
+                form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.checked = radio.value === kode; });
+                syncMenit();
+            }
+        });
+
         table.addEventListener('click', function (event) {
             var cell = event.target.closest('.cell.editable');
             if (!cell) return;
@@ -479,6 +510,7 @@
             var isoDate = table.dataset.month + '-' + String(cell.dataset.day).padStart(2, '0');
             form.elements.tanggal.value = isoDate;
             form.elements.keterangan.value = cell.dataset.ket || '';
+            alasanSelect.value = Array.prototype.some.call(alasanSelect.options, function (option) { return option.value && option.value === cell.dataset.ket; }) ? cell.dataset.ket : '';
             form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.checked = radio.value === (cell.dataset.kode || ''); });
             form.elements.menit_terlambat.value = cell.dataset.menit || '';
             syncMenit();

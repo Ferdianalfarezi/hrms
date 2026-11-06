@@ -45,6 +45,65 @@ class Absensi extends Model
         'Alpa' => ['A'],
     ];
 
+    /**
+     * Pilihan alasan tidak masuk di popup absensi, dikelompokkan per kategori.
+     * Memilih alasan mengisi keterangan dan memilih kode bawaannya (kode tetap bisa diganti).
+     *
+     * @var array<string, array<string, string>>
+     */
+    public const ALASAN = [
+        'Cuti' => [
+            'Cuti Pulang Kampung' => 'CT',
+            'Cuti Urus Surat-surat' => 'CT',
+            'Cuti Saudara Menikah' => 'CT',
+            'Cuti Keperluan Sekolah Anak' => 'CT',
+            'Cuti Keperluan Keluarga' => 'CT',
+            'Cuti Ortu Meninggal' => 'CK',
+            'Cuti Mertua Meninggal' => 'CK',
+            'Cuti Aqiqah Anak' => 'CK',
+            'Cuti Istri/Suami/Anak Sakit' => 'CT',
+            'Cuti Tanpa Surat Dokter' => 'CT',
+            'Cuti Istri Melahirkan' => 'CK',
+            'Cuti Ortu Sakit' => 'CT',
+            'Cuti Mertua Sakit' => 'CT',
+        ],
+        'Izin' => [
+            'Izin Anak Sakit' => 'I',
+            'Izin Istri/Suami Sakit' => 'I',
+            'Izin Keperluan Kuliah' => 'I',
+            'Izin Keperluan Keluarga' => 'I',
+            'Izin Renovasi Rumah' => 'I',
+            'Izin Saudara/Keluarga Meninggal' => 'I',
+            'Izin Pulang Kampung' => 'I',
+        ],
+        'Sakit' => [
+            'Sakit Demam' => 'S',
+            'Sakit Hipertensi' => 'S',
+            'Sakit Ginjal' => 'S',
+            'Sakit Perut' => 'S',
+            'Sakit Kepala' => 'S',
+            'Sakit Meriang' => 'S',
+            'Sakit Mual, Muntah' => 'S',
+            'Sakit Asam Lambung' => 'S',
+            'Sakit Bapil' => 'S',
+            'Sakit Tipus' => 'S',
+            'Sakit Radang' => 'S',
+            'Sakit Diare' => 'S',
+            'Sakit ISK' => 'S',
+            'Sakit Radang Usus' => 'S',
+            'Sakit Punggung' => 'S',
+            'Sakit Pinggang' => 'S',
+            'Sakit Gangguan Pencernaan' => 'S',
+            'Sakit Amandel' => 'S',
+            'Sakit Kaki Keseleo' => 'S',
+            'Sakit Mata' => 'S',
+            'Sakit Gigi' => 'S',
+        ],
+        'Alpa' => [
+            'Alpa' => 'A',
+        ],
+    ];
+
     /** Kode datang terlambat: wajib diisi berapa menit, dan dipotong gaji per 30 menit. */
     public const KODE_TERLAMBAT = ['DT<', 'DT>'];
 
