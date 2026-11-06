@@ -101,10 +101,10 @@ class DocumentController extends Controller
             ->orderBy('nama')
             ->get();
 
-        $managedDepartmentIds = $lockedDepartments->modelKeys();
-        $canManageHere = $currentFolder
-            ? ($isAdmin || in_array($currentFolder->department_id, $managedDepartmentIds, true))
-            : ($isAdmin || $lockedDepartments->isNotEmpty());
+        // Admin Departemen hanya mengelola Forms & SOP; di menu lain (Procedures) semuanya hanya bisa dilihat.
+        $canManageKategori = IsoDocument::canManageKategori($user, $kategori) && ($isAdmin || $lockedDepartments->isNotEmpty());
+        $managedDepartmentIds = $canManageKategori ? $lockedDepartments->modelKeys() : [];
+        $canManageHere = $canManageKategori && (! $currentFolder || $isAdmin || in_array($currentFolder->department_id, $managedDepartmentIds, true));
 
         return view('iso.documents.index', [
             'kategori' => $kategori,
@@ -121,6 +121,8 @@ class DocumentController extends Controller
             'isAdmin' => $isAdmin,
             // Upload & buat folder di lokasi yang sedang dibuka.
             'canManageHere' => $canManageHere,
+            // Boleh mengelola sesuatu di menu ini (modal edit/hapus perlu dirender).
+            'canManageKategori' => $canManageKategori,
             'lockedDepartments' => $lockedDepartments,
             // Dihitung sekali untuk tombol Edit/Hapus di tiap kartu (sama dengan isManageableBy).
             'managedDepartmentIds' => $managedDepartmentIds,
@@ -138,6 +140,7 @@ class DocumentController extends Controller
         Gate::authorize('iso-documents');
 
         $kategori = $this->kategori($request);
+        $this->authorizeKategoriManage($request, $kategori);
         $user = $request->user();
 
         $data = $request->validate([
@@ -348,6 +351,10 @@ class DocumentController extends Controller
      */
     private function moveTargets(User $user, string $kategori): Collection
     {
+        if (! IsoDocument::canManageKategori($user, $kategori)) {
+            return collect();
+        }
+
         $folders = IsoFolder::query()->visibleTo($user)->where('kategori', $kategori)->get(['id', 'parent_id', 'nama', 'department_id'])->keyBy('id');
 
         $label = function (IsoFolder $folder) use ($folders): string {

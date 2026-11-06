@@ -25,6 +25,7 @@ class FolderController extends Controller
         Gate::authorize('iso-documents');
 
         $kategori = $this->kategori($request);
+        $this->authorizeKategoriManage($request, $kategori);
         $user = $request->user();
         $data = $request->validate($this->rules(), $this->messages());
 

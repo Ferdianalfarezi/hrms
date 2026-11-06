@@ -4,6 +4,7 @@ namespace App\Modules\Iso\Models\Concerns;
 
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Iso\Models\IsoDocument;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -23,9 +24,13 @@ trait HasDepartmentAccess
             ->orWhereIn($this->qualifyColumn('department_id'), $user->managedDepartmentIds('iso')));
     }
 
+    /**
+     * Admin ISO: semua. Admin Departemen: data departemennya, dan hanya di menu yang boleh dikelolanya (Forms & SOP).
+     */
     public function isManageableBy(User $user): bool
     {
-        return $user->isModuleAdmin('iso') || $user->managesDepartment('iso', $this->department_id);
+        return $user->isModuleAdmin('iso')
+            || (IsoDocument::canManageKategori($user, $this->kategori) && $user->managesDepartment('iso', $this->department_id));
     }
 
     public function department(): BelongsTo

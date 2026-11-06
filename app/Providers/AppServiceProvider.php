@@ -41,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('iso-documents', fn (User $user) => $user->canAccessApplication('iso')
             && ($user->isModuleAdmin('iso') || in_array($user->roleFor('iso')?->code, ['dept_admin', 'guest'], true)));
 
+        // Dashboard ISO: semua yang punya akses dokumen kecuali Guest (Guest langsung ke Procedures).
+        Gate::define('iso-dashboard', fn (User $user) => Gate::forUser($user)->allows('iso-documents')
+            && ($user->isModuleAdmin('iso') || $user->roleFor('iso')?->code !== 'guest'));
+
         Gate::policy(Karyawan::class, KaryawanPolicy::class);
 
         View::composer('layouts.app', function ($view) {

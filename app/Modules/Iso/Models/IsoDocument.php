@@ -31,6 +31,18 @@ class IsoDocument extends Model
         'sop' => 'SOP',
     ];
 
+    /** Menu yang boleh dikelola (tambah/ubah/hapus) Admin Departemen. Menu lain hanya bisa dilihat. Guest selalu hanya melihat. */
+    public const KATEGORI_DEPT_ADMIN = ['forms', 'sop'];
+
+    /**
+     * Boleh menambah / mengubah / menghapus isi menu ini: Admin ISO semua menu, Admin Departemen hanya Forms & SOP.
+     */
+    public static function canManageKategori(User $user, string $kategori): bool
+    {
+        return $user->isModuleAdmin('iso')
+            || ($user->isDepartmentAdmin('iso') && in_array($kategori, self::KATEGORI_DEPT_ADMIN, true));
+    }
+
     /**
      * Jenis file untuk filter & warna kartu, ditentukan dari ekstensi.
      *

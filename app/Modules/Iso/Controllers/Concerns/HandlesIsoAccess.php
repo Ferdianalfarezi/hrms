@@ -27,6 +27,15 @@ trait HandlesIsoAccess
     }
 
     /**
+     * Tambah dokumen/folder: Admin ISO semua menu, Admin Departemen hanya Forms & SOP, Guest tidak bisa.
+     */
+    private function authorizeKategoriManage(Request $request, string $kategori): void
+    {
+        abort_unless(IsoDocument::canManageKategori($request->user(), $kategori), 403,
+            'Anda hanya bisa melihat dokumen di menu '.IsoDocument::KATEGORI[$kategori].'.');
+    }
+
+    /**
      * Dokumen/folder harus ada di menu yang dibuka dan terlihat oleh user; ubah/hapus butuh hak kelola.
      */
     private function authorizeItem(Request $request, Model $item, bool $manage): string
