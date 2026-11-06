@@ -32,7 +32,8 @@ class ApplicationSeeder extends Seeder
                 'description' => 'Dokumen ISO: Procedures, Forms & SOP',
                 'sort_order' => 3,
                 // dept_admin mengelola dokumen departemennya sendiri dan bisa melihat dokumen umum.
-                'roles' => ['admin' => 'Admin ISO', 'dept_admin' => 'Admin Departemen'],
+                // guest hanya bisa melihat & membuka dokumen umum yang aktif (tanpa upload/edit/hapus).
+                'roles' => ['admin' => 'Admin ISO', 'dept_admin' => 'Admin Departemen', 'guest' => 'Guest'],
             ],
         ];
 

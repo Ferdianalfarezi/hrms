@@ -28,6 +28,7 @@ class IsoDocumentFactory extends Factory
             'extension' => 'pdf',
             'mime' => 'application/pdf',
             'size' => fake()->numberBetween(10_000, 2_000_000),
+            'is_active' => true,
             'department_id' => null,
         ];
     }

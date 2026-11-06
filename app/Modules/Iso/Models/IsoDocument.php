@@ -3,7 +3,7 @@
 namespace App\Modules\Iso\Models;
 
 use App\Models\User;
-use App\Modules\Hrms\Models\Department;
+use App\Modules\Iso\Models\Concerns\HasDepartmentAccess;
 use Database\Factories\IsoDocumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -14,9 +14,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Number;
 
 #[UseFactory(IsoDocumentFactory::class)]
-#[Fillable(['kategori', 'nama', 'path', 'extension', 'mime', 'size', 'department_id', 'created_by', 'updated_by'])]
+#[Fillable(['kategori', 'folder_id', 'nama', 'path', 'extension', 'mime', 'size', 'is_active', 'notified_at', 'notified_by', 'department_id', 'created_by', 'updated_by'])]
 class IsoDocument extends Model
 {
+    use HasDepartmentAccess {
+        scopeVisibleTo as scopeVisibleByDepartment;
+    }
+
     /** @use HasFactory<IsoDocumentFactory> */
     use HasFactory;
 
@@ -60,24 +64,28 @@ class IsoDocument extends Model
     }
 
     /**
-     * Dokumen yang boleh dilihat: Admin ISO semua; Admin Departemen departemennya + dokumen umum (tanpa departemen).
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
-    public function scopeVisibleTo(Builder $query, User $user): void
+    protected function casts(): array
     {
-        if ($user->isModuleAdmin('iso')) {
-            return;
-        }
-
-        $query->where(fn (Builder $query) => $query->whereNull('department_id')
-            ->orWhereIn('department_id', $user->managedDepartmentIds('iso')));
+        return [
+            'is_active' => 'boolean',
+            'notified_at' => 'datetime',
+        ];
     }
 
     /**
-     * Ubah / hapus: Admin ISO semua dokumen, Admin Departemen hanya dokumen departemennya (dokumen umum tidak).
+     * Aturan departemen, ditambah: dokumen nonaktif hanya terlihat oleh Admin ISO.
      */
-    public function isManageableBy(User $user): bool
+    public function scopeVisibleTo(Builder $query, User $user): void
     {
-        return $user->isModuleAdmin('iso') || $user->managesDepartment('iso', $this->department_id);
+        $this->scopeVisibleByDepartment($query, $user);
+
+        if (! $user->isModuleAdmin('iso')) {
+            $query->where($this->qualifyColumn('is_active'), true);
+        }
     }
 
     public function jenis(): string
@@ -95,13 +103,8 @@ class IsoDocument extends Model
         return Number::fileSize($this->size, precision: 1);
     }
 
-    public function department(): BelongsTo
+    public function folder(): BelongsTo
     {
-        return $this->belongsTo(Department::class);
-    }
-
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(IsoFolder::class);
     }
 }

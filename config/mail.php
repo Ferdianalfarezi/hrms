@@ -115,4 +115,18 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Pengirim Notifikasi ISO
+    |--------------------------------------------------------------------------
+    |
+    | Alamat pengirim email notifikasi pembaruan dokumen ISO.
+    |
+    */
+
+    'iso_from' => [
+        'address' => env('ISO_MAIL_FROM_ADDRESS', 'iso.admin@step.co.id'),
+        'name' => env('ISO_MAIL_FROM_NAME', 'ISO Admin'),
+    ],
+
 ];

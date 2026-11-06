@@ -4,10 +4,28 @@
 
 @section('styles')
     .iso-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .iso-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+    .crumbs a { color: var(--muted); padding: 2px 6px; border-radius: 8px; }
+    .crumbs a:hover { background: var(--soft-2); color: var(--primary); }
+    .crumbs .current { color: var(--text); font-weight: 600; padding: 2px 6px; }
+    .crumbs .sep { color: var(--faint); }
     .iso-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
     .iso-filters input[type=search] { width: 260px; border-radius: 999px; }
     .iso-filters select { width: auto; min-width: 150px; border-radius: 999px; }
     .iso-filters .total { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 13px; background: var(--glass-strong); }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 10px; }
+
+    .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 24px; }
+    .folder-card { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 8px 10px 14px; border-radius: 14px; background: #fff; border: 1px solid var(--line-strong); transition: box-shadow .15s, border-color .15s; }
+    .folder-card:hover { box-shadow: 0 8px 20px rgba(15, 35, 80, .1); border-color: var(--primary); }
+    .folder-ico { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: #fef3c7; color: #b45309; }
+    .folder-ico svg { width: 20px; height: 20px; }
+    .folder-text { min-width: 0; flex: 1; }
+    .folder-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .folder-sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .folder-open { position: absolute; inset: 0; z-index: 1; border-radius: 14px; }
+    .folder-card .doc-btn { position: relative; z-index: 2; }
 
     .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
     .doc-card { display: flex; flex-direction: column; border-radius: 16px; background: #fff; border: 1px solid var(--line-strong); overflow: hidden; transition: box-shadow .15s, transform .15s; }
@@ -33,10 +51,31 @@
     .doc-btn svg { width: 15px; height: 15px; }
     .doc-btn:hover { background: var(--soft-2); color: var(--primary); }
     .doc-btn.danger:hover { color: var(--danger); background: #fee2e2; }
+    /* Dokumen nonaktif (hanya terlihat Admin ISO): dibuat pudar. */
+    .doc-card.inactive .doc-thumb, .doc-card.inactive .doc-body { opacity: .45; filter: grayscale(.6); }
+    .status-tag { display: none; padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; }
+    .doc-card.inactive .status-tag { display: inline-block; }
+    /* Kirim notifikasi hanya untuk dokumen aktif. */
+    .doc-card.inactive [data-notify] { display: none; }
+    #notify-modal { width: min(560px, calc(100% - 32px)); }
+    #notify-modal .modal-body { display: grid; gap: 14px; }
+    .recipient-list { display: grid; gap: 4px; max-height: 240px; overflow: auto; padding: 4px; border: 1px solid var(--line-strong); border-radius: 12px; }
+    .recipient-list label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 8px; border-radius: 8px; font-weight: 400; cursor: pointer; }
+    .recipient-list label:hover { background: var(--soft-2); }
+    .recipient-list small { color: var(--muted); }
+    .doc-actions { align-items: center; }
+    .switch { position: relative; display: inline-flex; align-items: center; gap: 6px; margin: 0 auto 0 4px; font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; }
+    .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .switch .track { width: 32px; height: 18px; border-radius: 999px; background: var(--line-strong); position: relative; transition: background .15s; flex: none; }
+    .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .15s; }
+    .switch input:checked + .track { background: var(--success); }
+    .switch input:checked + .track::after { transform: translateX(14px); }
+    .switch input:focus-visible + .track { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .switch input:disabled + .track { opacity: .5; }
     .doc-empty { padding: 48px 16px; text-align: center; color: var(--muted); border: 2px dashed var(--line-strong); border-radius: 18px; }
 
-    #upload-modal, #edit-modal { width: min(560px, calc(100% - 32px)); }
-    #upload-modal .modal-body, #edit-modal .modal-body { display: grid; gap: 14px; }
+    #upload-modal, #edit-modal, #folder-modal { width: min(560px, calc(100% - 32px)); }
+    #upload-modal .modal-body, #edit-modal .modal-body, #folder-modal .modal-body { display: grid; gap: 14px; }
     .dropzone { display: grid; place-items: center; gap: 6px; padding: 28px 16px; text-align: center; border: 2px dashed var(--line-strong); border-radius: 16px; background: var(--soft-2); cursor: pointer; font-weight: 400; margin: 0; }
     .dropzone.over { border-color: var(--primary); background: #eef4ff; }
     .dropzone svg { width: 34px; height: 34px; color: var(--primary); }
@@ -51,36 +90,68 @@
 
 @section('content')
 @php
-    $listFilters = array_filter(['q' => $search, 'jenis' => $jenis, 'department' => $department]);
-    $keepFilters = $listFilters + array_filter(['page' => $documents->currentPage() > 1 ? $documents->currentPage() : null]);
+    $listFilters = array_filter(['q' => $search, 'jenis' => $jenis, 'department' => $department, 'status' => $status]);
+    $here = array_filter(['folder' => $currentFolder?->id]);
+    $keepFilters = $here + $listFilters + array_filter(['page' => $documents->currentPage() > 1 ? $documents->currentPage() : null]);
+    $canManageAny = $isAdmin || $lockedDepartments->isNotEmpty();
     $icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>';
+    $folderIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z"/></svg>';
+    $editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+    $trashIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>';
+    $lokasi = $currentFolder ? 'folder '.$currentFolder->nama : $judul;
 @endphp
 
 <div class="iso-head">
-    <div>
+    <div style="min-width: 0;">
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ $judul }}</h1>
-        <p class="muted" style="margin: 2px 0 0;">
-            Dokumen ISO
-            @if ($lockedDepartments->isNotEmpty())
-                · departemen
-                @foreach ($lockedDepartments as $lockedDepartment)
-                    <span class="badge">{{ $lockedDepartment->name }}</span>
+        @if ($currentFolder)
+            <nav class="crumbs" aria-label="Lokasi folder">
+                <a href="{{ route("iso.{$kategori}.index") }}">{{ $judul }}</a>
+                @foreach ($breadcrumbs as $crumb)
+                    <span class="sep">/</span>
+                    @if ($loop->last)
+                        <span class="current">{{ $crumb->nama }}</span>
+                    @else
+                        <a href="{{ route("iso.{$kategori}.index", ['folder' => $crumb->id]) }}">{{ $crumb->nama }}</a>
+                    @endif
                 @endforeach
-                + dokumen umum
-            @endif
-        </p>
+                <span class="badge" style="margin-left: 6px;">{{ $currentFolder->department?->name ?? 'Umum' }}</span>
+            </nav>
+        @else
+            <p class="muted" style="margin: 2px 0 0;">
+                Dokumen ISO
+                @if ($lockedDepartments->isNotEmpty())
+                    · departemen
+                    @foreach ($lockedDepartments as $lockedDepartment)
+                        <span class="badge">{{ $lockedDepartment->name }}</span>
+                    @endforeach
+                    + dokumen umum
+                @elseif (! $isAdmin)
+                    · hanya dokumen umum
+                @endif
+            </p>
+        @endif
     </div>
-    @if ($canUpload)
-        <button type="button" class="btn" data-upload>+ Upload File</button>
+    @if ($canManageHere)
+        <div class="iso-head-actions">
+            <button type="button" class="btn btn-ghost" data-create-folder>+ Folder</button>
+            <button type="button" class="btn" data-upload>+ Upload File</button>
+        </div>
     @endif
 </div>
 
 @if ($missingDepartment)
     <div class="alert">Akun Anda adalah Admin Departemen ISO tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
 @endif
+@if ($errors->has('notify'))
+    <div class="alert">{{ $errors->first('notify') }}</div>
+@endif
 
 <form method="GET" class="iso-filters">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari nama dokumen...">
+    @if ($currentFolder)
+        <input type="hidden" name="folder" value="{{ $currentFolder->id }}">
+    @endif
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ $currentFolder ? 'Cari di folder ini...' : 'Cari folder / dokumen...' }}">
     <select name="jenis" onchange="this.form.requestSubmit()" aria-label="Jenis file">
         <option value="">Semua jenis</option>
         @foreach (\App\Modules\Iso\Models\IsoDocument::JENIS as $kode => $info)
@@ -88,24 +159,72 @@
         @endforeach
         <option value="lainnya" @selected($jenis === 'lainnya')>Lainnya</option>
     </select>
-    <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
-        <option value="">Semua departemen</option>
-        <option value="umum" @selected($department === 'umum')>Umum</option>
-        @foreach ($departments as $option)
-            <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
-        @endforeach
-    </select>
-    <span class="total">Total <b>{{ $documents->total() }}</b> file</span>
+    {{-- Guest hanya melihat dokumen umum, jadi filter departemen tidak ditampilkan. --}}
+    @if ($isAdmin || $departments->isNotEmpty())
+        <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
+            <option value="">Semua departemen</option>
+            <option value="umum" @selected($department === 'umum')>Umum</option>
+            @foreach ($departments as $option)
+                <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
+            @endforeach
+        </select>
+    @endif
+    @if ($isAdmin)
+        <select name="status" onchange="this.form.requestSubmit()" aria-label="Status dokumen">
+            <option value="">Semua status</option>
+            <option value="aktif" @selected($status === 'aktif')>Aktif</option>
+            <option value="nonaktif" @selected($status === 'nonaktif')>Nonaktif</option>
+        </select>
+    @endif
+    <span class="total">
+        @if ($folders->isNotEmpty())<b>{{ $folders->count() }}</b> folder ·@endif
+        <b>{{ $documents->total() }}</b> file
+    </span>
 </form>
 
-@if ($documents->isEmpty())
+@if ($folders->isEmpty() && $documents->isEmpty())
     <div class="doc-empty">
-        {{ $listFilters ? 'Dokumen tidak ditemukan.' : 'Belum ada dokumen di '.$judul.'.' }}
-        @if ($canUpload && ! $listFilters)
-            <div class="small" style="margin-top: 6px;">Klik <b>+ Upload File</b> atau tarik file ke halaman ini.</div>
+        @if ($filtering)
+            Folder / dokumen tidak ditemukan.
+        @else
+            {{ $currentFolder ? 'Folder ini masih kosong.' : 'Belum ada folder atau dokumen di '.$judul.'.' }}
+            @if ($canManageHere)
+                <div class="small" style="margin-top: 6px;">Klik <b>+ Folder</b> / <b>+ Upload File</b>, atau tarik file ke halaman ini.</div>
+            @endif
         @endif
     </div>
-@else
+@endif
+
+@if ($folders->isNotEmpty())
+    <h2 class="section-title">Folder</h2>
+    <div class="folder-grid">
+        @foreach ($folders as $folder)
+            @php
+                $isi = collect([$folder->children_count ? $folder->children_count.' folder' : null, $folder->documents_count ? $folder->documents_count.' file' : null])->filter()->join(', ') ?: 'Kosong';
+                $canManageFolder = $isAdmin || in_array($folder->department_id, $managedDepartmentIds, true);
+            @endphp
+            <div class="folder-card">
+                <span class="folder-ico">{!! $folderIcon !!}</span>
+                <div class="folder-text">
+                    <div class="folder-name" title="{{ $folder->nama }}">{{ $folder->nama }}</div>
+                    <div class="folder-sub">{{ $folder->department?->name ?? 'Umum' }} · {{ $isi }}</div>
+                </div>
+                <a href="{{ route("iso.{$kategori}.index", ['folder' => $folder->id]) }}" class="folder-open" aria-label="Buka folder {{ $folder->nama }}"></a>
+                @if ($canManageFolder)
+                    <button type="button" class="doc-btn" title="Edit folder" aria-label="Edit folder" data-edit-folder="{{ $folder->id }}"
+                            data-record="{{ json_encode(['nama' => $folder->nama, 'department_id' => (string) $folder->department_id, 'root' => $folder->parent_id === null]) }}">{!! $editIcon !!}</button>
+                    <button type="button" class="doc-btn danger" title="Hapus folder" aria-label="Hapus folder" data-delete-folder="{{ $folder->id }}"
+                            data-name="{{ $folder->nama }}" data-isi="{{ $isi }}">{!! $trashIcon !!}</button>
+                @endif
+            </div>
+        @endforeach
+    </div>
+@endif
+
+@if ($documents->isNotEmpty())
+    @if ($folders->isNotEmpty())
+        <h2 class="section-title">File</h2>
+    @endif
     <div class="doc-grid">
         @foreach ($documents as $document)
             @php
@@ -114,7 +233,7 @@
                 $fileUrl = route("iso.{$kategori}.file", $document);
                 $canManage = $isAdmin || in_array($document->department_id, $managedDepartmentIds, true);
             @endphp
-            <div class="doc-card">
+            <div @class(['doc-card', 'inactive' => ! $document->is_active])>
                 <div class="doc-thumb tone-{{ $tone }}">
                     @if ($jenisFile === 'gambar')
                         <img src="{{ $fileUrl }}" alt="" loading="lazy">
@@ -129,26 +248,49 @@
                 </div>
                 <div class="doc-body">
                     <div class="doc-name" title="{{ $document->nama }}">{{ $document->nama }}</div>
+                    @if ($isAdmin)
+                        <span class="status-tag" title="Tidak terlihat oleh Admin Departemen">Nonaktif</span>
+                    @endif
                     <div class="doc-meta">
                         <span class="badge">{{ $document->department?->name ?? 'Umum' }}</span>
                         <span style="white-space: nowrap;">{{ $document->sizeLabel() }} · {{ $document->created_at->translatedFormat('d M Y') }}</span>
                     </div>
+                    {{-- Hasil pencarian bisa dari folder mana saja, jadi lokasinya ditampilkan. --}}
+                    @if ($filtering && $document->folder)
+                        <div class="doc-meta">
+                            <a href="{{ route("iso.{$kategori}.index", ['folder' => $document->folder_id]) }}" style="color: inherit; text-decoration: underline;">di {{ $document->folder->nama }}</a>
+                        </div>
+                    @endif
                     @if ($document->creator)
                         <div class="doc-meta" title="Diupload oleh">oleh {{ $document->creator->name }}</div>
                     @endif
+                    @if ($isAdmin && $document->notified_at)
+                        <div class="doc-meta" title="Notifikasi email terakhir">✉ {{ $document->notified_at->translatedFormat('d M Y H:i') }}</div>
+                    @endif
                 </div>
                 <div class="doc-actions">
+                    @if ($isAdmin)
+                        {{-- Toggle status: nonaktif = disembunyikan dari Admin Departemen. --}}
+                        <label class="switch" title="Aktif: terlihat oleh Admin Departemen. Nonaktif: hanya Admin ISO.">
+                            <input type="checkbox" data-status-url="{{ route("iso.{$kategori}.status", $document) }}" @checked($document->is_active)
+                                   aria-label="Status {{ $document->nama }}">
+                            <span class="track"></span>
+                            <span data-status-label>{{ $document->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                        </label>
+                    @endif
+                    @if ($isAdmin)
+                        <button type="button" class="doc-btn" title="Kirim notifikasi pembaruan ke email" aria-label="Kirim notifikasi"
+                                data-notify="{{ $document->id }}" data-name="{{ $document->nama }}" data-big="{{ $document->size > 10 * 1024 * 1024 ? 1 : 0 }}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+                        </button>
+                    @endif
                     <a href="{{ $fileUrl }}?download=1" class="doc-btn" title="Unduh" aria-label="Unduh">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
                     </a>
                     @if ($canManage)
                         <button type="button" class="doc-btn" title="Edit" aria-label="Edit" data-edit="{{ $document->id }}"
-                                data-record="{{ json_encode(['nama' => $document->nama, 'department_id' => (string) $document->department_id]) }}">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                        </button>
-                        <button type="button" class="doc-btn danger" title="Hapus" aria-label="Hapus" data-delete="{{ $document->id }}" data-name="{{ $document->nama }}">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>
-                        </button>
+                                data-record="{{ json_encode(['nama' => $document->nama, 'department_id' => (string) $document->department_id, 'folder_id' => (string) $document->folder_id]) }}">{!! $editIcon !!}</button>
+                        <button type="button" class="doc-btn danger" title="Hapus" aria-label="Hapus" data-delete="{{ $document->id }}" data-name="{{ $document->nama }}">{!! $trashIcon !!}</button>
                     @endif
                 </div>
             </div>
@@ -157,19 +299,20 @@
     <div style="margin-top: 16px;">{{ $documents->links() }}</div>
 @endif
 
-@if ($canUpload)
-    <div class="drop-overlay" id="drop-overlay">Lepaskan file untuk upload ke {{ $judul }}</div>
+@if ($canManageHere)
+    <div class="drop-overlay" id="drop-overlay">Lepaskan file untuk upload ke {{ $lokasi }}</div>
 
-    {{-- Modal upload: bisa beberapa file sekaligus, semua jenis file. --}}
+    {{-- Modal upload: bisa beberapa file sekaligus, semua jenis file, ke folder yang sedang dibuka. --}}
     <dialog class="modal" id="upload-modal">
         <form method="POST" action="{{ route("iso.{$kategori}.store") }}" enctype="multipart/form-data" id="upload-form">
             @csrf
             <input type="hidden" name="_modal" value="upload">
+            <input type="hidden" name="folder_id" value="{{ $currentFolder?->id }}">
             @foreach ($keepFilters as $key => $value)
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2>Upload ke {{ $judul }}</h2>
+                <h2>Upload ke {{ $lokasi }}</h2>
                 <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
             </div>
             <div class="modal-body">
@@ -180,28 +323,12 @@
                     <input type="file" name="files[]" id="upload-input" multiple required>
                 </label>
                 <div class="file-list" id="file-list"></div>
-                @if ($errors->has('files') || $errors->has('files.*'))
-                    <div class="field-error">{{ $errors->first('files') ?: $errors->first('files.*') }}</div>
+                @if ($errors->has('files') || $errors->has('files.*') || $errors->has('folder_id'))
+                    <div class="field-error">{{ $errors->first('files') ?: ($errors->first('files.*') ?: $errors->first('folder_id')) }}</div>
                 @endif
                 <div>
                     <label for="upload-department">Departemen</label>
-                    @if ($isAdmin)
-                        <select id="upload-department" name="department_id">
-                            <option value="">Umum (semua departemen)</option>
-                            @foreach ($departments as $option)
-                                <option value="{{ $option->id }}" @selected(old('department_id') == $option->id)>{{ $option->name }}</option>
-                            @endforeach
-                        </select>
-                    @elseif ($departments->count() > 1)
-                        <select id="upload-department" name="department_id" required>
-                            @foreach ($departments as $option)
-                                <option value="{{ $option->id }}" @selected(old('department_id') == $option->id)>{{ $option->name }}</option>
-                            @endforeach
-                        </select>
-                    @else
-                        <div class="locked-dept">{{ $departments->first()?->name ?? '-' }}</div>
-                    @endif
-                    @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
+                    @include('iso.documents.partials.department-field', ['id' => 'upload-department', 'inFolder' => $currentFolder])
                 </div>
             </div>
             <div class="modal-foot">
@@ -210,8 +337,45 @@
             </div>
         </form>
     </dialog>
+@endif
 
-    {{-- Modal edit: ganti nama, departemen, atau file. --}}
+@if ($canManageAny)
+    {{-- Modal folder: buat baru (di folder yang sedang dibuka) atau ganti nama. --}}
+    <dialog class="modal" id="folder-modal">
+        <form method="POST" id="folder-form">
+            @csrf
+            <input type="hidden" name="_method" value="POST">
+            <input type="hidden" name="_modal" value="">
+            <input type="hidden" name="parent_id" value="{{ $currentFolder?->id }}">
+            @foreach ($keepFilters as $key => $value)
+                <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
+            @endforeach
+            <div class="modal-head">
+                <h2 id="folder-modal-title">Folder Baru</h2>
+                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <label for="folder-nama">Nama folder</label>
+                    <input id="folder-nama" type="text" name="nama" maxlength="255" placeholder="Mis. Produksi, Revisi 2026" required>
+                    @error('nama') <div class="field-error">{{ $message }}</div> @enderror
+                </div>
+                {{-- Departemen hanya dipilih di folder paling atas; subfolder ikut folder induknya. --}}
+                <div id="folder-department-field">
+                    <label for="folder-department">Departemen</label>
+                    @include('iso.documents.partials.department-field', ['id' => 'folder-department', 'inFolder' => null])
+                    <div class="muted small" style="margin-top: 4px;">Semua subfolder & file di dalam folder ini ikut departemen ini.</div>
+                </div>
+                <div id="folder-department-note" class="muted small" hidden>Departemen ikut folder induk.</div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close>Batal</button>
+                <button type="submit" class="btn">Simpan</button>
+            </div>
+        </form>
+    </dialog>
+
+    {{-- Modal edit dokumen: ganti nama, pindah folder/departemen, atau ganti file. --}}
     <dialog class="modal" id="edit-modal">
         <form method="POST" enctype="multipart/form-data" id="edit-form">
             @csrf
@@ -231,25 +395,20 @@
                     @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="edit-department">Departemen</label>
-                    @if ($isAdmin)
-                        <select id="edit-department" name="department_id">
-                            <option value="">Umum (semua departemen)</option>
-                            @foreach ($departments as $option)
-                                <option value="{{ $option->id }}">{{ $option->name }}</option>
-                            @endforeach
-                        </select>
-                    @elseif ($departments->count() > 1)
-                        <select id="edit-department" name="department_id" required>
-                            @foreach ($departments as $option)
-                                <option value="{{ $option->id }}">{{ $option->name }}</option>
-                            @endforeach
-                        </select>
-                    @else
-                        <div class="locked-dept">{{ $departments->first()?->name ?? '-' }}</div>
-                    @endif
-                    @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
+                    <label for="edit-folder">Folder</label>
+                    <select id="edit-folder" name="folder_id">
+                        <option value="">— Di luar folder ({{ $judul }}) —</option>
+                        @foreach ($moveTargets as $target)
+                            <option value="{{ $target['id'] }}">{{ $target['label'] }}</option>
+                        @endforeach
+                    </select>
+                    @error('folder_id') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
+                <div id="edit-department-field">
+                    <label for="edit-department">Departemen</label>
+                    @include('iso.documents.partials.department-field', ['id' => 'edit-department', 'inFolder' => null])
+                </div>
+                <div id="edit-department-note" class="muted small" hidden>Departemen ikut folder tujuan.</div>
                 <div>
                     <label for="edit-file">Ganti file <span class="muted">(opsional)</span></label>
                     <input id="edit-file" type="file" name="file">
@@ -271,13 +430,72 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2>Hapus Dokumen</h2>
+                <h2 id="delete-title">Hapus Dokumen</h2>
                 <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
             </div>
-            <div class="modal-body">Hapus <strong id="delete-name"></strong>? File akan dihapus permanen.</div>
+            <div class="modal-body" id="delete-body"></div>
             <div class="modal-foot">
                 <button type="button" class="btn btn-ghost" data-close>Batal</button>
                 <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+            </div>
+        </form>
+    </dialog>
+@endif
+
+@if ($isAdmin)
+    {{-- Modal kirim notifikasi pembaruan: pilih penerima aktif dari menu Email. --}}
+    <dialog class="modal" id="notify-modal">
+        <form method="POST" id="notify-form">
+            @csrf
+            <input type="hidden" name="_modal" value="">
+            @foreach ($keepFilters as $key => $value)
+                <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
+            @endforeach
+            <div class="modal-head">
+                <div>
+                    <h2>Kirim Notifikasi Pembaruan</h2>
+                    <div class="muted small" id="notify-doc"></div>
+                </div>
+                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+            </div>
+            <div class="modal-body">
+                @if ($recipients->isEmpty())
+                    <div class="alert" style="margin: 0;">
+                        Belum ada email penerima yang aktif. Tambahkan dulu di menu <a href="{{ route('iso.emails.index') }}" style="text-decoration: underline;">Email</a>.
+                    </div>
+                @else
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="margin: 0;">Penerima <span class="muted">({{ $recipients->count() }} email aktif)</span></label>
+                            <button type="button" class="btn btn-ghost btn-sm" data-toggle-all>Pilih semua / tidak</button>
+                        </div>
+                        <div class="recipient-list">
+                            @foreach ($recipients as $recipient)
+                                <label>
+                                    <input type="checkbox" name="recipients[]" value="{{ $recipient->id }}" checked>
+                                    <span>{{ $recipient->nama }} <small>· {{ $recipient->email }}</small></span>
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('recipients') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+                    <div>
+                        <label for="notify-pesan">Catatan <span class="muted">(opsional)</span></label>
+                        <textarea id="notify-pesan" name="pesan" rows="3" maxlength="1000" placeholder="Mis. Revisi 2: perubahan langkah 4 dan 5.">{{ old('pesan') }}</textarea>
+                        @error('pesan') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+                    <label class="check" id="notify-attach">
+                        <input type="checkbox" name="lampirkan" value="1">
+                        Lampirkan file ke email <span class="muted small">(maks. 10 MB)</span>
+                    </label>
+                    @error('lampirkan') <div class="field-error">{{ $message }}</div> @enderror
+                @endif
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close>Batal</button>
+                @if ($recipients->isNotEmpty())
+                    <button type="submit" class="btn" id="notify-submit">Kirim</button>
+                @endif
             </div>
         </form>
     </dialog>
@@ -287,9 +505,6 @@
 @push('scripts')
 <script>
     (function () {
-        var uploadModal = document.getElementById('upload-modal');
-        if (!uploadModal) return;
-
         document.querySelectorAll('dialog.modal').forEach(function (dialog) {
             dialog.querySelectorAll('[data-close]').forEach(function (button) {
                 button.addEventListener('click', function () { dialog.close(); });
@@ -297,130 +512,296 @@
             dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
         });
 
-        // Upload: daftar file terpilih + drag & drop (di kotak upload maupun di seluruh halaman).
-        var input = document.getElementById('upload-input');
-        var list = document.getElementById('file-list');
-        var dropzone = document.getElementById('dropzone');
-        var overlay = document.getElementById('drop-overlay');
-        var maxBytes = {{ \App\Modules\Iso\Models\IsoDocument::MAX_KB }} * 1024;
+        function clearErrors(modal) { modal.querySelectorAll('.field-error').forEach(function (el) { el.remove(); }); }
 
-        function sizeLabel(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / 1048576).toFixed(1) + ' MB';
+        // ===== Toggle aktif / nonaktif (Admin ISO): disimpan langsung tanpa reload; dikembalikan kalau gagal =====
+        document.querySelectorAll('[data-status-url]').forEach(function (toggle) {
+            toggle.addEventListener('change', function () {
+                var card = toggle.closest('.doc-card');
+                var label = toggle.closest('.switch').querySelector('[data-status-label]');
+                var active = toggle.checked;
+                var apply = function (value) {
+                    toggle.checked = value;
+                    card.classList.toggle('inactive', !value);
+                    label.textContent = value ? 'Aktif' : 'Nonaktif';
+                };
+                apply(active);
+                toggle.disabled = true;
+
+                fetch(toggle.dataset.statusUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ is_active: active }),
+                }).then(function (response) {
+                    if (!response.ok) throw new Error(response.status === 419 ? 'Sesi habis, muat ulang halaman.' : 'Gagal mengubah status.');
+                    return response.json();
+                }).then(function (body) {
+                    apply(body.is_active);
+                }).catch(function (error) {
+                    apply(!active);
+                    alert(error.message);
+                }).finally(function () {
+                    toggle.disabled = false;
+                });
+            });
+        });
+
+        // ===== Kirim notifikasi pembaruan (Admin ISO) =====
+        var notifyModal = document.getElementById('notify-modal');
+        if (notifyModal) {
+            var notifyForm = document.getElementById('notify-form');
+            var notifyUrl = {{ Js::from(route("iso.{$kategori}.notify", '__ID__')) }};
+            var attach = document.getElementById('notify-attach');
+
+            var openNotify = function (button, keepErrors) {
+                notifyForm.action = notifyUrl.replace('__ID__', button.dataset.notify);
+                notifyForm.elements._modal.value = 'notify:' + button.dataset.notify;
+                document.getElementById('notify-doc').textContent = button.dataset.name;
+                // File di atas 10 MB tidak bisa dilampirkan.
+                if (attach) {
+                    var big = button.dataset.big === '1';
+                    attach.querySelector('input').disabled = big;
+                    attach.querySelector('input').checked = attach.querySelector('input').checked && !big;
+                    attach.style.opacity = big ? .5 : 1;
+                    attach.title = big ? 'File lebih dari 10 MB, kirim tanpa lampiran.' : '';
+                }
+                if (!keepErrors) clearErrors(notifyModal);
+                notifyModal.showModal();
+            };
+
+            document.querySelectorAll('[data-notify]').forEach(function (button) {
+                button.addEventListener('click', function () { openNotify(button); });
+            });
+            var toggleAll = notifyModal.querySelector('[data-toggle-all]');
+            if (toggleAll) {
+                toggleAll.addEventListener('click', function () {
+                    var boxes = notifyModal.querySelectorAll('input[name="recipients[]"]');
+                    var allChecked = Array.prototype.every.call(boxes, function (box) { return box.checked; });
+                    boxes.forEach(function (box) { box.checked = !allChecked; });
+                });
+            }
+            notifyForm.addEventListener('submit', function () {
+                var submit = document.getElementById('notify-submit');
+                if (submit) { submit.disabled = true; submit.textContent = 'Mengirim...'; }
+            });
+
+            var reopenNotify = {{ Js::from($errors->hasAny(['recipients', 'pesan', 'lampirkan']) ? old('_modal') : null) }};
+            if (reopenNotify && reopenNotify.indexOf('notify:') === 0) {
+                var notifyButton = document.querySelector('[data-notify="' + reopenNotify.slice(7) + '"]');
+                if (notifyButton) openNotify(notifyButton, true);
+            }
         }
 
-        function renderFiles() {
-            list.innerHTML = '';
-            Array.prototype.forEach.call(input.files, function (file) {
-                var row = document.createElement('div');
-                var name = document.createElement('span');
-                var size = document.createElement('span');
-                name.textContent = file.name;
-                size.textContent = sizeLabel(file.size);
-                if (file.size > maxBytes) size.style.color = 'var(--danger)';
-                row.appendChild(name);
-                row.appendChild(size);
-                list.appendChild(row);
+        // ===== Upload: daftar file terpilih + drag & drop (di kotak upload maupun di seluruh halaman) =====
+        var uploadModal = document.getElementById('upload-modal');
+        if (uploadModal) {
+            var input = document.getElementById('upload-input');
+            var list = document.getElementById('file-list');
+            var dropzone = document.getElementById('dropzone');
+            var overlay = document.getElementById('drop-overlay');
+            var maxBytes = {{ \App\Modules\Iso\Models\IsoDocument::MAX_KB }} * 1024;
+
+            var sizeLabel = function (bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / 1048576).toFixed(1) + ' MB';
+            };
+
+            var renderFiles = function () {
+                list.innerHTML = '';
+                Array.prototype.forEach.call(input.files, function (file) {
+                    var row = document.createElement('div');
+                    var name = document.createElement('span');
+                    var size = document.createElement('span');
+                    name.textContent = file.name;
+                    size.textContent = sizeLabel(file.size);
+                    if (file.size > maxBytes) size.style.color = 'var(--danger)';
+                    row.appendChild(name);
+                    row.appendChild(size);
+                    list.appendChild(row);
+                });
+            };
+            input.addEventListener('change', renderFiles);
+
+            var useFiles = function (files) {
+                if (!files || !files.length) return;
+                input.files = files;
+                renderFiles();
+            };
+
+            var openUpload = function (files) {
+                if (!uploadModal.open) uploadModal.showModal();
+                useFiles(files);
+            };
+
+            document.querySelector('[data-upload]').addEventListener('click', function () {
+                input.value = '';
+                renderFiles();
+                openUpload();
+            });
+
+            ['dragenter', 'dragover'].forEach(function (type) {
+                dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.add('over'); });
+            });
+            ['dragleave', 'drop'].forEach(function (type) {
+                dropzone.addEventListener(type, function () { dropzone.classList.remove('over'); });
+            });
+            dropzone.addEventListener('drop', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                useFiles(event.dataTransfer.files);
+            });
+
+            var dragDepth = 0;
+            var hasFiles = function (event) { return event.dataTransfer && Array.prototype.indexOf.call(event.dataTransfer.types, 'Files') !== -1; };
+            window.addEventListener('dragenter', function (event) {
+                if (!hasFiles(event) || uploadModal.open) return;
+                dragDepth++;
+                overlay.classList.add('show');
+            });
+            window.addEventListener('dragleave', function () {
+                dragDepth = Math.max(dragDepth - 1, 0);
+                if (!dragDepth) overlay.classList.remove('show');
+            });
+            window.addEventListener('dragover', function (event) { if (hasFiles(event)) event.preventDefault(); });
+            window.addEventListener('drop', function (event) {
+                if (!hasFiles(event)) return;
+                event.preventDefault();
+                dragDepth = 0;
+                overlay.classList.remove('show');
+                openUpload(event.dataTransfer.files);
+            });
+
+            document.getElementById('upload-form').addEventListener('submit', function () {
+                var submit = document.getElementById('upload-submit');
+                submit.disabled = true;
+                submit.textContent = 'Mengupload...';
             });
         }
-        input.addEventListener('change', renderFiles);
 
-        function useFiles(files) {
-            if (!files || !files.length) return;
-            input.files = files;
-            renderFiles();
+        var folderModal = document.getElementById('folder-modal');
+        if (!folderModal) return;
+
+        var routes = {
+            folderStore: {{ Js::from(route("iso.{$kategori}.folders.store")) }},
+            folderUpdate: {{ Js::from(route("iso.{$kategori}.folders.update", '__ID__')) }},
+            folderDestroy: {{ Js::from(route("iso.{$kategori}.folders.destroy", '__ID__')) }},
+            update: {{ Js::from(route("iso.{$kategori}.update", '__ID__')) }},
+            destroy: {{ Js::from(route("iso.{$kategori}.destroy", '__ID__')) }},
+        };
+        var insideFolder = {{ Js::from($currentFolder !== null) }};
+
+        function recordOf(attribute, id) {
+            var button = document.querySelector('[' + attribute + '="' + id + '"]');
+            return button ? JSON.parse(button.dataset.record) : null;
         }
 
-        function openUpload(files) {
-            if (!uploadModal.open) uploadModal.showModal();
-            useFiles(files);
+        // ===== Folder: buat & ganti nama =====
+        var folderForm = document.getElementById('folder-form');
+
+        function setDepartmentVisible(field, note, visible) {
+            document.getElementById(field).hidden = !visible;
+            document.getElementById(note).hidden = visible;
+            var select = document.getElementById(field).querySelector('select');
+            if (select) select.disabled = !visible;
         }
 
-        document.querySelector('[data-upload]').addEventListener('click', function () {
-            input.value = '';
-            renderFiles();
-            openUpload();
+        function openFolder(id, record, keepErrors) {
+            folderForm.action = id ? routes.folderUpdate.replace('__ID__', id) : routes.folderStore;
+            folderForm.elements._method.value = id ? 'PUT' : 'POST';
+            folderForm.elements._modal.value = id ? 'folder-edit:' + id : 'folder-create';
+            folderForm.elements.parent_id.disabled = !!id;
+            document.getElementById('folder-modal-title').textContent = id ? 'Edit Folder' : 'Folder Baru';
+            folderForm.elements.nama.value = (record && record.nama) || '';
+            // Departemen dipilih di folder paling atas saja (folder baru di halaman utama, atau edit folder paling atas).
+            var root = id ? !!(record && record.root) : !insideFolder;
+            setDepartmentVisible('folder-department-field', 'folder-department-note', root);
+            var department = folderForm.querySelector('#folder-department');
+            if (department && record) department.value = record.department_id || '';
+            if (!keepErrors) clearErrors(folderModal);
+            folderModal.showModal();
+            folderForm.elements.nama.focus();
+        }
+
+        var createFolder = document.querySelector('[data-create-folder]');
+        if (createFolder) createFolder.addEventListener('click', function () { openFolder(null, null); });
+        document.querySelectorAll('[data-edit-folder]').forEach(function (button) {
+            button.addEventListener('click', function () { openFolder(button.dataset.editFolder, recordOf('data-edit-folder', button.dataset.editFolder)); });
         });
 
-        ['dragenter', 'dragover'].forEach(function (type) {
-            dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.add('over'); });
-        });
-        ['dragleave', 'drop'].forEach(function (type) {
-            dropzone.addEventListener(type, function () { dropzone.classList.remove('over'); });
-        });
-        dropzone.addEventListener('drop', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            useFiles(event.dataTransfer.files);
-        });
-
-        var dragDepth = 0;
-        function hasFiles(event) { return event.dataTransfer && Array.prototype.indexOf.call(event.dataTransfer.types, 'Files') !== -1; }
-        window.addEventListener('dragenter', function (event) {
-            if (!hasFiles(event) || uploadModal.open) return;
-            dragDepth++;
-            overlay.classList.add('show');
-        });
-        window.addEventListener('dragleave', function () {
-            dragDepth = Math.max(dragDepth - 1, 0);
-            if (!dragDepth) overlay.classList.remove('show');
-        });
-        window.addEventListener('dragover', function (event) { if (hasFiles(event)) event.preventDefault(); });
-        window.addEventListener('drop', function (event) {
-            if (!hasFiles(event)) return;
-            event.preventDefault();
-            dragDepth = 0;
-            overlay.classList.remove('show');
-            openUpload(event.dataTransfer.files);
-        });
-
-        document.getElementById('upload-form').addEventListener('submit', function () {
-            var submit = document.getElementById('upload-submit');
-            submit.disabled = true;
-            submit.textContent = 'Mengupload...';
-        });
-
-        // Edit & hapus
+        // ===== Dokumen: edit (nama, folder, departemen, ganti file) =====
         var editModal = document.getElementById('edit-modal');
         var editForm = document.getElementById('edit-form');
-        var updateUrl = {{ Js::from(route("iso.{$kategori}.update", '__ID__')) }};
-        var destroyUrl = {{ Js::from(route("iso.{$kategori}.destroy", '__ID__')) }};
+        var folderSelect = editForm.elements.folder_id;
+
+        // Di dalam folder, departemen ikut folder; pilihan departemen hanya untuk file di luar folder.
+        function syncEditDepartment() {
+            setDepartmentVisible('edit-department-field', 'edit-department-note', folderSelect.value === '');
+        }
+        folderSelect.addEventListener('change', syncEditDepartment);
 
         function openEdit(id, record, keepErrors) {
-            editForm.action = updateUrl.replace('__ID__', id);
+            editForm.action = routes.update.replace('__ID__', id);
             editForm.elements._modal.value = 'edit:' + id;
             editForm.elements.nama.value = record.nama || '';
-            if (editForm.elements.department_id) editForm.elements.department_id.value = record.department_id || '';
+            folderSelect.value = record.folder_id || '';
+            var department = editForm.querySelector('#edit-department');
+            if (department) department.value = record.department_id || '';
             editForm.elements.file.value = '';
-            if (!keepErrors) editModal.querySelectorAll('.field-error').forEach(function (el) { el.remove(); });
+            syncEditDepartment();
+            if (!keepErrors) clearErrors(editModal);
             editModal.showModal();
             editForm.elements.nama.focus();
         }
 
-        function recordOf(id) {
-            var button = document.querySelector('[data-edit="' + id + '"]');
-            return button ? JSON.parse(button.dataset.record) : null;
-        }
-
         document.querySelectorAll('[data-edit]').forEach(function (button) {
-            button.addEventListener('click', function () { openEdit(button.dataset.edit, recordOf(button.dataset.edit)); });
+            button.addEventListener('click', function () { openEdit(button.dataset.edit, recordOf('data-edit', button.dataset.edit)); });
         });
+
+        // ===== Hapus dokumen / folder =====
+        var deleteModal = document.getElementById('delete-modal');
+        function openDelete(action, title, message) {
+            document.getElementById('delete-form').action = action;
+            document.getElementById('delete-title').textContent = title;
+            document.getElementById('delete-body').innerHTML = message;
+            deleteModal.showModal();
+        }
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         document.querySelectorAll('[data-delete]').forEach(function (button) {
             button.addEventListener('click', function () {
-                document.getElementById('delete-form').action = destroyUrl.replace('__ID__', button.dataset.delete);
-                document.getElementById('delete-name').textContent = button.dataset.name;
-                document.getElementById('delete-modal').showModal();
+                openDelete(routes.destroy.replace('__ID__', button.dataset.delete), 'Hapus Dokumen',
+                    'Hapus <strong>' + escapeHtml(button.dataset.name) + '</strong>? File akan dihapus permanen.');
+            });
+        });
+        document.querySelectorAll('[data-delete-folder]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openDelete(routes.folderDestroy.replace('__ID__', button.dataset.deleteFolder), 'Hapus Folder',
+                    'Hapus folder <strong>' + escapeHtml(button.dataset.name) + '</strong> (' + escapeHtml(button.dataset.isi) + ')?'
+                    + '<br><span class="muted small">Semua subfolder & file di dalamnya ikut terhapus permanen.</span>');
             });
         });
 
-        // Validasi gagal: buka lagi modal yang tadi dipakai.
+        // ===== Validasi gagal: buka lagi modal yang tadi dipakai =====
         var reopen = {{ Js::from($errors->any() ? old('_modal') : null) }};
-        if (reopen === 'upload') {
+        var old = {{ Js::from(collect(old())->only(['nama', 'department_id', 'folder_id'])) }};
+        if (reopen === 'upload' && uploadModal) {
             uploadModal.showModal();
-        } else if (reopen && reopen.indexOf('edit:') === 0 && recordOf(reopen.slice(5))) {
+        } else if (reopen === 'folder-create') {
+            openFolder(null, old, true);
+        } else if (reopen && reopen.indexOf('folder-edit:') === 0 && recordOf('data-edit-folder', reopen.slice(12))) {
+            var folderId = reopen.slice(12);
+            openFolder(folderId, Object.assign({}, recordOf('data-edit-folder', folderId), old), true);
+        } else if (reopen && reopen.indexOf('edit:') === 0 && recordOf('data-edit', reopen.slice(5))) {
             var editId = reopen.slice(5);
-            openEdit(editId, Object.assign({}, recordOf(editId), {{ Js::from(collect(old())->only(['nama', 'department_id'])) }}), true);
+            openEdit(editId, Object.assign({}, recordOf('data-edit', editId), old), true);
         }
     })();
 </script>

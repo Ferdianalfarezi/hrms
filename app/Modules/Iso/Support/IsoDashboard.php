@@ -57,9 +57,12 @@ class IsoDashboard
 
         return [
             'application' => $application,
-            'subtitle' => $managedDepartments->isNotEmpty()
-                ? 'Departemen '.$managedDepartments->pluck('name')->implode(', ').' + dokumen umum'
-                : $application->description,
+            'subtitle' => match (true) {
+                $managedDepartments->isNotEmpty() => 'Departemen '.$managedDepartments->pluck('name')->implode(', ').' + dokumen umum',
+                // Guest (dan Admin Departemen tanpa departemen) hanya melihat dokumen umum.
+                ! $viewer->isModuleAdmin('iso') => 'Dokumen umum',
+                default => $application->description,
+            },
             'myApplications' => $viewer->accessibleApplications(),
             'bigStats' => [
                 ['label' => 'Dokumen', 'value' => $total, 'icon' => 'file'],

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Iso\Models\IsoDocument;
+use App\Modules\Iso\Models\IsoFolder;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -128,6 +129,45 @@ class IsoDocumentTest extends TestCase
             ->assertDontSee('Prosedur PWD.pdf');
     }
 
+    public function test_guest_only_sees_active_general_documents_and_cannot_change_anything(): void
+    {
+        $guest = User::factory()->create();
+        $guest->assignRole('iso', 'guest');
+        $umum = $this->document(null, ['nama' => 'Kebijakan Mutu.pdf']);
+        $umumNonaktif = $this->document(null, ['nama' => 'Kebijakan Lama.pdf', 'is_active' => false, 'path' => 'iso/procedures/lama.pdf']);
+        $psd = $this->document($this->psd, ['nama' => 'Prosedur PSD.pdf', 'path' => 'iso/procedures/psd.pdf']);
+        $folderUmum = $this->folder(null, ['nama' => 'Folder Umum']);
+        $this->folder($this->psd, ['nama' => 'Folder PSD']);
+
+        $this->actingAs($guest)->get(route('iso.procedures.index'))
+            ->assertOk()
+            ->assertSee('Kebijakan Mutu.pdf')
+            ->assertSee('Folder Umum')
+            ->assertSee('hanya dokumen umum')
+            ->assertDontSee('Kebijakan Lama.pdf')
+            ->assertDontSee('Prosedur PSD.pdf')
+            ->assertDontSee('Folder PSD')
+            ->assertDontSee('+ Upload File')
+            ->assertDontSee('+ Folder');
+
+        $this->actingAs($guest)->get(route('iso.procedures.file', $umum))->assertOk();
+        $this->actingAs($guest)->get(route('iso.procedures.file', $umumNonaktif))->assertForbidden();
+        $this->actingAs($guest)->get(route('iso.procedures.file', $psd))->assertForbidden();
+        $this->actingAs($guest)->get(route('iso.dashboard'))->assertOk()->assertViewHas('bigStats', fn (array $stats) => $stats[0]['value'] === 1);
+
+        // Tidak bisa mengubah apa pun.
+        $this->actingAs($guest)->post(route('iso.procedures.store'), ['files' => [UploadedFile::fake()->create('a.pdf', 5)]])->assertForbidden();
+        $this->actingAs($guest)->post(route('iso.procedures.folders.store'), ['nama' => 'Baru'])->assertForbidden();
+        $this->actingAs($guest)->put(route('iso.procedures.update', $umum), ['nama' => 'Ganti'])->assertForbidden();
+        $this->actingAs($guest)->delete(route('iso.procedures.destroy', $umum))->assertForbidden();
+        $this->actingAs($guest)->delete(route('iso.procedures.folders.destroy', $folderUmum))->assertForbidden();
+        $this->actingAs($guest)->patchJson(route('iso.procedures.status', $umum), ['is_active' => false])->assertForbidden();
+        $this->actingAs($guest)->get(route('iso.emails.index'))->assertForbidden();
+
+        $this->assertSame(3, IsoDocument::count());
+        $this->assertSame('Kebijakan Mutu.pdf', $umum->fresh()->nama);
+    }
+
     public function test_department_admin_uploads_only_to_own_department(): void
     {
         $deptAdmin = $this->deptAdmin($this->psd);
@@ -206,5 +246,157 @@ class IsoDocumentTest extends TestCase
 
         $this->actingAs($this->isoAdmin())->get(route('iso.procedures.file', $form))->assertNotFound();
         $this->actingAs($this->isoAdmin())->get(route('iso.forms.file', $form))->assertOk();
+    }
+
+    public function test_inactive_documents_are_hidden_from_department_admins(): void
+    {
+        $sop1 = $this->folder($this->psd, ['nama' => 'SOP1', 'kategori' => 'sop']);
+        $aktif = $this->document($this->psd, ['nama' => 'SOP Aktif.pdf', 'kategori' => 'sop', 'folder_id' => $sop1->id]);
+        $nonaktif = $this->document($this->psd, ['nama' => 'SOP Lama.pdf', 'kategori' => 'sop', 'folder_id' => $sop1->id, 'is_active' => false, 'path' => 'iso/sop/lama.pdf']);
+        $deptAdmin = $this->deptAdmin($this->psd);
+
+        $this->actingAs($deptAdmin)->get(route('iso.sop.index', ['folder' => $sop1->id]))
+            ->assertOk()->assertSee('SOP Aktif.pdf')->assertDontSee('SOP Lama.pdf');
+        $this->actingAs($deptAdmin)->get(route('iso.sop.index'))->assertSee('PSD · 1 file');
+        $this->actingAs($deptAdmin)->get(route('iso.sop.file', $nonaktif))->assertForbidden();
+        $this->actingAs($deptAdmin)->get(route('iso.dashboard'))->assertViewHas('bigStats', fn (array $stats) => $stats[0]['value'] === 1);
+
+        // Admin ISO tetap melihat semuanya, dokumen nonaktif ditandai.
+        $this->actingAs($this->isoAdmin())->get(route('iso.sop.index', ['folder' => $sop1->id]))
+            ->assertOk()->assertSee('SOP Aktif.pdf')->assertSee('SOP Lama.pdf')->assertSee('doc-card inactive', false);
+
+        $this->assertTrue($aktif->fresh()->is_active);
+    }
+
+    public function test_only_iso_admin_can_toggle_status(): void
+    {
+        $document = $this->document($this->psd);
+
+        $this->actingAs($this->deptAdmin($this->psd))->patchJson(route('iso.procedures.status', $document), ['is_active' => false])->assertForbidden();
+        $this->assertTrue($document->fresh()->is_active);
+
+        $this->actingAs($this->isoAdmin())->patchJson(route('iso.procedures.status', $document), ['is_active' => false])
+            ->assertOk()->assertJson(['is_active' => false]);
+        $this->assertFalse($document->fresh()->is_active);
+    }
+
+    public function test_department_admin_cannot_delete_folder_with_hidden_inactive_documents(): void
+    {
+        $folder = $this->folder($this->psd);
+        $this->document($this->psd, ['folder_id' => $folder->id, 'is_active' => false]);
+
+        $this->actingAs($this->deptAdmin($this->psd))->delete(route('iso.procedures.folders.destroy', $folder))->assertForbidden();
+
+        $this->assertModelExists($folder);
+    }
+
+    private function folder(?Department $department, array $overrides = []): IsoFolder
+    {
+        return IsoFolder::factory()->create(['department_id' => $department?->id, ...$overrides]);
+    }
+
+    public function test_folder_contents_follow_the_folder_department(): void
+    {
+        $admin = $this->isoAdmin();
+
+        $this->actingAs($admin)->post(route('iso.procedures.folders.store'), ['nama' => 'Produksi', 'department_id' => $this->psd->id])
+            ->assertSessionHasNoErrors();
+        $produksi = IsoFolder::sole();
+        $this->assertSame($this->psd->id, $produksi->department_id);
+
+        // Subfolder & file di dalam folder ikut departemen folder, walaupun form mengirim departemen lain.
+        $this->actingAs($admin)->post(route('iso.procedures.folders.store'), ['nama' => 'Revisi', 'parent_id' => $produksi->id, 'department_id' => $this->pwd->id])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('iso.procedures.store'), [
+            'files' => [UploadedFile::fake()->create('IK Mesin.pdf', 20)],
+            'folder_id' => $produksi->id,
+            'department_id' => $this->pwd->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame($this->psd->id, IsoFolder::where('nama', 'Revisi')->value('department_id'));
+        $document = IsoDocument::sole();
+        $this->assertSame($produksi->id, $document->folder_id);
+        $this->assertSame($this->psd->id, $document->department_id);
+    }
+
+    public function test_folder_page_lists_only_its_own_contents(): void
+    {
+        $produksi = $this->folder($this->psd, ['nama' => 'Produksi']);
+        $revisi = $this->folder($this->psd, ['nama' => 'Revisi', 'parent_id' => $produksi->id]);
+        $this->document($this->psd, ['nama' => 'Di Root.pdf']);
+        $this->document($this->psd, ['nama' => 'Di Produksi.pdf', 'folder_id' => $produksi->id]);
+        $this->document($this->psd, ['nama' => 'Di Revisi.pdf', 'folder_id' => $revisi->id]);
+        $admin = $this->isoAdmin();
+
+        $this->actingAs($admin)->get(route('iso.procedures.index'))
+            ->assertOk()->assertSee('Produksi')->assertSee('Di Root.pdf')->assertDontSee('Di Produksi.pdf')->assertDontSee('Buka folder Revisi');
+
+        $this->actingAs($admin)->get(route('iso.procedures.index', ['folder' => $produksi->id]))
+            ->assertOk()->assertSee('Revisi')->assertSee('Di Produksi.pdf')->assertDontSee('Di Root.pdf')->assertDontSee('Di Revisi.pdf');
+
+        // Pencarian di dalam folder ikut mencari di subfolder-nya, tapi tidak di luar folder.
+        $this->actingAs($admin)->get(route('iso.procedures.index', ['folder' => $produksi->id, 'q' => 'Di ']))
+            ->assertOk()->assertSee('Di Produksi.pdf')->assertSee('Di Revisi.pdf')->assertDontSee('Di Root.pdf');
+
+        // Breadcrumb: Procedures / Produksi / Revisi.
+        $this->actingAs($admin)->get(route('iso.procedures.index', ['folder' => $revisi->id]))
+            ->assertOk()->assertSeeInOrder(['Procedures', 'Produksi', 'Revisi']);
+    }
+
+    public function test_department_admin_cannot_fill_general_or_other_department_folders(): void
+    {
+        $deptAdmin = $this->deptAdmin($this->psd);
+        $umum = $this->folder(null, ['nama' => 'Umum']);
+        $pwd = $this->folder($this->pwd, ['nama' => 'Folder PWD']);
+        $file = [UploadedFile::fake()->create('a.pdf', 5)];
+
+        $this->actingAs($deptAdmin)->get(route('iso.procedures.index', ['folder' => $umum->id]))->assertOk()->assertDontSee('+ Upload File');
+        $this->actingAs($deptAdmin)->post(route('iso.procedures.store'), ['files' => $file, 'folder_id' => $umum->id])->assertForbidden();
+        $this->actingAs($deptAdmin)->post(route('iso.procedures.folders.store'), ['nama' => 'Sub', 'parent_id' => $umum->id])->assertForbidden();
+        $this->actingAs($deptAdmin)->post(route('iso.procedures.store'), ['files' => $file, 'folder_id' => $pwd->id])
+            ->assertSessionHasErrors(['folder_id' => 'Folder tidak ditemukan.']);
+        $this->actingAs($deptAdmin)->get(route('iso.procedures.index', ['folder' => $pwd->id]))->assertNotFound();
+        $this->actingAs($deptAdmin)->delete(route('iso.procedures.folders.destroy', $umum))->assertForbidden();
+
+        $this->assertSame(0, IsoDocument::count());
+        $this->assertSame(2, IsoFolder::count());
+    }
+
+    public function test_deleting_folder_removes_subfolders_and_files(): void
+    {
+        $produksi = $this->folder($this->psd);
+        $revisi = $this->folder($this->psd, ['parent_id' => $produksi->id]);
+        $atas = $this->document($this->psd, ['folder_id' => $produksi->id]);
+        $bawah = $this->document($this->psd, ['folder_id' => $revisi->id, 'path' => 'iso/procedures/bawah.pdf']);
+        $luar = $this->document($this->psd, ['path' => 'iso/procedures/luar.pdf']);
+
+        $this->actingAs($this->deptAdmin($this->psd))
+            ->delete(route('iso.procedures.folders.destroy', $produksi), ['keep' => ['folder' => (string) $produksi->id]])
+            ->assertRedirect(route('iso.procedures.index'));
+
+        $this->assertSame(0, IsoFolder::count());
+        $this->assertSame([$luar->id], IsoDocument::pluck('id')->all());
+        Storage::disk('local')->assertMissing([$atas->path, $bawah->path]);
+        Storage::disk('local')->assertExists($luar->path);
+    }
+
+    public function test_moving_file_into_folder_and_changing_folder_department(): void
+    {
+        $admin = $this->isoAdmin();
+        $produksi = $this->folder($this->psd, ['nama' => 'Produksi']);
+        $revisi = $this->folder($this->psd, ['nama' => 'Revisi', 'parent_id' => $produksi->id]);
+        $document = $this->document(null, ['nama' => 'Manual.pdf']);
+
+        $this->actingAs($admin)->put(route('iso.procedures.update', $document), ['nama' => 'Manual.pdf', 'folder_id' => $revisi->id])
+            ->assertSessionHasNoErrors();
+        $document->refresh();
+        $this->assertSame($revisi->id, $document->folder_id);
+        $this->assertSame($this->psd->id, $document->department_id);
+
+        // Ganti departemen folder paling atas: semua subfolder & file ikut pindah.
+        $this->actingAs($admin)->put(route('iso.procedures.folders.update', $produksi), ['nama' => 'Produksi', 'department_id' => $this->pwd->id])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($this->pwd->id, $revisi->refresh()->department_id);
+        $this->assertSame($this->pwd->id, $document->refresh()->department_id);
     }
 }
