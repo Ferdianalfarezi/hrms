@@ -288,6 +288,20 @@
                 </div>
                 <div class="muted small" data-create-only style="margin-top: -6px;">Hanya hari Senin - Jumat. Isi "Sampai" untuk cuti / sakit beberapa hari; Sabtu & Minggu dilewati.</div>
                 <div>
+                    <label for="f-pilih-alasan">Alasan tidak masuk</label>
+                    <select id="f-pilih-alasan">
+                        <option value="">Pilih alasan (kode terisi otomatis)...</option>
+                        @foreach (\App\Modules\Hrms\Models\Absensi::ALASAN as $kategoriAlasan => $alasans)
+                            <optgroup label="{{ $kategoriAlasan }}">
+                                @foreach ($alasans as $alasan => $kodeAlasan)
+                                    <option value="{{ $alasan }}" data-alasan-kode="{{ $kodeAlasan }}">{{ $alasan }} ({{ $kodeAlasan }})</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                    <div class="muted small" style="margin-top: 4px;">Untuk terlambat / pulang cepat / WFH, langsung pilih kodenya di bawah.</div>
+                </div>
+                <div>
                     <label for="f-kode">Kode</label>
                     <select id="f-kode" name="kode" required>
                         <option value="">Pilih kode...</option>
@@ -395,6 +409,29 @@
                 ? '(wajib: surat dokter, JPG/PNG/PDF maks. 5 MB)' : '(opsional, JPG/PNG/PDF maks. 5 MB)';
         }
         form.elements.kode.addEventListener('change', syncKode);
+
+        // Pilih alasan: isi keterangan dan pilih kode bawaannya, kecuali kode yang dipilih sudah satu kategori (mis. SD untuk sakit).
+        var alasanSelect = document.getElementById('f-pilih-alasan');
+        var kategoriKode = {{ Js::from(array_values(\App\Modules\Hrms\Models\Absensi::KATEGORI)) }};
+        alasanSelect.addEventListener('change', function () {
+            var option = alasanSelect.selectedOptions[0];
+            if (!option || !option.value) return;
+            form.elements.keterangan.value = option.value;
+            var kode = option.dataset.alasanKode;
+            var current = form.elements.kode.value;
+            var sameKategori = current && kategoriKode.some(function (kodes) {
+                return kodes.indexOf(kode) !== -1 && kodes.indexOf(current) !== -1;
+            });
+            if (!sameKategori) {
+                form.elements.kode.value = kode;
+                syncKode();
+            }
+        });
+
+        function syncAlasan() {
+            var ket = form.elements.keterangan.value;
+            alasanSelect.value = Array.prototype.some.call(alasanSelect.options, function (option) { return option.value && option.value === ket; }) ? ket : '';
+        }
         var results = [], active = -1;
 
         function labelOf(id) {
@@ -504,6 +541,7 @@
             form.elements.evidence.value = '';
             document.getElementById('entry-submit').textContent = id ? 'Ajukan Perubahan' : 'Simpan';
             syncKode();
+            syncAlasan();
             // Kalender (flatpickr) diselaraskan dengan nilai yang baru diisi.
             ['tanggal', 'sampai'].forEach(function (name) {
                 var picker = form.elements[name]._flatpickr;
