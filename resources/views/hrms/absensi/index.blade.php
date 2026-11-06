@@ -332,7 +332,7 @@
                 <div class="alert" id="abs-error" hidden></div>
                 <div style="margin-bottom: 16px;">
                     <label for="abs-alasan">Alasan</label>
-                    <select id="abs-alasan">
+                    <select id="abs-alasan" name="pilihan_alasan">
                         <option value="">Pilih alasan (kode terisi otomatis)...</option>
                         @foreach (\App\Modules\Hrms\Models\Absensi::ALASAN as $kategoriAlasan => $alasans)
                             <optgroup label="{{ $kategoriAlasan }}">
@@ -341,6 +341,7 @@
                                 @endforeach
                             </optgroup>
                         @endforeach
+                        <option value="{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }}">{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }} (pilih kode sendiri, keterangan wajib)</option>
                     </select>
                 </div>
                 <div class="kode-grid">
@@ -361,7 +362,7 @@
                     <div class="muted small" style="margin-top: 4px;">Potongan gaji dihitung per kelipatan 30 menit (dibulatkan ke atas). DT&lt; = maks. 30 menit, DT&gt; = 30 menit ke atas.</div>
                 </div>
                 <div style="margin-top: 16px;">
-                    <label for="abs-ket">Keterangan <span class="muted">(opsional)</span></label>
+                    <label for="abs-ket">Keterangan <span class="muted" id="abs-ket-hint">(opsional)</span></label>
                     <input id="abs-ket" type="text" name="keterangan" maxlength="255" placeholder="Mis. PC 13:00, DT 07:27, surat dokter menyusul">
                 </div>
             </div>
@@ -486,8 +487,28 @@
         // Pilih alasan: isi keterangan dan pilih kode bawaannya, kecuali kode yang dipilih sudah satu kategori (mis. SD untuk sakit).
         var alasanSelect = document.getElementById('abs-alasan');
         var kategoriKode = {{ Js::from(array_values(\App\Modules\Hrms\Models\Absensi::KATEGORI)) }};
+        var alasanLain = {{ Js::from(\App\Modules\Hrms\Models\Absensi::ALASAN_LAIN) }};
+
+        function isAlasanDaftar(ket) {
+            return Array.prototype.some.call(alasanSelect.options, function (option) { return option.value && option.value !== alasanLain && option.value === ket; });
+        }
+
+        // Alasan "Lain-lain": keterangan wajib diisi.
+        function syncKeteranganWajib() {
+            var wajib = alasanSelect.value === alasanLain;
+            form.elements.keterangan.required = wajib;
+            document.getElementById('abs-ket-hint').textContent = wajib ? '(wajib)' : '(opsional)';
+        }
+
         alasanSelect.addEventListener('change', function () {
             var option = alasanSelect.selectedOptions[0];
+            syncKeteranganWajib();
+            if (option && option.value === alasanLain) {
+                // Keterangan bawaan alasan lain dikosongkan supaya admin menulis sendiri.
+                if (isAlasanDaftar(form.elements.keterangan.value)) form.elements.keterangan.value = '';
+                form.elements.keterangan.focus();
+                return;
+            }
             if (!option || !option.value) return;
             form.elements.keterangan.value = option.value;
             var kode = option.dataset.alasanKode;
@@ -510,7 +531,8 @@
             var isoDate = table.dataset.month + '-' + String(cell.dataset.day).padStart(2, '0');
             form.elements.tanggal.value = isoDate;
             form.elements.keterangan.value = cell.dataset.ket || '';
-            alasanSelect.value = Array.prototype.some.call(alasanSelect.options, function (option) { return option.value && option.value === cell.dataset.ket; }) ? cell.dataset.ket : '';
+            alasanSelect.value = isAlasanDaftar(cell.dataset.ket) ? cell.dataset.ket : '';
+            syncKeteranganWajib();
             form.querySelectorAll('input[name=kode]').forEach(function (radio) { radio.checked = radio.value === (cell.dataset.kode || ''); });
             form.elements.menit_terlambat.value = cell.dataset.menit || '';
             syncMenit();

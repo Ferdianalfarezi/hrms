@@ -339,7 +339,8 @@ class AbsensiController extends Controller
             }],
             'kode' => ['required', Rule::in(array_keys(Absensi::KODE))],
             'menit_terlambat' => $this->menitRules($request),
-            'keterangan' => ['nullable', 'string', 'max:255'],
+            'pilihan_alasan' => ['nullable', 'string', 'max:255'],
+            'keterangan' => [Rule::requiredIf(fn () => $request->input('pilihan_alasan') === Absensi::ALASAN_LAIN), 'nullable', 'string', 'max:255'],
             ...($approval ? [
                 'alasan' => ['required', 'string', 'max:1000'],
                 'evidence' => [Rule::requiredIf(fn () => Absensi::isSakit($request->input('kode'))), 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
@@ -352,6 +353,7 @@ class AbsensiController extends Controller
             'sampai.after_or_equal' => 'Tanggal "sampai" tidak boleh sebelum tanggal mulai.',
             'sampai.before_or_equal' => 'Rentang maksimal 31 hari.',
             'keterangan.max' => 'Keterangan maksimal 255 karakter.',
+            'keterangan.required' => 'Keterangan wajib diisi kalau alasan "Lain-lain".',
             'alasan.required' => 'Alasan perubahan wajib diisi.',
             'alasan.max' => 'Alasan maksimal 1000 karakter.',
             'evidence.required' => 'Perubahan ke kode sakit wajib melampirkan surat dokter.',
@@ -411,10 +413,12 @@ class AbsensiController extends Controller
             'tanggal' => ['required', 'date_format:Y-m-d'],
             'kode' => ['nullable', Rule::in(array_keys(Absensi::KODE))],
             'menit_terlambat' => $this->menitRules($request),
-            'keterangan' => ['nullable', 'string', 'max:255'],
+            'pilihan_alasan' => ['nullable', 'string', 'max:255'],
+            'keterangan' => [Rule::requiredIf(fn () => $request->input('pilihan_alasan') === Absensi::ALASAN_LAIN), 'nullable', 'string', 'max:255'],
         ], [
             'kode.in' => 'Kode absensi tidak dikenal.',
             'keterangan.max' => 'Keterangan maksimal 255 karakter.',
+            'keterangan.required' => 'Keterangan wajib diisi kalau alasan "Lain-lain".',
             ...$this->menitMessages(),
         ]);
 

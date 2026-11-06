@@ -121,7 +121,7 @@
     $prev = $tanggal->copy()->subWeekday()->toDateString();
     $next = $tanggal->copy()->addWeekday()->toDateString();
     $tidakHadir = $absensis->filter(fn ($absensi) => ! ($kodes[$absensi->kode]['hadir'] ?? false))->count();
-    $fields = ['karyawan_id', 'tanggal', 'sampai', 'kode', 'menit_terlambat', 'keterangan', 'alasan'];
+    $fields = ['karyawan_id', 'tanggal', 'sampai', 'kode', 'menit_terlambat', 'pilihan_alasan', 'keterangan', 'alasan'];
     $kodeTerlambat = \App\Modules\Hrms\Models\Absensi::KODE_TERLAMBAT;
     $kodeSakit = \App\Modules\Hrms\Models\Absensi::KODE_SAKIT;
 @endphp
@@ -289,7 +289,7 @@
                 <div class="muted small" data-create-only style="margin-top: -6px;">Hanya hari Senin - Jumat. Isi "Sampai" untuk cuti / sakit beberapa hari; Sabtu & Minggu dilewati.</div>
                 <div>
                     <label for="f-pilih-alasan">Alasan tidak masuk</label>
-                    <select id="f-pilih-alasan">
+                    <select id="f-pilih-alasan" name="pilihan_alasan">
                         <option value="">Pilih alasan (kode terisi otomatis)...</option>
                         @foreach (\App\Modules\Hrms\Models\Absensi::ALASAN as $kategoriAlasan => $alasans)
                             <optgroup label="{{ $kategoriAlasan }}">
@@ -298,6 +298,7 @@
                                 @endforeach
                             </optgroup>
                         @endforeach
+                        <option value="{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }}">{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }} (pilih kode sendiri, keterangan wajib)</option>
                     </select>
                     <div class="muted small" style="margin-top: 4px;">Untuk terlambat / pulang cepat / WFH, langsung pilih kodenya di bawah.</div>
                 </div>
@@ -318,7 +319,7 @@
                     @error('menit_terlambat') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-keterangan">Keterangan <span class="muted">(opsional)</span></label>
+                    <label for="f-keterangan">Keterangan <span class="muted" data-ket-hint>(opsional)</span></label>
                     <input id="f-keterangan" type="text" name="keterangan" maxlength="255" placeholder="Mis. Cuti pulang kampung, sakit demam, DT 07:27">
                     @error('keterangan') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
@@ -412,9 +413,17 @@
 
         // Pilih alasan: isi keterangan dan pilih kode bawaannya, kecuali kode yang dipilih sudah satu kategori (mis. SD untuk sakit).
         var alasanSelect = document.getElementById('f-pilih-alasan');
+        var alasanLain = {{ Js::from(\App\Modules\Hrms\Models\Absensi::ALASAN_LAIN) }};
         var kategoriKode = {{ Js::from(array_values(\App\Modules\Hrms\Models\Absensi::KATEGORI)) }};
         alasanSelect.addEventListener('change', function () {
             var option = alasanSelect.selectedOptions[0];
+            syncKeteranganWajib();
+            if (option && option.value === alasanLain) {
+                // Keterangan bawaan alasan lain dikosongkan supaya admin menulis sendiri.
+                if (isAlasanDaftar(form.elements.keterangan.value)) form.elements.keterangan.value = '';
+                form.elements.keterangan.focus();
+                return;
+            }
             if (!option || !option.value) return;
             form.elements.keterangan.value = option.value;
             var kode = option.dataset.alasanKode;
@@ -428,9 +437,26 @@
             }
         });
 
+        function isAlasanDaftar(ket) {
+            return Array.prototype.some.call(alasanSelect.options, function (option) { return option.value && option.value !== alasanLain && option.value === ket; });
+        }
+
+        // Alasan "Lain-lain": keterangan wajib diisi.
+        function syncKeteranganWajib() {
+            var wajib = alasanSelect.value === alasanLain;
+            form.elements.keterangan.required = wajib;
+            modal.querySelector('[data-ket-hint]').textContent = wajib ? '(wajib)' : '(opsional)';
+        }
+
+        // Pilihan alasan mengikuti keterangan; "Lain-lain" dari isian sebelumnya (validasi gagal) dipertahankan.
         function syncAlasan() {
             var ket = form.elements.keterangan.value;
-            alasanSelect.value = Array.prototype.some.call(alasanSelect.options, function (option) { return option.value && option.value === ket; }) ? ket : '';
+            if (isAlasanDaftar(ket)) {
+                alasanSelect.value = ket;
+            } else if (alasanSelect.value !== alasanLain) {
+                alasanSelect.value = '';
+            }
+            syncKeteranganWajib();
         }
         var results = [], active = -1;
 

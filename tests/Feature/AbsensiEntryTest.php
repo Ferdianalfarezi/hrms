@@ -95,6 +95,19 @@ class AbsensiEntryTest extends TestCase
         $this->assertSame('2026-10-16', $absensi->fresh()->tanggal->toDateString());
     }
 
+    public function test_alasan_lain_lain_requires_keterangan(): void
+    {
+        $payload = ['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-15', 'kode' => 'I', 'pilihan_alasan' => 'Lain-lain'];
+
+        $this->actingAs($this->deptAdmin)->post(route('hrms.absensi.entries.store'), $payload)
+            ->assertSessionHasErrors(['keterangan' => 'Keterangan wajib diisi kalau alasan "Lain-lain".']);
+        $this->assertSame(0, Absensi::count());
+
+        $this->actingAs($this->deptAdmin)->post(route('hrms.absensi.entries.store'), [...$payload, 'keterangan' => 'Antar anak ke rumah sakit'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Antar anak ke rumah sakit', Absensi::sole()->keterangan);
+    }
+
     public function test_hrms_admin_updates_and_deletes_directly(): void
     {
         $admin = User::factory()->create();

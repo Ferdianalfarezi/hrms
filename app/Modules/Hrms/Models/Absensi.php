@@ -104,6 +104,9 @@ class Absensi extends Model
         ],
     ];
 
+    /** Pilihan alasan di luar daftar ALASAN: kode dipilih manual dan keterangan wajib diisi. */
+    public const ALASAN_LAIN = 'Lain-lain';
+
     /** Kode datang terlambat: wajib diisi berapa menit, dan dipotong gaji per 30 menit. */
     public const KODE_TERLAMBAT = ['DT<', 'DT>'];
 

@@ -133,6 +133,15 @@ class AbsensiTest extends TestCase
         $this->assertSame(0, Absensi::count());
     }
 
+    public function test_alasan_lain_lain_requires_keterangan_in_matrix(): void
+    {
+        $this->actingAs($this->hrmsAdmin())->postJson('/hrms/absensi', [
+            'karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-15', 'kode' => 'I', 'pilihan_alasan' => 'Lain-lain',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['keterangan' => 'Keterangan wajib diisi kalau alasan "Lain-lain".']);
+
+        $this->assertSame(0, Absensi::count());
+    }
+
     public function test_validation_rejects_unknown_code_and_bad_date(): void
     {
         $admin = $this->hrmsAdmin();
