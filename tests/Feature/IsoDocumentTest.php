@@ -558,6 +558,18 @@ class IsoDocumentTest extends TestCase
         $this->assertSame($this->psd->id, $document->department_id);
     }
 
+    public function test_list_view_choice_is_remembered_per_menu(): void
+    {
+        $admin = $this->isoAdmin();
+        $this->document(null, ['kategori' => 'procedures']);
+        $this->document(null, ['kategori' => 'sop']);
+
+        $this->actingAs($admin)->withUnencryptedCookie('iso_view', 'procedures')->get(route('iso.procedures.index'))
+            ->assertOk()->assertSee('class="doc-grid is-list"', false);
+        $this->actingAs($admin)->withUnencryptedCookie('iso_view', 'procedures')->get(route('iso.sop.index'))
+            ->assertOk()->assertSee('class="doc-grid"', false)->assertDontSee('doc-grid is-list', false);
+    }
+
     public function test_several_selected_files_are_moved_together(): void
     {
         $produksi = $this->folder($this->psd, ['nama' => 'Produksi', 'kategori' => 'sop']);

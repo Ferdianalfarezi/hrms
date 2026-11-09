@@ -21,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->redirectUsersTo(fn () => route('portal'));
+
+        // Pilihan tampilan Kartu / List menu ISO ditulis langsung oleh JavaScript, jadi tidak dienkripsi.
+        $middleware->encryptCookies(except: ['iso_view']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

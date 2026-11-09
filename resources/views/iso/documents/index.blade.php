@@ -97,6 +97,34 @@
     .upload-summary { font-size: 12px; font-weight: 600; color: var(--muted); }
     .doc-card[draggable=true] { cursor: grab; }
     .doc-card.dragging { opacity: .45; }
+    /* Tombol pilihan tampilan Kartu / List. */
+    .view-toggle { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--glass-strong); border: 1px solid var(--line-strong); }
+    .view-toggle button { display: inline-grid; place-items: center; width: 32px; height: 28px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+    .view-toggle button svg { width: 16px; height: 16px; }
+    .view-toggle button:hover { color: var(--primary); }
+    .view-toggle button[aria-pressed=true] { background: var(--primary); color: #fff; }
+
+    /* Tampilan List: kartu yang sama disusun jadi baris (seleksi, drag & tombol aksi tetap sama). */
+    .folder-grid.is-list { grid-template-columns: 1fr; gap: 6px; }
+    .folder-grid.is-list .folder-card { padding: 6px 8px 6px 12px; border-radius: 12px; }
+    .folder-grid.is-list .folder-open { border-radius: 12px; }
+    .doc-grid.is-list { grid-template-columns: 1fr; gap: 6px; }
+    .doc-grid.is-list .doc-card { flex-direction: row; align-items: center; border-radius: 12px; }
+    .doc-grid.is-list .doc-card:hover { transform: none; box-shadow: 0 6px 16px rgba(15, 35, 80, .1); }
+    .doc-grid.is-list .doc-thumb { flex: none; width: 48px; height: 48px; margin: 6px 0 6px 8px; border-radius: 10px; }
+    .doc-grid.is-list .doc-thumb svg { width: 22px; height: 22px; }
+    .doc-grid.is-list .doc-ext { display: none; }
+    .doc-grid.is-list .doc-body { flex: 1; min-width: 0; padding: 6px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; }
+    .doc-grid.is-list .doc-name { flex: 1 1 240px; min-width: 0; -webkit-line-clamp: 1; }
+    .doc-grid.is-list .doc-meta { margin-top: 0; }
+    .doc-grid.is-list .doc-actions { flex: none; padding: 6px 10px; }
+    .doc-grid.is-list .switch { margin: 0 6px 0 0; }
+    @media (max-width: 720px) {
+        .doc-grid.is-list .doc-card { flex-wrap: wrap; }
+        .doc-grid.is-list .doc-body { flex-basis: calc(100% - 72px); }
+        .doc-grid.is-list .doc-actions { width: 100%; justify-content: flex-end; border-top: 1px solid var(--line); }
+    }
+
     /* Pilih banyak file: kotak seleksi, kartu terpilih, badge jumlah saat ditarik, dan bar jumlah terpilih. */
     .doc-card.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, .35); }
     .doc-card.selected .doc-body { background: #eef4ff; }
@@ -217,6 +245,15 @@
         @if ($folders->isNotEmpty())<b>{{ $folders->count() }}</b> folder ·@endif
         <b>{{ $documents->total() }}</b> file
     </span>
+    {{-- Tampilan Kartu / List, diingat per menu (cookie iso_view). --}}
+    <div class="view-toggle" role="group" aria-label="Tampilan">
+        <button type="button" data-view="grid" title="Tampilan kartu" aria-label="Tampilan kartu" aria-pressed="{{ $listView ? 'false' : 'true' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        </button>
+        <button type="button" data-view="list" title="Tampilan list" aria-label="Tampilan list" aria-pressed="{{ $listView ? 'true' : 'false' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </button>
+    </div>
 </form>
 
 @if ($folders->isEmpty() && $documents->isEmpty())
@@ -239,7 +276,7 @@
             <span class="move-hint">· tarik kartu file ke folder untuk memindahkannya (tarik kotak dari area kosong / Ctrl + klik untuk pilih banyak)</span>
         @endif
     </h2>
-    <div class="folder-grid">
+    <div @class(['folder-grid', 'is-list' => $listView]) data-view-target>
         @foreach ($folders as $folder)
             @php
                 $isi = collect([$folder->children_count ? $folder->children_count.' folder' : null, $folder->documents_count ? $folder->documents_count.' file' : null])->filter()->join(', ') ?: 'Kosong';
@@ -267,7 +304,7 @@
     @if ($folders->isNotEmpty())
         <h2 class="section-title">File</h2>
     @endif
-    <div class="doc-grid">
+    <div @class(['doc-grid', 'is-list' => $listView]) data-view-target>
         @foreach ($documents as $document)
             @php
                 $jenisFile = $document->jenis();
@@ -581,6 +618,21 @@
         var pageListeners = new AbortController();
         document.addEventListener('turbo:before-render', function () { pageListeners.abort(); }, { once: true });
         var onPage = { signal: pageListeners.signal };
+
+        // ===== Tampilan Kartu / List: langsung berubah tanpa reload, diingat per menu lewat cookie iso_view =====
+        var kategori = {{ Js::from($kategori) }};
+        document.querySelectorAll('[data-view]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var list = button.dataset.view === 'list';
+                document.querySelectorAll('[data-view-target]').forEach(function (target) { target.classList.toggle('is-list', list); });
+                document.querySelectorAll('[data-view]').forEach(function (other) { other.setAttribute('aria-pressed', other === button ? 'true' : 'false'); });
+
+                var match = document.cookie.match(/(?:^|;\s*)iso_view=([^;]*)/);
+                var menus = (match ? decodeURIComponent(match[1]) : '').split('.').filter(function (menu) { return menu && menu !== kategori; });
+                if (list) menus.push(kategori);
+                document.cookie = 'iso_view=' + menus.join('.') + '; path=/; max-age=31536000; SameSite=Lax';
+            });
+        });
 
         // Modal yang sedang memproses (data-busy) tidak bisa ditutup lewat Batal, ×, klik di luar, atau Esc.
         document.querySelectorAll('dialog.modal').forEach(function (dialog) {

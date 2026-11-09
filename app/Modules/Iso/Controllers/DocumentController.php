@@ -133,6 +133,8 @@ class DocumentController extends Controller
             // Pilihan departemen di form: Admin ISO semua, Admin Departemen departemennya saja.
             'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'moveTargets' => $this->moveTargets($user, $kategori),
+            // Tampilan Kartu / List per menu; cookie iso_view berisi daftar menu yang memakai List (mis. "procedures.sop").
+            'listView' => in_array($kategori, explode('.', (string) $request->cookie('iso_view')), true),
             // Pilihan penerima di modal kirim notifikasi (Admin ISO saja).
             'recipients' => $isAdmin ? IsoRecipient::active()->orderBy('nama')->get(['id', 'nama', 'email']) : collect(),
         ]);
