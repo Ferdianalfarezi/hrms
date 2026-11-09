@@ -31,9 +31,10 @@
     .doc-card { display: flex; flex-direction: column; border-radius: 16px; background: #fff; border: 1px solid var(--line-strong); overflow: hidden; transition: box-shadow .15s, transform .15s; }
     .doc-card:hover { box-shadow: 0 10px 24px rgba(15, 35, 80, .12); transform: translateY(-2px); }
     .doc-thumb { position: relative; display: grid; place-items: center; height: 150px; overflow: hidden; }
-    .doc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    /* Preview PDF: halaman pertama dirender browser; scrollbar didorong keluar area kartu. */
-    .doc-pdf { position: absolute; top: 0; left: 0; width: calc(100% + 20px); height: calc(100% + 20px); border: 0; background: #fff; pointer-events: none; }
+    /* Thumbnail dari server (gambar / halaman pertama PDF) menutupi ikon setelah termuat. */
+    .doc-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .2s; }
+    .doc-preview.loaded { opacity: 1; }
+    .doc-preview-page { object-position: top; background: #fff; }
     .doc-open { position: absolute; inset: 0; z-index: 2; }
     .doc-thumb svg { width: 46px; height: 46px; }
     .doc-ext { z-index: 1; position: absolute; left: 10px; bottom: 10px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; background: rgba(255, 255, 255, .85); }
@@ -98,6 +99,14 @@
     .doc-card.dragging { opacity: .45; }
     .folder-card.drop-target, .crumbs a.drop-target { border-color: var(--primary); background: #eef4ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
     .move-hint { font-weight: 400; color: var(--faint); }
+    /* Panel loading di modal upload: saat membaca folder & selama upload. */
+    .upload-progress { display: grid; gap: 10px; padding: 14px 16px; border-radius: 14px; background: #eef4ff; border: 1px solid #c7d7fe; }
+    .upload-progress[hidden] { display: none; }
+    .upload-progress-head { display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; color: var(--navy); }
+    .spinner.spinner-lg { width: 22px; height: 22px; border-width: 3px; border-color: rgba(37, 99, 235, .2); border-top-color: var(--primary); }
+    .progress-bar { height: 6px; border-radius: 999px; background: rgba(37, 99, 235, .15); overflow: hidden; }
+    .progress-bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--primary); transition: width .3s; }
+    #upload-modal[data-busy] .dropzone, #upload-modal[data-busy] .upload-picks { pointer-events: none; opacity: .5; }
 @endsection
 
 @section('content')
@@ -257,13 +266,12 @@
             <div @class(['doc-card', 'inactive' => ! $document->is_active])
                  @if ($canManage) draggable="true" data-move-url="{{ route("iso.{$kategori}.move", $document) }}" data-folder-id="{{ $document->folder_id }}" @endif>
                 <div class="doc-thumb tone-{{ $tone }}">
-                    @if ($jenisFile === 'gambar')
-                        <img src="{{ $fileUrl }}" alt="" loading="lazy" draggable="false">
-                    @elseif ($jenisFile === 'pdf')
-                        {!! $icon !!}
-                        <iframe class="doc-pdf" src="{{ $fileUrl }}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" loading="lazy" tabindex="-1" title="Preview {{ $document->nama }}"></iframe>
-                    @else
-                        {!! $icon !!}
+                    {!! $icon !!}
+                    {{-- Thumbnail JPG kecil (bukan file asli) supaya halaman ringan; kalau gagal, ikon tetap terlihat. --}}
+                    @if ($document->hasThumbnail())
+                        <img @class(['doc-preview', 'doc-preview-page' => $jenisFile === 'pdf']) alt="" loading="lazy" decoding="async" draggable="false"
+                             src="{{ route("iso.{$kategori}.thumbnail", [$document, 'v' => $document->updated_at?->timestamp]) }}"
+                             onload="this.classList.add('loaded')" onerror="this.remove()">
                     @endif
                     <span class="doc-ext">{{ strtoupper($document->extension ?? 'FILE') }}</span>
                     <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="doc-open" title="Buka {{ $document->nama }}" aria-label="Buka {{ $document->nama }}" draggable="false"></a>
@@ -347,6 +355,13 @@
                 <div class="upload-picks">
                     <button type="button" class="btn btn-ghost btn-sm" id="upload-folder-pick">Pilih folder...</button>
                     <input type="file" id="upload-folder-input" webkitdirectory multiple hidden>
+                </div>
+                <div class="upload-progress" id="upload-progress" role="status" aria-live="polite" hidden>
+                    <div class="upload-progress-head">
+                        <span class="spinner spinner-lg" aria-hidden="true"></span>
+                        <span id="upload-progress-text">Mengupload...</span>
+                    </div>
+                    <div class="progress-bar" id="upload-progress-bar" hidden><span></span></div>
                 </div>
                 <div class="upload-summary" id="upload-summary" hidden></div>
                 <div class="file-list" id="file-list"></div>
@@ -669,6 +684,18 @@
                 uploadError.hidden = !message;
             };
 
+            // Panel loading: spinner + teks, dan progress bar kalau ratio diisi (0-1).
+            var progress = document.getElementById('upload-progress');
+            var progressText = document.getElementById('upload-progress-text');
+            var progressBar = document.getElementById('upload-progress-bar');
+            var showProgress = function (message, ratio) {
+                progress.hidden = false;
+                progressText.textContent = message;
+                progressBar.hidden = ratio === undefined;
+                if (ratio !== undefined) progressBar.firstElementChild.style.width = Math.round(Math.min(ratio, 1) * 100) + '%';
+            };
+            var hideProgress = function () { progress.hidden = true; };
+
             var renderFiles = function () {
                 list.innerHTML = '';
                 selection.items.forEach(function (item) {
@@ -756,9 +783,13 @@
 
             var useDrop = function (dataTransfer) {
                 openUpload();
+                showUploadError('');
+                showProgress('Membaca isi folder...');
                 readDrop(dataTransfer).then(function (result) {
+                    hideProgress();
                     setSelection(result.items, result.folders);
                 }).catch(function () {
+                    hideProgress();
                     showUploadError('Folder tidak bisa dibaca. Coba pakai tombol "Pilih folder...".');
                 });
             };
@@ -839,13 +870,38 @@
                 return batches;
             };
 
-            var errorOf = function (response) {
-                if (response.status === 419) return Promise.resolve('Sesi habis, muat ulang halaman.');
-                if (response.status === 413) return Promise.resolve('Ukuran upload terlalu besar untuk server.');
-                return response.json().then(function (body) {
+            var errorOf = function (xhr) {
+                if (xhr.status === 0) return 'Koneksi terputus, coba lagi.';
+                if (xhr.status === 419) return 'Sesi habis, muat ulang halaman.';
+                if (xhr.status === 413) return 'Ukuran upload terlalu besar untuk server.';
+                try {
+                    var body = JSON.parse(xhr.responseText);
                     var errors = body.errors ? Object.values(body.errors) : [];
                     return errors.length ? errors[0][0] : (body.message || 'Upload gagal, coba lagi.');
-                }, function () { return 'Upload gagal, coba lagi.'; });
+                } catch (error) {
+                    return 'Upload gagal, coba lagi.';
+                }
+            };
+
+            // XHR (bukan fetch) supaya progress upload per byte bisa ditampilkan.
+            var postBatch = function (body, onProgress) {
+                return new Promise(function (resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', uploadForm.action);
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.upload.addEventListener('progress', function (event) {
+                        if (event.lengthComputable) onProgress(event.loaded / event.total);
+                    });
+                    xhr.addEventListener('load', function () {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try { resolve(JSON.parse(xhr.responseText)); } catch (error) { reject(new Error('Upload gagal, coba lagi.')); }
+                        } else {
+                            reject(new Error(errorOf(xhr)));
+                        }
+                    });
+                    xhr.addEventListener('error', function () { reject(new Error(errorOf(xhr))); });
+                    xhr.send(body);
+                });
             };
 
             var resetSubmit = function () {
@@ -874,35 +930,51 @@
                 showUploadError('');
                 var batches = buildBatches();
                 var total = selection.items.length;
+                var totalBytes = selection.items.reduce(function (sum, item) { return sum + item.file.size; }, 0) || 1;
                 var uploaded = 0;
+                var uploadedBytes = 0;
                 var foldersCreated = 0;
                 setLoading(uploadSubmit, 'Mengupload...');
                 uploadModal.dataset.busy = '1';
 
+                var report = function (batchRatio, batch) {
+                    if (!total) {
+                        showProgress('Membuat folder...');
+                        return;
+                    }
+                    var ratio = (uploadedBytes + batch.bytes * batchRatio) / totalBytes;
+                    var message = batchRatio >= 1
+                        ? 'Menyimpan ' + Math.min(uploaded + batch.items.length, total) + ' dari ' + total + ' file...'
+                        : 'Mengupload ' + uploaded + ' dari ' + total + ' file... ' + Math.round(ratio * 100) + '%';
+                    showProgress(message, ratio);
+                    uploadSubmit.lastChild.textContent = 'Mengupload ' + Math.round(ratio * 100) + '%';
+                };
+
                 var send = function (index) {
                     if (index >= batches.length) {
+                        showProgress('Selesai! Memuat ulang halaman...', 1);
                         window.location.reload();
                         return;
                     }
-                    uploadSubmit.lastChild.textContent = total ? 'Mengupload ' + uploaded + '/' + total + '...' : 'Membuat folder...';
+                    var batch = batches[index];
+                    report(0, batch);
 
                     var body = new FormData(uploadForm);
-                    batches[index].items.forEach(function (item, i) {
+                    batch.items.forEach(function (item, i) {
                         body.append('files[' + i + ']', item.file, item.file.name);
                         body.append('folder_paths[' + i + ']', item.dir);
                     });
-                    batches[index].folders.forEach(function (folder) { body.append('folders[]', folder); });
+                    batch.folders.forEach(function (folder) { body.append('folders[]', folder); });
                     body.append('sudah_diupload', uploaded);
                     body.append('folder_dibuat', foldersCreated);
 
-                    fetch(uploadForm.action, { method: 'POST', headers: { 'Accept': 'application/json' }, body: body }).then(function (response) {
-                        if (!response.ok) return errorOf(response).then(function (message) { throw new Error(message); });
-                        return response.json();
-                    }).then(function (result) {
+                    postBatch(body, function (batchRatio) { report(batchRatio, batch); }).then(function (result) {
                         uploaded += result.uploaded;
+                        uploadedBytes += batch.bytes;
                         foldersCreated += result.folders_created;
                         send(index + 1);
                     }).catch(function (error) {
+                        hideProgress();
                         resetSubmit();
                         // Kiriman sebelumnya sudah tersimpan: halaman dimuat ulang saat modal ditutup.
                         if (uploaded || foldersCreated) {

@@ -28,6 +28,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Dipakai untuk membuat thumbnail halaman pertama PDF di menu ISO. Kosong = otomatis (gswin64c di Windows, gs di Linux).
+    'ghostscript' => [
+        'path' => env('GHOSTSCRIPT_PATH'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

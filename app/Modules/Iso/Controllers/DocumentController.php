@@ -10,6 +10,7 @@ use App\Modules\Iso\Mail\IsoDocumentUpdated;
 use App\Modules\Iso\Models\IsoDocument;
 use App\Modules\Iso\Models\IsoFolder;
 use App\Modules\Iso\Models\IsoRecipient;
+use App\Modules\Iso\Support\IsoThumbnail;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -329,6 +330,7 @@ class DocumentController extends Controller
 
         if ($oldPath) {
             Storage::disk(self::DISK)->delete($oldPath);
+            IsoThumbnail::forget($oldPath);
         }
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
@@ -341,6 +343,7 @@ class DocumentController extends Controller
 
         $document->delete();
         Storage::disk(self::DISK)->delete($document->path);
+        IsoThumbnail::forget($document->path);
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
             ->with('status', "Dokumen {$document->nama} berhasil dihapus.");
@@ -440,6 +443,24 @@ class DocumentController extends Controller
         return Storage::disk(self::DISK)->response($document->path, $document->nama, [
             'X-Content-Type-Options' => 'nosniff',
         ], $inline ? 'inline' : 'attachment');
+    }
+
+    /**
+     * Thumbnail kecil untuk kartu (gambar & halaman pertama PDF). Dibuat sekali lalu disimpan; URL membawa ?v= waktu
+     * perubahan dokumen, jadi boleh di-cache browser lama.
+     */
+    public function thumbnail(Request $request, IsoDocument $document): StreamedResponse
+    {
+        $this->authorizeItem($request, $document, manage: false);
+
+        $thumbnail = IsoThumbnail::for($document);
+        abort_if($thumbnail === null, 404);
+
+        return Storage::disk(self::DISK)->response($thumbnail, null, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'private, max-age=604800',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /**

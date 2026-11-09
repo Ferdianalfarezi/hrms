@@ -9,6 +9,7 @@ use App\Modules\Iso\Models\IsoFolder;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -431,6 +432,45 @@ class IsoDocumentTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame($this->pwd->id, $revisi->refresh()->department_id);
         $this->assertSame($this->pwd->id, $document->refresh()->department_id);
+    }
+
+    public function test_image_card_gets_a_small_cached_thumbnail_that_is_removed_with_the_document(): void
+    {
+        $admin = $this->isoAdmin();
+        $document = IsoDocument::factory()->create(['nama' => 'Foto.png', 'extension' => 'png', 'path' => 'iso/procedures/foto.png']);
+        Storage::disk('local')->put($document->path, UploadedFile::fake()->image('foto.png', 1600, 1200)->getContent());
+
+        $response = $this->actingAs($admin)->get(route('iso.procedures.thumbnail', $document))
+            ->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+
+        [$width, $height] = getimagesizefromstring($response->streamedContent());
+        $this->assertSame([400, 300], [$width, $height]);
+        $this->assertCount(1, Storage::disk('local')->files('iso/thumbs'));
+
+        $this->actingAs($admin)->delete(route('iso.procedures.destroy', $document));
+        $this->assertSame([], Storage::disk('local')->files('iso/thumbs'));
+    }
+
+    public function test_pdf_without_working_ghostscript_falls_back_to_icon_without_retrying(): void
+    {
+        Process::fake(['*' => Process::result(exitCode: 1)]);
+        $admin = $this->isoAdmin();
+        $pdf = $this->document(null);
+
+        $this->actingAs($admin)->get(route('iso.procedures.thumbnail', $pdf))->assertNotFound();
+        $this->actingAs($admin)->get(route('iso.procedures.thumbnail', $pdf))->assertNotFound();
+
+        Process::assertRanTimes(fn () => true, 1);
+    }
+
+    public function test_thumbnail_follows_document_access(): void
+    {
+        $admin = $this->isoAdmin();
+        $word = $this->document(null, ['nama' => 'Manual.docx', 'extension' => 'docx', 'path' => 'iso/procedures/manual.docx']);
+        $milikPwd = $this->document($this->pwd, ['kategori' => 'sop']);
+
+        $this->actingAs($admin)->get(route('iso.procedures.thumbnail', $word))->assertNotFound();
+        $this->actingAs($this->deptAdmin($this->psd))->get(route('iso.sop.thumbnail', $milikPwd))->assertForbidden();
     }
 
     public function test_uploading_a_folder_recreates_its_structure_inside_the_open_folder(): void

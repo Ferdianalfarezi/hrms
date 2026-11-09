@@ -110,6 +110,14 @@ class IsoDocument extends Model
         return in_array($this->extension, self::PREVIEWABLE, true);
     }
 
+    /**
+     * Kartu dokumen menampilkan thumbnail kecil untuk PDF & gambar (lihat IsoThumbnail).
+     */
+    public function hasThumbnail(): bool
+    {
+        return $this->isPreviewable();
+    }
+
     public function sizeLabel(): string
     {
         return Number::fileSize($this->size, precision: 1);

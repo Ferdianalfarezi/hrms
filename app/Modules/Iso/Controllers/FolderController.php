@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Iso\Controllers\Concerns\HandlesIsoAccess;
 use App\Modules\Iso\Models\IsoDocument;
 use App\Modules\Iso\Models\IsoFolder;
+use App\Modules\Iso\Support\IsoThumbnail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +93,7 @@ class FolderController extends Controller
             }
         });
         Storage::disk('local')->delete($paths);
+        IsoThumbnail::forget($paths);
 
         $keep = $this->keptFilters($request);
         // Kalau sedang membuka folder yang dihapus, kembali ke folder induknya.

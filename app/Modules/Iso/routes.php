@@ -29,6 +29,8 @@ foreach (array_keys(IsoDocument::KATEGORI) as $kategori) {
         Route::post('{document}/notify', 'notify')->name('notify')->defaults('kategori', $kategori);
         // Buka file di browser (PDF/gambar) atau unduh (?download=1 dan jenis file lainnya).
         Route::get('{document}/file', 'file')->name('file')->defaults('kategori', $kategori);
+        // Thumbnail kecil untuk kartu (gambar & halaman pertama PDF).
+        Route::get('{document}/thumbnail', 'thumbnail')->name('thumbnail')->defaults('kategori', $kategori);
 
         // Folder (bisa bertingkat); isi folder dibuka lewat ?folder=ID di halaman index.
         Route::post('folders', [FolderController::class, 'store'])->name('folders.store')->defaults('kategori', $kategori);
