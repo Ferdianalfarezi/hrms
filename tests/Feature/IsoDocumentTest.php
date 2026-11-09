@@ -432,4 +432,85 @@ class IsoDocumentTest extends TestCase
         $this->assertSame($this->pwd->id, $revisi->refresh()->department_id);
         $this->assertSame($this->pwd->id, $document->refresh()->department_id);
     }
+
+    public function test_uploading_a_folder_recreates_its_structure_inside_the_open_folder(): void
+    {
+        $admin = $this->isoAdmin();
+        $tujuan = $this->folder($this->psd, ['nama' => 'Tujuan']);
+
+        $this->actingAs($admin)->postJson(route('iso.procedures.store'), [
+            'folder_id' => $tujuan->id,
+            'files' => [
+                UploadedFile::fake()->create('Manual.pdf', 10),
+                UploadedFile::fake()->create('Revisi 1.docx', 10),
+                UploadedFile::fake()->create('Lepas.xlsx', 10),
+            ],
+            'folder_paths' => ['Produksi', 'Produksi/Revisi', ''],
+            'folders' => ['Produksi/Kosong'],
+        ])->assertOk()->assertJson(['uploaded' => 3, 'folders_created' => 3]);
+
+        // Kiriman berikutnya (upload bertahap) masuk ke folder yang sudah dibuat, tidak membuat folder kembar.
+        $this->actingAs($admin)->postJson(route('iso.procedures.store'), [
+            'folder_id' => $tujuan->id,
+            'files' => [UploadedFile::fake()->create('Revisi 2.docx', 10)],
+            'folder_paths' => ['Produksi/Revisi'],
+            'sudah_diupload' => 3,
+            'folder_dibuat' => 3,
+        ])->assertOk()->assertJson(['uploaded' => 1, 'folders_created' => 0, 'message' => '4 file & 3 folder berhasil diupload ke folder Tujuan.']);
+
+        $produksi = IsoFolder::where('parent_id', $tujuan->id)->sole();
+        $this->assertSame('Produksi', $produksi->nama);
+        $this->assertEqualsCanonicalizing(['Revisi', 'Kosong'], IsoFolder::where('parent_id', $produksi->id)->pluck('nama')->all());
+        $revisi = IsoFolder::where('parent_id', $produksi->id)->where('nama', 'Revisi')->sole();
+
+        $this->assertSame(['Manual.pdf'], IsoDocument::where('folder_id', $produksi->id)->pluck('nama')->all());
+        $this->assertEqualsCanonicalizing(['Revisi 1.docx', 'Revisi 2.docx'], IsoDocument::where('folder_id', $revisi->id)->pluck('nama')->all());
+        $this->assertSame(['Lepas.xlsx'], IsoDocument::where('folder_id', $tujuan->id)->pluck('nama')->all());
+        $this->assertSame([$this->psd->id], IsoFolder::pluck('department_id')->unique()->values()->all());
+        $this->assertSame([$this->psd->id], IsoDocument::pluck('department_id')->unique()->values()->all());
+    }
+
+    public function test_uploaded_folder_never_merges_into_another_department_folder_with_the_same_name(): void
+    {
+        $milikPwd = $this->folder($this->pwd, ['nama' => 'Produksi', 'kategori' => 'sop']);
+
+        $this->actingAs($this->deptAdmin($this->psd))->postJson(route('iso.sop.store'), [
+            'files' => [UploadedFile::fake()->create('Manual.pdf', 10)],
+            'folder_paths' => ['Produksi'],
+        ])->assertOk();
+
+        $this->assertSame(0, $milikPwd->documents()->count());
+        $baru = IsoFolder::where('nama', 'Produksi')->where('department_id', $this->psd->id)->sole();
+        $this->assertSame(1, $baru->documents()->count());
+    }
+
+    public function test_dragging_a_file_into_a_folder_and_back_out(): void
+    {
+        $admin = $this->isoAdmin();
+        $produksi = $this->folder($this->psd, ['nama' => 'Produksi']);
+        $document = $this->document($this->pwd, ['nama' => 'Manual.pdf']);
+
+        $this->actingAs($admin)->patchJson(route('iso.procedures.move', $document), ['folder_id' => $produksi->id])
+            ->assertOk()->assertJson(['message' => 'Manual.pdf dipindahkan ke folder Produksi.']);
+        $document->refresh();
+        $this->assertSame($produksi->id, $document->folder_id);
+        $this->assertSame($this->psd->id, $document->department_id);
+
+        // Keluar dari folder: departemen terakhir dipertahankan.
+        $this->actingAs($admin)->patchJson(route('iso.procedures.move', $document), ['folder_id' => null])->assertOk();
+        $document->refresh();
+        $this->assertNull($document->folder_id);
+        $this->assertSame($this->psd->id, $document->department_id);
+    }
+
+    public function test_department_admin_cannot_drag_files_into_other_department_folders(): void
+    {
+        $folderPwd = $this->folder($this->pwd, ['kategori' => 'sop']);
+        $document = $this->document($this->psd, ['kategori' => 'sop']);
+
+        $this->actingAs($this->deptAdmin($this->psd))->patchJson(route('iso.sop.move', $document), ['folder_id' => $folderPwd->id])
+            ->assertStatus(422)->assertJsonValidationErrors('folder_id');
+
+        $this->assertNull($document->refresh()->folder_id);
+    }
 }

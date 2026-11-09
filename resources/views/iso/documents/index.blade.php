@@ -58,6 +58,11 @@
     /* Kirim notifikasi hanya untuk dokumen aktif. */
     .doc-card.inactive [data-notify] { display: none; }
     #notify-modal { width: min(560px, calc(100% - 32px)); }
+    /* Tombol sedang memproses (kirim notifikasi / upload): ikon berputar. */
+    .btn.loading { display: inline-flex; align-items: center; gap: 8px; cursor: progress; opacity: .9; }
+    .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: spin .7s linear infinite; flex: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
     #notify-modal .modal-body { display: grid; gap: 14px; }
     .recipient-list { display: grid; gap: 4px; max-height: 240px; overflow: auto; padding: 4px; border: 1px solid var(--line-strong); border-radius: 12px; }
     .recipient-list label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 8px; border-radius: 8px; font-weight: 400; cursor: pointer; }
@@ -86,6 +91,13 @@
     .locked-dept { padding: 11px 14px; border-radius: 12px; background: var(--soft-2); font-size: 14px; }
     .drop-overlay { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(37, 99, 235, .12); border: 3px dashed var(--primary); font-size: 18px; font-weight: 600; color: var(--navy); pointer-events: none; }
     .drop-overlay.show { display: grid; }
+    /* Upload folder dari komputer + pindah file dengan drag & drop kartu ke folder / breadcrumb. */
+    .upload-picks { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: -4px; }
+    .upload-summary { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .doc-card[draggable=true] { cursor: grab; }
+    .doc-card.dragging { opacity: .45; }
+    .folder-card.drop-target, .crumbs a.drop-target { border-color: var(--primary); background: #eef4ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
+    .move-hint { font-weight: 400; color: var(--faint); }
 @endsection
 
 @section('content')
@@ -105,13 +117,14 @@
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ $judul }}</h1>
         @if ($currentFolder)
             <nav class="crumbs" aria-label="Lokasi folder">
-                <a href="{{ route("iso.{$kategori}.index") }}">{{ $judul }}</a>
+                {{-- Breadcrumb juga jadi tujuan drop untuk memindahkan file keluar ke folder induk. --}}
+                <a href="{{ route("iso.{$kategori}.index") }}" @if ($canManageHere) data-drop-folder="" @endif>{{ $judul }}</a>
                 @foreach ($breadcrumbs as $crumb)
                     <span class="sep">/</span>
                     @if ($loop->last)
                         <span class="current">{{ $crumb->nama }}</span>
                     @else
-                        <a href="{{ route("iso.{$kategori}.index", ['folder' => $crumb->id]) }}">{{ $crumb->nama }}</a>
+                        <a href="{{ route("iso.{$kategori}.index", ['folder' => $crumb->id]) }}" @if ($canManageHere) data-drop-folder="{{ $crumb->id }}" @endif>{{ $crumb->nama }}</a>
                     @endif
                 @endforeach
                 <span class="badge" style="margin-left: 6px;">{{ $currentFolder->department?->name ?? 'Umum' }}</span>
@@ -191,21 +204,26 @@
         @else
             {{ $currentFolder ? 'Folder ini masih kosong.' : 'Belum ada folder atau dokumen di '.$judul.'.' }}
             @if ($canManageHere)
-                <div class="small" style="margin-top: 6px;">Klik <b>+ Folder</b> / <b>+ Upload File</b>, atau tarik file ke halaman ini.</div>
+                <div class="small" style="margin-top: 6px;">Klik <b>+ Folder</b> / <b>+ Upload File</b>, atau tarik file / folder dari komputer ke halaman ini.</div>
             @endif
         @endif
     </div>
 @endif
 
 @if ($folders->isNotEmpty())
-    <h2 class="section-title">Folder</h2>
+    <h2 class="section-title">
+        Folder
+        @if ($canManageKategori && $documents->isNotEmpty())
+            <span class="move-hint">· tarik kartu file ke folder untuk memindahkannya</span>
+        @endif
+    </h2>
     <div class="folder-grid">
         @foreach ($folders as $folder)
             @php
                 $isi = collect([$folder->children_count ? $folder->children_count.' folder' : null, $folder->documents_count ? $folder->documents_count.' file' : null])->filter()->join(', ') ?: 'Kosong';
                 $canManageFolder = $isAdmin || in_array($folder->department_id, $managedDepartmentIds, true);
             @endphp
-            <div class="folder-card">
+            <div class="folder-card" @if ($canManageFolder) data-drop-folder="{{ $folder->id }}" @endif>
                 <span class="folder-ico">{!! $folderIcon !!}</span>
                 <div class="folder-text">
                     <div class="folder-name" title="{{ $folder->nama }}">{{ $folder->nama }}</div>
@@ -235,10 +253,12 @@
                 $fileUrl = route("iso.{$kategori}.file", $document);
                 $canManage = $isAdmin || in_array($document->department_id, $managedDepartmentIds, true);
             @endphp
-            <div @class(['doc-card', 'inactive' => ! $document->is_active])>
+            {{-- Kartu yang boleh dikelola bisa ditarik ke kartu folder / breadcrumb untuk dipindahkan. --}}
+            <div @class(['doc-card', 'inactive' => ! $document->is_active])
+                 @if ($canManage) draggable="true" data-move-url="{{ route("iso.{$kategori}.move", $document) }}" data-folder-id="{{ $document->folder_id }}" @endif>
                 <div class="doc-thumb tone-{{ $tone }}">
                     @if ($jenisFile === 'gambar')
-                        <img src="{{ $fileUrl }}" alt="" loading="lazy">
+                        <img src="{{ $fileUrl }}" alt="" loading="lazy" draggable="false">
                     @elseif ($jenisFile === 'pdf')
                         {!! $icon !!}
                         <iframe class="doc-pdf" src="{{ $fileUrl }}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" loading="lazy" tabindex="-1" title="Preview {{ $document->nama }}"></iframe>
@@ -246,7 +266,7 @@
                         {!! $icon !!}
                     @endif
                     <span class="doc-ext">{{ strtoupper($document->extension ?? 'FILE') }}</span>
-                    <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="doc-open" title="Buka {{ $document->nama }}" aria-label="Buka {{ $document->nama }}"></a>
+                    <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="doc-open" title="Buka {{ $document->nama }}" aria-label="Buka {{ $document->nama }}" draggable="false"></a>
                 </div>
                 <div class="doc-body">
                     <div class="doc-name" title="{{ $document->nama }}">{{ $document->nama }}</div>
@@ -286,7 +306,7 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
                         </button>
                     @endif
-                    <a href="{{ $fileUrl }}?download=1" class="doc-btn" title="Unduh" aria-label="Unduh">
+                    <a href="{{ $fileUrl }}?download=1" class="doc-btn" title="Unduh" aria-label="Unduh" draggable="false">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
                     </a>
                     @if ($canManage)
@@ -302,7 +322,7 @@
 @endif
 
 @if ($canManageHere)
-    <div class="drop-overlay" id="drop-overlay">Lepaskan file untuk upload ke {{ $lokasi }}</div>
+    <div class="drop-overlay" id="drop-overlay">Lepaskan file / folder untuk upload ke {{ $lokasi }}</div>
 
     {{-- Modal upload: bisa beberapa file sekaligus, semua jenis file, ke folder yang sedang dibuka. --}}
     <dialog class="modal" id="upload-modal">
@@ -320,11 +340,17 @@
             <div class="modal-body">
                 <label class="dropzone" id="dropzone">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
-                    <strong>Klik untuk pilih file atau tarik ke sini</strong>
-                    <span class="muted small">PDF, Word, Excel, PowerPoint, gambar, dll · maks. {{ \App\Modules\Iso\Models\IsoDocument::MAX_KB / 1024 }} MB per file, {{ \App\Modules\Iso\Models\IsoDocument::MAX_FILES }} file sekali upload</span>
-                    <input type="file" name="files[]" id="upload-input" multiple required>
+                    <strong>Klik untuk pilih file, atau tarik file / folder ke sini</strong>
+                    <span class="muted small">PDF, Word, Excel, PowerPoint, gambar, dll · maks. {{ \App\Modules\Iso\Models\IsoDocument::MAX_KB / 1024 }} MB per file. Folder diupload beserta isi & subfolder-nya.</span>
+                    <input type="file" id="upload-input" multiple>
                 </label>
+                <div class="upload-picks">
+                    <button type="button" class="btn btn-ghost btn-sm" id="upload-folder-pick">Pilih folder...</button>
+                    <input type="file" id="upload-folder-input" webkitdirectory multiple hidden>
+                </div>
+                <div class="upload-summary" id="upload-summary" hidden></div>
                 <div class="file-list" id="file-list"></div>
+                <div class="field-error" id="upload-error" hidden></div>
                 @if ($errors->has('files') || $errors->has('files.*') || $errors->has('folder_id'))
                     <div class="field-error">{{ $errors->first('files') ?: ($errors->first('files.*') ?: $errors->first('folder_id')) }}</div>
                 @endif
@@ -507,12 +533,25 @@
 @push('scripts')
 <script>
     (function () {
+        // Modal yang sedang memproses (data-busy) tidak bisa ditutup lewat Batal, ×, klik di luar, atau Esc.
         document.querySelectorAll('dialog.modal').forEach(function (dialog) {
             dialog.querySelectorAll('[data-close]').forEach(function (button) {
-                button.addEventListener('click', function () { dialog.close(); });
+                button.addEventListener('click', function () { if (!dialog.dataset.busy) dialog.close(); });
             });
-            dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
+            dialog.addEventListener('click', function (event) { if (event.target === dialog && !dialog.dataset.busy) dialog.close(); });
+            dialog.addEventListener('cancel', function (event) { if (dialog.dataset.busy) event.preventDefault(); });
         });
+
+        // Tombol submit jadi "sedang memproses": ikon berputar + teks, tombol lain di modal ikut nonaktif.
+        function setLoading(button, text) {
+            button.disabled = true;
+            button.classList.add('loading');
+            button.innerHTML = '<span class="spinner" aria-hidden="true"></span>';
+            button.appendChild(document.createTextNode(text));
+            button.setAttribute('aria-busy', 'true');
+            var dialog = button.closest('dialog');
+            if (dialog) dialog.querySelectorAll('[data-close]').forEach(function (close) { close.disabled = true; });
+        }
 
         function clearErrors(modal) { modal.querySelectorAll('.field-error').forEach(function (el) { el.remove(); }); }
 
@@ -588,7 +627,8 @@
             }
             notifyForm.addEventListener('submit', function () {
                 var submit = document.getElementById('notify-submit');
-                if (submit) { submit.disabled = true; submit.textContent = 'Mengirim...'; }
+                if (submit) { setLoading(submit, 'Mengirim...'); }
+                notifyModal.dataset.busy = '1';
             });
 
             var reopenNotify = {{ Js::from($errors->hasAny(['recipients', 'pesan', 'lampirkan']) ? old('_modal') : null) }};
@@ -598,14 +638,25 @@
             }
         }
 
-        // ===== Upload: daftar file terpilih + drag & drop (di kotak upload maupun di seluruh halaman) =====
+        // ===== Upload file & folder: pilih / tarik dari komputer, lalu dikirim bertahap (maks. 20 file per kiriman) =====
+        // Tiap file membawa jalur foldernya (mis. "Produksi/Revisi"), server membuat struktur folder yang sama.
         var uploadModal = document.getElementById('upload-modal');
         if (uploadModal) {
+            var uploadForm = document.getElementById('upload-form');
             var input = document.getElementById('upload-input');
+            var folderInput = document.getElementById('upload-folder-input');
             var list = document.getElementById('file-list');
+            var summary = document.getElementById('upload-summary');
+            var uploadError = document.getElementById('upload-error');
+            var uploadSubmit = document.getElementById('upload-submit');
             var dropzone = document.getElementById('dropzone');
             var overlay = document.getElementById('drop-overlay');
             var maxBytes = {{ \App\Modules\Iso\Models\IsoDocument::MAX_KB }} * 1024;
+            var maxFilesPerRequest = {{ \App\Modules\Iso\Models\IsoDocument::MAX_FILES }};
+            var maxBytesPerRequest = 64 * 1048576;
+            var maxFoldersPerRequest = 500;
+            var selection = { items: [], folders: [] };
+            var reloadOnClose = false;
 
             var sizeLabel = function (bytes) {
                 if (bytes < 1024) return bytes + ' B';
@@ -613,36 +664,118 @@
                 return (bytes / 1048576).toFixed(1) + ' MB';
             };
 
+            var showUploadError = function (message) {
+                uploadError.textContent = message || '';
+                uploadError.hidden = !message;
+            };
+
             var renderFiles = function () {
                 list.innerHTML = '';
-                Array.prototype.forEach.call(input.files, function (file) {
+                selection.items.forEach(function (item) {
                     var row = document.createElement('div');
                     var name = document.createElement('span');
                     var size = document.createElement('span');
-                    name.textContent = file.name;
-                    size.textContent = sizeLabel(file.size);
-                    if (file.size > maxBytes) size.style.color = 'var(--danger)';
+                    name.textContent = item.dir ? item.dir + '/' + item.file.name : item.file.name;
+                    name.title = name.textContent;
+                    size.textContent = sizeLabel(item.file.size);
+                    if (item.file.size > maxBytes) size.style.color = 'var(--danger)';
                     row.appendChild(name);
                     row.appendChild(size);
                     list.appendChild(row);
                 });
+                var folderCount = selection.folders.length;
+                summary.hidden = !selection.items.length && !folderCount;
+                summary.textContent = selection.items.length + ' file' + (folderCount ? ' dalam ' + folderCount + ' folder' : '') + ' dipilih';
             };
-            input.addEventListener('change', renderFiles);
 
-            var useFiles = function (files) {
-                if (!files || !files.length) return;
-                input.files = files;
+            var setSelection = function (items, folders) {
+                selection = { items: items, folders: folders || [] };
+                showUploadError('');
                 renderFiles();
             };
 
-            var openUpload = function (files) {
-                if (!uploadModal.open) uploadModal.showModal();
-                useFiles(files);
+            // File biasa: tanpa folder. Hasil "Pilih folder": jalur diambil dari webkitRelativePath.
+            var itemsFromFiles = function (files) {
+                return Array.prototype.map.call(files, function (file) {
+                    var parts = (file.webkitRelativePath || '').split('/');
+                    parts.pop();
+                    return { file: file, dir: parts.join('/') };
+                });
             };
+
+            var foldersOf = function (items) {
+                var folders = {};
+                items.forEach(function (item) {
+                    var parts = item.dir ? item.dir.split('/') : [];
+                    for (var i = 1; i <= parts.length; i++) folders[parts.slice(0, i).join('/')] = true;
+                });
+                return Object.keys(folders);
+            };
+
+            // Isi drop dari File Explorer: folder dibaca isinya (termasuk subfolder & folder kosong).
+            var readDrop = function (dataTransfer) {
+                var entries = Array.prototype.map.call(dataTransfer.items || [], function (item) {
+                    return item.kind === 'file' && item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+                }).filter(Boolean);
+                if (!entries.some(function (entry) { return entry.isDirectory; })) {
+                    var items = itemsFromFiles(dataTransfer.files);
+                    return Promise.resolve({ items: items, folders: [] });
+                }
+
+                var result = { items: [], folders: [] };
+                var walk = function (entry, dir) {
+                    if (entry.isFile) {
+                        return new Promise(function (resolve, reject) {
+                            entry.file(function (file) { result.items.push({ file: file, dir: dir }); resolve(); }, reject);
+                        });
+                    }
+                    var path = dir ? dir + '/' + entry.name : entry.name;
+                    result.folders.push(path);
+                    var reader = entry.createReader();
+                    // readEntries mengembalikan isi folder sedikit demi sedikit; dipanggil sampai kosong.
+                    var readAll = function (collected) {
+                        return new Promise(function (resolve, reject) { reader.readEntries(resolve, reject); }).then(function (batch) {
+                            return batch.length ? readAll(collected.concat(batch)) : collected;
+                        });
+                    };
+                    return readAll([]).then(function (children) {
+                        return children.reduce(function (chain, child) {
+                            return chain.then(function () { return walk(child, path); });
+                        }, Promise.resolve());
+                    });
+                };
+
+                return entries.reduce(function (chain, entry) {
+                    return chain.then(function () { return walk(entry, ''); });
+                }, Promise.resolve()).then(function () { return result; });
+            };
+
+            var openUpload = function () {
+                if (!uploadModal.open) uploadModal.showModal();
+            };
+
+            var useDrop = function (dataTransfer) {
+                openUpload();
+                readDrop(dataTransfer).then(function (result) {
+                    setSelection(result.items, result.folders);
+                }).catch(function () {
+                    showUploadError('Folder tidak bisa dibaca. Coba pakai tombol "Pilih folder...".');
+                });
+            };
+
+            input.addEventListener('change', function () { setSelection(itemsFromFiles(input.files), []); });
+            folderInput.addEventListener('change', function () {
+                var items = itemsFromFiles(folderInput.files);
+                setSelection(items, foldersOf(items));
+            });
+            document.getElementById('upload-folder-pick').addEventListener('click', function () {
+                folderInput.value = '';
+                folderInput.click();
+            });
 
             document.querySelector('[data-upload]').addEventListener('click', function () {
                 input.value = '';
-                renderFiles();
+                setSelection([], []);
                 openUpload();
             });
 
@@ -655,7 +788,7 @@
             dropzone.addEventListener('drop', function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-                useFiles(event.dataTransfer.files);
+                if (!uploadModal.dataset.busy) useDrop(event.dataTransfer);
             });
 
             var dragDepth = 0;
@@ -675,15 +808,171 @@
                 event.preventDefault();
                 dragDepth = 0;
                 overlay.classList.remove('show');
-                openUpload(event.dataTransfer.files);
+                if (!uploadModal.dataset.busy) useDrop(event.dataTransfer);
             });
 
-            document.getElementById('upload-form').addEventListener('submit', function () {
-                var submit = document.getElementById('upload-submit');
-                submit.disabled = true;
-                submit.textContent = 'Mengupload...';
+            // Folder kosong dikirim terpisah; folder yang berisi file sudah ikut terbentuk dari jalur file-nya.
+            var emptyFolders = function () {
+                var used = foldersOf(selection.items);
+                return selection.folders.filter(function (folder) {
+                    return used.indexOf(folder) === -1 && !selection.folders.some(function (other) { return other.indexOf(folder + '/') === 0; });
+                });
+            };
+
+            var buildBatches = function () {
+                var batches = [];
+                var current = null;
+                selection.items.forEach(function (item) {
+                    if (!current || current.items.length >= maxFilesPerRequest || (current.items.length && current.bytes + item.file.size > maxBytesPerRequest)) {
+                        current = { items: [], folders: [], bytes: 0 };
+                        batches.push(current);
+                    }
+                    current.items.push(item);
+                    current.bytes += item.file.size;
+                });
+                var folders = emptyFolders();
+                for (var i = 0; i < folders.length; i += maxFoldersPerRequest) {
+                    var chunk = folders.slice(i, i + maxFoldersPerRequest);
+                    if (i === 0 && batches.length) batches[0].folders = chunk;
+                    else batches.push({ items: [], folders: chunk, bytes: 0 });
+                }
+                return batches;
+            };
+
+            var errorOf = function (response) {
+                if (response.status === 419) return Promise.resolve('Sesi habis, muat ulang halaman.');
+                if (response.status === 413) return Promise.resolve('Ukuran upload terlalu besar untuk server.');
+                return response.json().then(function (body) {
+                    var errors = body.errors ? Object.values(body.errors) : [];
+                    return errors.length ? errors[0][0] : (body.message || 'Upload gagal, coba lagi.');
+                }, function () { return 'Upload gagal, coba lagi.'; });
+            };
+
+            var resetSubmit = function () {
+                delete uploadModal.dataset.busy;
+                uploadSubmit.disabled = false;
+                uploadSubmit.classList.remove('loading');
+                uploadSubmit.removeAttribute('aria-busy');
+                uploadSubmit.textContent = 'Upload';
+                uploadModal.querySelectorAll('[data-close]').forEach(function (close) { close.disabled = false; });
+            };
+
+            uploadModal.addEventListener('close', function () { if (reloadOnClose) window.location.reload(); });
+
+            uploadForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                if (!selection.items.length && !selection.folders.length) {
+                    showUploadError('Pilih minimal satu file atau folder.');
+                    return;
+                }
+                var tooBig = selection.items.filter(function (item) { return item.file.size > maxBytes; });
+                if (tooBig.length) {
+                    showUploadError('Ukuran tiap file maksimal ' + (maxBytes / 1048576) + ' MB: ' + tooBig.map(function (item) { return item.file.name; }).join(', '));
+                    return;
+                }
+
+                showUploadError('');
+                var batches = buildBatches();
+                var total = selection.items.length;
+                var uploaded = 0;
+                var foldersCreated = 0;
+                setLoading(uploadSubmit, 'Mengupload...');
+                uploadModal.dataset.busy = '1';
+
+                var send = function (index) {
+                    if (index >= batches.length) {
+                        window.location.reload();
+                        return;
+                    }
+                    uploadSubmit.lastChild.textContent = total ? 'Mengupload ' + uploaded + '/' + total + '...' : 'Membuat folder...';
+
+                    var body = new FormData(uploadForm);
+                    batches[index].items.forEach(function (item, i) {
+                        body.append('files[' + i + ']', item.file, item.file.name);
+                        body.append('folder_paths[' + i + ']', item.dir);
+                    });
+                    batches[index].folders.forEach(function (folder) { body.append('folders[]', folder); });
+                    body.append('sudah_diupload', uploaded);
+                    body.append('folder_dibuat', foldersCreated);
+
+                    fetch(uploadForm.action, { method: 'POST', headers: { 'Accept': 'application/json' }, body: body }).then(function (response) {
+                        if (!response.ok) return errorOf(response).then(function (message) { throw new Error(message); });
+                        return response.json();
+                    }).then(function (result) {
+                        uploaded += result.uploaded;
+                        foldersCreated += result.folders_created;
+                        send(index + 1);
+                    }).catch(function (error) {
+                        resetSubmit();
+                        // Kiriman sebelumnya sudah tersimpan: halaman dimuat ulang saat modal ditutup.
+                        if (uploaded || foldersCreated) {
+                            reloadOnClose = true;
+                            selection.items = selection.items.slice(uploaded);
+                            renderFiles();
+                        }
+                        showUploadError(error.message + (uploaded ? ' (' + uploaded + ' file sebelumnya sudah tersimpan.)' : ''));
+                    });
+                };
+                send(0);
             });
         }
+
+        // ===== Pindah file: tarik kartu file ke kartu folder / breadcrumb =====
+        var draggedCard = null;
+        var clearDropTargets = function () {
+            document.querySelectorAll('.drop-target').forEach(function (target) { target.classList.remove('drop-target'); });
+        };
+        document.querySelectorAll('[data-move-url]').forEach(function (card) {
+            card.addEventListener('dragstart', function (event) {
+                draggedCard = card;
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('application/x-iso-document', card.dataset.moveUrl);
+                card.classList.add('dragging');
+            });
+            card.addEventListener('dragend', function () {
+                draggedCard = null;
+                card.classList.remove('dragging');
+                clearDropTargets();
+            });
+        });
+        document.querySelectorAll('[data-drop-folder]').forEach(function (target) {
+            var accepts = function () { return draggedCard && draggedCard.dataset.folderId !== target.dataset.dropFolder; };
+            target.addEventListener('dragover', function (event) {
+                if (!accepts()) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                target.classList.add('drop-target');
+            });
+            target.addEventListener('dragleave', function (event) {
+                if (!target.contains(event.relatedTarget)) target.classList.remove('drop-target');
+            });
+            target.addEventListener('drop', function (event) {
+                if (!accepts()) return;
+                event.preventDefault();
+                event.stopPropagation();
+                var card = draggedCard;
+                clearDropTargets();
+                card.style.pointerEvents = 'none';
+                fetch(card.dataset.moveUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ folder_id: target.dataset.dropFolder || null }),
+                }).then(function (response) {
+                    if (response.ok) { window.location.reload(); return; }
+                    return response.json().catch(function () { return {}; }).then(function (body) {
+                        var errors = body.errors ? Object.values(body.errors) : [];
+                        throw new Error(response.status === 419 ? 'Sesi habis, muat ulang halaman.' : (errors.length ? errors[0][0] : (body.message || 'Gagal memindahkan file.')));
+                    });
+                }).catch(function (error) {
+                    card.style.pointerEvents = '';
+                    alert(error.message);
+                });
+            });
+        });
 
         var folderModal = document.getElementById('folder-modal');
         if (!folderModal) return;

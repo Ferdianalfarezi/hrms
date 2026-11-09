@@ -23,6 +23,8 @@ foreach (array_keys(IsoDocument::KATEGORI) as $kategori) {
         Route::delete('{document}', 'destroy')->name('destroy')->defaults('kategori', $kategori);
         // Toggle aktif / nonaktif (khusus Admin ISO).
         Route::patch('{document}/status', 'status')->name('status')->defaults('kategori', $kategori);
+        // Pindah folder lewat drag & drop kartu file.
+        Route::patch('{document}/move', 'move')->name('move')->defaults('kategori', $kategori);
         // Kirim email notifikasi pembaruan ke penerima di menu Email (khusus Admin ISO, dokumen aktif).
         Route::post('{document}/notify', 'notify')->name('notify')->defaults('kategori', $kategori);
         // Buka file di browser (PDF/gambar) atau unduh (?download=1 dan jenis file lainnya).

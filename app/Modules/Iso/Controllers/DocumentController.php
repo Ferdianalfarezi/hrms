@@ -10,6 +10,7 @@ use App\Modules\Iso\Mail\IsoDocumentUpdated;
 use App\Modules\Iso\Models\IsoDocument;
 use App\Modules\Iso\Models\IsoFolder;
 use App\Modules\Iso\Models\IsoRecipient;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -135,7 +137,12 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Upload file ke folder yang dibuka. Upload folder dari komputer: tiap file membawa folder_paths[i] (mis. "Produksi/Revisi")
+     * dan folder kosong dikirim lewat folders[]; struktur foldernya dibuat (atau dipakai kalau sudah ada) di dalam folder tujuan.
+     * Upload folder dikirim bertahap lewat fetch (JSON), jadi sudah_diupload / folder_dibuat dipakai untuk pesan totalnya.
+     */
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         Gate::authorize('iso-documents');
 
@@ -144,25 +151,41 @@ class DocumentController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
-            'files' => ['required', 'array', 'max:'.IsoDocument::MAX_FILES],
+            'files' => [Rule::requiredIf(! $request->filled('folders')), 'array', 'max:'.IsoDocument::MAX_FILES],
             'files.*' => ['required', 'file', 'max:'.IsoDocument::MAX_KB],
+            'folder_paths' => ['nullable', 'array'],
+            'folder_paths.*' => ['nullable', 'string', 'max:2000'],
+            'folders' => ['nullable', 'array', 'max:500'],
+            'folders.*' => ['nullable', 'string', 'max:2000'],
             'folder_id' => ['nullable', 'integer'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'sudah_diupload' => ['nullable', 'integer', 'min:0'],
+            'folder_dibuat' => ['nullable', 'integer', 'min:0'],
         ], $this->messages());
 
         $folder = $this->targetFolder($request, $kategori, $data['folder_id'] ?? null);
         $departmentId = $this->departmentIn($folder, $user, $data['department_id'] ?? null);
+        $folderPaths = $data['folder_paths'] ?? [];
 
         $paths = [];
+        $createdFolders = 0;
         try {
-            DB::transaction(function () use ($request, $kategori, $folder, $departmentId, $user, &$paths) {
-                foreach ($request->file('files') as $file) {
+            DB::transaction(function () use ($request, $kategori, $folder, $departmentId, $user, $folderPaths, $data, &$paths, &$createdFolders) {
+                $folderAt = $this->folderResolver($kategori, $folder, $departmentId, $user, $createdFolders);
+
+                foreach ((array) ($data['folders'] ?? []) as $emptyFolder) {
+                    $folderAt((string) $emptyFolder);
+                }
+
+                foreach ((array) $request->file('files', []) as $index => $file) {
+                    $fileFolder = $folderAt((string) ($folderPaths[$index] ?? ''));
+
                     // Nama file di disk dibuat acak oleh Laravel; nama asli hanya disimpan di database.
                     $paths[] = $path = $file->store("iso/{$kategori}", self::DISK);
 
                     IsoDocument::create([
                         'kategori' => $kategori,
-                        'folder_id' => $folder?->id,
+                        'folder_id' => $fileFolder?->id,
                         'nama' => $this->originalName($file),
                         'path' => $path,
                         'extension' => $this->extensionOf($file->getClientOriginalName()),
@@ -181,9 +204,84 @@ class DocumentController extends Controller
         }
 
         $tujuan = $folder ? "folder {$folder->nama}" : IsoDocument::KATEGORI[$kategori];
+        $totalFiles = count($paths) + (int) ($data['sudah_diupload'] ?? 0);
+        $totalFolders = $createdFolders + (int) ($data['folder_dibuat'] ?? 0);
+        $message = $totalFiles.' file'.($totalFolders ? " & {$totalFolders} folder" : '')." berhasil diupload ke {$tujuan}.";
 
-        return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
-            ->with('status', count($paths)." file berhasil diupload ke {$tujuan}.");
+        if ($request->expectsJson()) {
+            // Pesan muncul setelah halaman dimuat ulang (batch terakhir yang menang).
+            $request->session()->flash('status', $message);
+
+            return response()->json(['uploaded' => count($paths), 'folders_created' => $createdFolders, 'message' => $message]);
+        }
+
+        return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))->with('status', $message);
+    }
+
+    /**
+     * Pindahkan dokumen ke folder lain (drag & drop kartu file ke kartu folder / breadcrumb). Kosong = keluar dari folder.
+     * Di luar folder, departemen dokumen dipertahankan.
+     */
+    public function move(Request $request, IsoDocument $document): JsonResponse
+    {
+        $kategori = $this->authorizeItem($request, $document, manage: true);
+        $user = $request->user();
+        $data = $request->validate(['folder_id' => ['nullable', 'integer']]);
+
+        $folder = $this->targetFolder($request, $kategori, $data['folder_id'] ?? null);
+        $document->update([
+            'folder_id' => $folder?->id,
+            'department_id' => $this->departmentIn($folder, $user, $document->department_id),
+            'updated_by' => $user->id,
+        ]);
+
+        $tujuan = $folder ? "folder {$folder->nama}" : IsoDocument::KATEGORI[$kategori];
+        $message = "{$document->nama} dipindahkan ke {$tujuan}.";
+        $request->session()->flash('status', $message);
+
+        return response()->json(['message' => $message]);
+    }
+
+    /**
+     * Cari / buat folder dari jalur relatif (mis. "Produksi/Revisi") di dalam folder tujuan. Folder yang sudah ada dengan nama
+     * & departemen yang sama dipakai lagi, jadi upload bertahap tetap masuk ke folder yang sama.
+     *
+     * @return Closure(string): ?IsoFolder
+     */
+    private function folderResolver(string $kategori, ?IsoFolder $base, ?int $departmentId, User $user, int &$createdFolders): Closure
+    {
+        $cache = ['' => $base];
+
+        return function (string $relativePath) use ($kategori, $base, $departmentId, $user, &$cache, &$createdFolders): ?IsoFolder {
+            $segments = collect(explode('/', str_replace('\\', '/', $relativePath)))
+                ->map(fn (string $segment) => Str::limit(Str::squish($segment), 255, ''))
+                ->reject(fn (string $segment) => in_array($segment, ['', '.', '..'], true))
+                ->values();
+
+            $parent = $base;
+            $key = '';
+            foreach ($segments as $segment) {
+                $key .= '/'.Str::lower($segment);
+
+                $parent = $cache[$key] ??= IsoFolder::query()
+                    ->where('kategori', $kategori)
+                    ->where('parent_id', $parent?->id)
+                    ->where('department_id', $departmentId)
+                    ->where('nama', $segment)
+                    ->first() ?? tap(IsoFolder::create([
+                        'kategori' => $kategori,
+                        'parent_id' => $parent?->id,
+                        'nama' => $segment,
+                        'department_id' => $departmentId,
+                        'created_by' => $user->id,
+                        'updated_by' => $user->id,
+                    ]), function () use (&$createdFolders) {
+                        $createdFolders++;
+                    });
+            }
+
+            return $parent;
+        };
     }
 
     /**
