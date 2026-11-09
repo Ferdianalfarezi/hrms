@@ -61,9 +61,8 @@
     #notify-modal { width: min(560px, calc(100% - 32px)); }
     /* Tombol sedang memproses (kirim notifikasi / upload): ikon berputar. */
     .btn.loading { display: inline-flex; align-items: center; gap: 8px; cursor: progress; opacity: .9; }
-    .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: spin .7s linear infinite; flex: none; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+    .btn-spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: spin .7s linear infinite; flex: none; }
+    @media (prefers-reduced-motion: reduce) { .btn-spinner { animation-duration: 2s; } }
     #notify-modal .modal-body { display: grid; gap: 14px; }
     .recipient-list { display: grid; gap: 4px; max-height: 240px; overflow: auto; padding: 4px; border: 1px solid var(--line-strong); border-radius: 12px; }
     .recipient-list label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 8px; border-radius: 8px; font-weight: 400; cursor: pointer; }
@@ -139,12 +138,11 @@
     .busy-overlay[hidden] { display: none; }
     .busy-box { display: flex; align-items: center; gap: 14px; padding: 18px 24px; border-radius: 16px; background: #fff; font-weight: 600; color: var(--navy); box-shadow: 0 20px 40px rgba(15, 35, 80, .25); max-width: calc(100% - 32px); }
     .folder-card.drop-target, .crumbs a.drop-target { border-color: var(--primary); background: #eef4ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
-    .move-hint { font-weight: 400; color: var(--faint); }
     /* Panel loading di modal upload: saat membaca folder & selama upload. */
     .upload-progress { display: grid; gap: 10px; padding: 14px 16px; border-radius: 14px; background: #eef4ff; border: 1px solid #c7d7fe; }
     .upload-progress[hidden] { display: none; }
     .upload-progress-head { display: flex; align-items: center; gap: 12px; font-size: 14px; font-weight: 600; color: var(--navy); }
-    .spinner.spinner-lg { width: 22px; height: 22px; border-width: 3px; border-color: rgba(37, 99, 235, .2); border-top-color: var(--primary); }
+    .spinner.spinner-md { width: 22px; height: 22px; border-width: 3px; flex: none; }
     .progress-bar { height: 6px; border-radius: 999px; background: rgba(37, 99, 235, .15); overflow: hidden; }
     .progress-bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--primary); transition: width .3s; }
     #upload-modal[data-busy] .dropzone, #upload-modal[data-busy] .upload-picks { pointer-events: none; opacity: .5; }
@@ -270,12 +268,7 @@
 @endif
 
 @if ($folders->isNotEmpty())
-    <h2 class="section-title">
-        Folder
-        @if ($canManageKategori && $documents->isNotEmpty())
-            <span class="move-hint">· tarik kartu file ke folder untuk memindahkannya (tarik kotak dari area kosong / Ctrl + klik untuk pilih banyak)</span>
-        @endif
-    </h2>
+    <h2 class="section-title">Folder</h2>
     <div @class(['folder-grid', 'is-list' => $listView]) data-view-target>
         @foreach ($folders as $folder)
             @php
@@ -390,7 +383,7 @@
 {{-- Layar loading: menutup halaman selama proses supaya tidak ada aksi lain sampai selesai. --}}
 <div class="busy-overlay" id="busy-overlay" role="status" aria-live="assertive" hidden>
     <div class="busy-box">
-        <span class="spinner spinner-lg" aria-hidden="true"></span>
+        <span class="spinner spinner-md" aria-hidden="true"></span>
         <span data-busy-text>Memproses...</span>
     </div>
 </div>
@@ -424,7 +417,7 @@
                 </div>
                 <div class="upload-progress" id="upload-progress" role="status" aria-live="polite" hidden>
                     <div class="upload-progress-head">
-                        <span class="spinner spinner-lg" aria-hidden="true"></span>
+                        <span class="spinner spinner-md" aria-hidden="true"></span>
                         <span id="upload-progress-text">Mengupload...</span>
                     </div>
                     <div class="progress-bar" id="upload-progress-bar" hidden><span></span></div>
@@ -647,7 +640,7 @@
         function setLoading(button, text) {
             button.disabled = true;
             button.classList.add('loading');
-            button.innerHTML = '<span class="spinner" aria-hidden="true"></span>';
+            button.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>';
             button.appendChild(document.createTextNode(text));
             button.setAttribute('aria-busy', 'true');
             var dialog = button.closest('dialog');
