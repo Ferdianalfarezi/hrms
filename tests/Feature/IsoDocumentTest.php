@@ -463,6 +463,21 @@ class IsoDocumentTest extends TestCase
         Process::assertRanTimes(fn () => true, 1);
     }
 
+    public function test_thumbnail_command_prepares_thumbnails_and_can_retry_failures(): void
+    {
+        Process::fake(['*' => Process::result(exitCode: 1)]);
+        $image = IsoDocument::factory()->create(['extension' => 'png', 'path' => 'iso/procedures/foto.png']);
+        Storage::disk('local')->put($image->path, UploadedFile::fake()->image('foto.png', 800, 600)->getContent());
+        $this->document(null);
+
+        $this->artisan('iso:thumbnails')->expectsOutputToContain('1 thumbnail siap, 1 gagal')->assertSuccessful();
+        $this->artisan('iso:thumbnails')->assertSuccessful();
+        Process::assertRanTimes(fn () => true, 1);
+
+        $this->artisan('iso:thumbnails --ulang')->assertSuccessful();
+        Process::assertRanTimes(fn () => true, 2);
+    }
+
     public function test_thumbnail_follows_document_access(): void
     {
         $admin = $this->isoAdmin();

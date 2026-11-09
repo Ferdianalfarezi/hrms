@@ -72,6 +72,15 @@ class IsoThumbnail
         Storage::disk(self::DISK)->delete($paths);
     }
 
+    /**
+     * Hapus semua catatan "gagal dibuat" supaya dicoba lagi (mis. setelah Ghostscript dipasang).
+     */
+    public static function forgetFailures(): void
+    {
+        $disk = Storage::disk(self::DISK);
+        $disk->delete(array_filter($disk->files('iso/thumbs'), fn (string $path) => str_ends_with($path, '.none')));
+    }
+
     private static function pathFor(string $documentPath): string
     {
         return 'iso/thumbs/'.md5($documentPath).'.jpg';

@@ -822,25 +822,30 @@
                 if (!uploadModal.dataset.busy) useDrop(event.dataTransfer);
             });
 
+            // Listener di window dilepas saat Turbo pindah halaman, supaya tidak menumpuk & memanggil modal halaman lama.
+            var pageListeners = new AbortController();
+            document.addEventListener('turbo:before-render', function () { pageListeners.abort(); }, { once: true });
+            var onPage = { signal: pageListeners.signal };
+
             var dragDepth = 0;
             var hasFiles = function (event) { return event.dataTransfer && Array.prototype.indexOf.call(event.dataTransfer.types, 'Files') !== -1; };
             window.addEventListener('dragenter', function (event) {
                 if (!hasFiles(event) || uploadModal.open) return;
                 dragDepth++;
                 overlay.classList.add('show');
-            });
+            }, onPage);
             window.addEventListener('dragleave', function () {
                 dragDepth = Math.max(dragDepth - 1, 0);
                 if (!dragDepth) overlay.classList.remove('show');
-            });
-            window.addEventListener('dragover', function (event) { if (hasFiles(event)) event.preventDefault(); });
+            }, onPage);
+            window.addEventListener('dragover', function (event) { if (hasFiles(event)) event.preventDefault(); }, onPage);
             window.addEventListener('drop', function (event) {
                 if (!hasFiles(event)) return;
                 event.preventDefault();
                 dragDepth = 0;
                 overlay.classList.remove('show');
                 if (!uploadModal.dataset.busy) useDrop(event.dataTransfer);
-            });
+            }, onPage);
 
             // Folder kosong dikirim terpisah; folder yang berisi file sudah ikut terbentuk dari jalur file-nya.
             var emptyFolders = function () {
