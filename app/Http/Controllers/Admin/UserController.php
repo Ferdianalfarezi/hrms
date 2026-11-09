@@ -137,7 +137,7 @@ class UserController extends Controller
             'nik' => ['required', 'string', 'max:30', Rule::unique('users', 'nik')->ignore($user)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
-            'password' => [$user ? 'nullable' : 'required', 'string', 'min:6', 'confirmed'],
+            'password' => [$user ? 'nullable' : 'required', 'string', 'min:5', 'confirmed'],
             'is_active' => ['boolean'],
             'is_superadmin' => ['boolean'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],

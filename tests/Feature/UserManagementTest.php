@@ -98,6 +98,25 @@ class UserManagementTest extends TestCase
         $this->assertSame('staff', $user->roleFor('sms')->code);
     }
 
+    public function test_pin_needs_at_least_five_characters(): void
+    {
+        $this->actingAs($this->admin)->post('/admin/users', [
+            'nik' => '3002',
+            'name' => 'PIN Pendek',
+            'password' => '1234',
+            'password_confirmation' => '1234',
+        ])->assertSessionHasErrors('password');
+
+        $this->actingAs($this->admin)->post('/admin/users', [
+            'nik' => '3002',
+            'name' => 'PIN Pas',
+            'password' => '12345',
+            'password_confirmation' => '12345',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertTrue(Hash::check('12345', User::where('nik', '3002')->firstOrFail()->password));
+    }
+
     public function test_duplicate_nik_is_rejected(): void
     {
         $this->actingAs($this->admin)->post('/admin/users', [
