@@ -220,24 +220,42 @@ class DocumentController extends Controller
     }
 
     /**
-     * Pindahkan dokumen ke folder lain (drag & drop kartu file ke kartu folder / breadcrumb). Kosong = keluar dari folder.
-     * Di luar folder, departemen dokumen dipertahankan.
+     * Pindahkan satu atau banyak dokumen ke folder lain (drag & drop kartu file ke kartu folder / breadcrumb).
+     * folder_id kosong = keluar dari folder; di luar folder, departemen dokumen dipertahankan.
+     * Semua file harus boleh dikelola user; kalau ada satu yang tidak, tidak ada yang dipindahkan.
      */
-    public function move(Request $request, IsoDocument $document): JsonResponse
+    public function move(Request $request): JsonResponse
     {
-        $kategori = $this->authorizeItem($request, $document, manage: true);
+        Gate::authorize('iso-documents');
+
+        $kategori = $this->kategori($request);
+        $this->authorizeKategoriManage($request, $kategori);
         $user = $request->user();
-        $data = $request->validate(['folder_id' => ['nullable', 'integer']]);
+
+        $data = $request->validate([
+            'documents' => ['required', 'array', 'max:500'],
+            'documents.*' => ['integer', 'distinct'],
+            'folder_id' => ['nullable', 'integer'],
+        ], ['documents.required' => 'Pilih minimal satu file.']);
 
         $folder = $this->targetFolder($request, $kategori, $data['folder_id'] ?? null);
-        $document->update([
-            'folder_id' => $folder?->id,
-            'department_id' => $this->departmentIn($folder, $user, $document->department_id),
-            'updated_by' => $user->id,
-        ]);
+        $documents = IsoDocument::query()->visibleTo($user)->where('kategori', $kategori)->whereIn('id', $data['documents'])->get();
+
+        abort_if($documents->count() !== count($data['documents']), 403, 'Sebagian file tidak ditemukan atau milik departemen lain.');
+        abort_unless($documents->every(fn (IsoDocument $document) => $document->isManageableBy($user)), 403, 'Data umum hanya bisa diubah oleh Admin ISO.');
+
+        DB::transaction(function () use ($documents, $folder, $user) {
+            foreach ($documents as $document) {
+                $document->update([
+                    'folder_id' => $folder?->id,
+                    'department_id' => $this->departmentIn($folder, $user, $document->department_id),
+                    'updated_by' => $user->id,
+                ]);
+            }
+        });
 
         $tujuan = $folder ? "folder {$folder->nama}" : IsoDocument::KATEGORI[$kategori];
-        $message = "{$document->nama} dipindahkan ke {$tujuan}.";
+        $message = ($documents->count() === 1 ? $documents->first()->nama : $documents->count().' file')." dipindahkan ke {$tujuan}.";
         $request->session()->flash('status', $message);
 
         return response()->json(['message' => $message]);

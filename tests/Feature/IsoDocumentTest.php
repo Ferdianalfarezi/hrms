@@ -545,17 +545,43 @@ class IsoDocumentTest extends TestCase
         $produksi = $this->folder($this->psd, ['nama' => 'Produksi']);
         $document = $this->document($this->pwd, ['nama' => 'Manual.pdf']);
 
-        $this->actingAs($admin)->patchJson(route('iso.procedures.move', $document), ['folder_id' => $produksi->id])
+        $this->actingAs($admin)->patchJson(route('iso.procedures.move'), ['documents' => [$document->id], 'folder_id' => $produksi->id])
             ->assertOk()->assertJson(['message' => 'Manual.pdf dipindahkan ke folder Produksi.']);
         $document->refresh();
         $this->assertSame($produksi->id, $document->folder_id);
         $this->assertSame($this->psd->id, $document->department_id);
 
         // Keluar dari folder: departemen terakhir dipertahankan.
-        $this->actingAs($admin)->patchJson(route('iso.procedures.move', $document), ['folder_id' => null])->assertOk();
+        $this->actingAs($admin)->patchJson(route('iso.procedures.move'), ['documents' => [$document->id], 'folder_id' => null])->assertOk();
         $document->refresh();
         $this->assertNull($document->folder_id);
         $this->assertSame($this->psd->id, $document->department_id);
+    }
+
+    public function test_several_selected_files_are_moved_together(): void
+    {
+        $produksi = $this->folder($this->psd, ['nama' => 'Produksi', 'kategori' => 'sop']);
+        $documents = collect([$this->document($this->psd, ['kategori' => 'sop']), $this->document(null, ['kategori' => 'sop']), $this->document($this->pwd, ['kategori' => 'sop'])]);
+
+        $this->actingAs($this->isoAdmin())->patchJson(route('iso.sop.move'), ['documents' => $documents->pluck('id')->all(), 'folder_id' => $produksi->id])
+            ->assertOk()->assertJson(['message' => '3 file dipindahkan ke folder Produksi.']);
+
+        $this->assertSame([$produksi->id], IsoDocument::pluck('folder_id')->unique()->values()->all());
+        $this->assertSame([$this->psd->id], IsoDocument::pluck('department_id')->unique()->values()->all());
+    }
+
+    public function test_bulk_move_is_refused_entirely_when_one_file_is_not_manageable(): void
+    {
+        $produksi = $this->folder($this->psd, ['kategori' => 'sop']);
+        $milikSendiri = $this->document($this->psd, ['kategori' => 'sop']);
+        $umum = $this->document(null, ['kategori' => 'sop']);
+
+        $this->actingAs($this->deptAdmin($this->psd))
+            ->patchJson(route('iso.sop.move'), ['documents' => [$milikSendiri->id, $umum->id], 'folder_id' => $produksi->id])
+            ->assertForbidden();
+
+        $this->assertNull($milikSendiri->refresh()->folder_id);
+        $this->assertNull($umum->refresh()->folder_id);
     }
 
     public function test_department_admin_cannot_drag_files_into_other_department_folders(): void
@@ -563,7 +589,7 @@ class IsoDocumentTest extends TestCase
         $folderPwd = $this->folder($this->pwd, ['kategori' => 'sop']);
         $document = $this->document($this->psd, ['kategori' => 'sop']);
 
-        $this->actingAs($this->deptAdmin($this->psd))->patchJson(route('iso.sop.move', $document), ['folder_id' => $folderPwd->id])
+        $this->actingAs($this->deptAdmin($this->psd))->patchJson(route('iso.sop.move'), ['documents' => [$document->id], 'folder_id' => $folderPwd->id])
             ->assertStatus(422)->assertJsonValidationErrors('folder_id');
 
         $this->assertNull($document->refresh()->folder_id);

@@ -97,6 +97,19 @@
     .upload-summary { font-size: 12px; font-weight: 600; color: var(--muted); }
     .doc-card[draggable=true] { cursor: grab; }
     .doc-card.dragging { opacity: .45; }
+    /* Pilih banyak file: kotak seleksi, kartu terpilih, badge jumlah saat ditarik, dan bar jumlah terpilih. */
+    .doc-card.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, .35); }
+    .doc-card.selected .doc-body { background: #eef4ff; }
+    .marquee { position: fixed; z-index: 40; border: 1px solid var(--primary); background: rgba(37, 99, 235, .12); border-radius: 4px; pointer-events: none; }
+    .marquee[hidden] { display: none; }
+    body.selecting { user-select: none; cursor: crosshair; }
+    .drag-badge { position: fixed; top: -100px; left: -100px; padding: 8px 14px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; }
+    .selection-bar { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 18px; border-radius: 999px; background: var(--navy); color: #fff; font-size: 13px; box-shadow: 0 12px 30px rgba(15, 35, 80, .3); max-width: calc(100% - 32px); }
+    .selection-bar[hidden] { display: none; }
+    .selection-bar .btn { background: rgba(255, 255, 255, .15); color: #fff; border-color: transparent; }
+    .busy-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(15, 27, 51, .35); cursor: progress; }
+    .busy-overlay[hidden] { display: none; }
+    .busy-box { display: flex; align-items: center; gap: 14px; padding: 18px 24px; border-radius: 16px; background: #fff; font-weight: 600; color: var(--navy); box-shadow: 0 20px 40px rgba(15, 35, 80, .25); max-width: calc(100% - 32px); }
     .folder-card.drop-target, .crumbs a.drop-target { border-color: var(--primary); background: #eef4ff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
     .move-hint { font-weight: 400; color: var(--faint); }
     /* Panel loading di modal upload: saat membaca folder & selama upload. */
@@ -223,7 +236,7 @@
     <h2 class="section-title">
         Folder
         @if ($canManageKategori && $documents->isNotEmpty())
-            <span class="move-hint">· tarik kartu file ke folder untuk memindahkannya</span>
+            <span class="move-hint">· tarik kartu file ke folder untuk memindahkannya (tarik kotak dari area kosong / Ctrl + klik untuk pilih banyak)</span>
         @endif
     </h2>
     <div class="folder-grid">
@@ -232,7 +245,7 @@
                 $isi = collect([$folder->children_count ? $folder->children_count.' folder' : null, $folder->documents_count ? $folder->documents_count.' file' : null])->filter()->join(', ') ?: 'Kosong';
                 $canManageFolder = $isAdmin || in_array($folder->department_id, $managedDepartmentIds, true);
             @endphp
-            <div class="folder-card" @if ($canManageFolder) data-drop-folder="{{ $folder->id }}" @endif>
+            <div class="folder-card" @if ($canManageFolder) data-drop-folder="{{ $folder->id }}" data-drop-name="folder {{ $folder->nama }}" @endif>
                 <span class="folder-ico">{!! $folderIcon !!}</span>
                 <div class="folder-text">
                     <div class="folder-name" title="{{ $folder->nama }}">{{ $folder->nama }}</div>
@@ -264,7 +277,7 @@
             @endphp
             {{-- Kartu yang boleh dikelola bisa ditarik ke kartu folder / breadcrumb untuk dipindahkan. --}}
             <div @class(['doc-card', 'inactive' => ! $document->is_active])
-                 @if ($canManage) draggable="true" data-move-url="{{ route("iso.{$kategori}.move", $document) }}" data-folder-id="{{ $document->folder_id }}" @endif>
+                 @if ($canManage) draggable="true" data-document-id="{{ $document->id }}" data-folder-id="{{ $document->folder_id }}" @endif>
                 <div class="doc-thumb tone-{{ $tone }}">
                     {!! $icon !!}
                     {{-- Thumbnail JPG kecil (bukan file asli) supaya halaman ringan; kalau gagal, ikon tetap terlihat. --}}
@@ -328,6 +341,22 @@
     </div>
     <div style="margin-top: 16px;">{{ $documents->links() }}</div>
 @endif
+
+{{-- Jumlah file terpilih (pilih banyak untuk dipindahkan bersama). --}}
+@if ($canManageKategori && $documents->isNotEmpty())
+    <div class="selection-bar" id="selection-bar" hidden>
+        <span><b data-selection-count>0</b> file dipilih · tarik ke folder untuk memindahkan</span>
+        <button type="button" class="btn btn-ghost btn-sm" data-clear-selection>Batal pilih</button>
+    </div>
+@endif
+
+{{-- Layar loading: menutup halaman selama proses supaya tidak ada aksi lain sampai selesai. --}}
+<div class="busy-overlay" id="busy-overlay" role="status" aria-live="assertive" hidden>
+    <div class="busy-box">
+        <span class="spinner spinner-lg" aria-hidden="true"></span>
+        <span data-busy-text>Memproses...</span>
+    </div>
+</div>
 
 @if ($canManageHere)
     <div class="drop-overlay" id="drop-overlay">Lepaskan file / folder untuk upload ke {{ $lokasi }}</div>
@@ -548,6 +577,11 @@
 @push('scripts')
 <script>
     (function () {
+        // Listener di window / document dilepas saat Turbo pindah halaman, supaya tidak menumpuk & memanggil elemen halaman lama.
+        var pageListeners = new AbortController();
+        document.addEventListener('turbo:before-render', function () { pageListeners.abort(); }, { once: true });
+        var onPage = { signal: pageListeners.signal };
+
         // Modal yang sedang memproses (data-busy) tidak bisa ditutup lewat Batal, ×, klik di luar, atau Esc.
         document.querySelectorAll('dialog.modal').forEach(function (dialog) {
             dialog.querySelectorAll('[data-close]').forEach(function (button) {
@@ -822,11 +856,6 @@
                 if (!uploadModal.dataset.busy) useDrop(event.dataTransfer);
             });
 
-            // Listener di window dilepas saat Turbo pindah halaman, supaya tidak menumpuk & memanggil modal halaman lama.
-            var pageListeners = new AbortController();
-            document.addEventListener('turbo:before-render', function () { pageListeners.abort(); }, { once: true });
-            var onPage = { signal: pageListeners.signal };
-
             var dragDepth = 0;
             var hasFiles = function (event) { return event.dataTransfer && Array.prototype.indexOf.call(event.dataTransfer.types, 'Files') !== -1; };
             window.addEventListener('dragenter', function (event) {
@@ -994,26 +1023,147 @@
             });
         }
 
-        // ===== Pindah file: tarik kartu file ke kartu folder / breadcrumb =====
-        var draggedCard = null;
+        // ===== Pilih banyak file: tarik kotak dari area kosong, Ctrl/⌘ + klik kartu, Esc untuk batal =====
+        var movableCards = Array.prototype.slice.call(document.querySelectorAll('[data-document-id]'));
+        var selectionBar = document.getElementById('selection-bar');
+        var busyOverlay = document.getElementById('busy-overlay');
+
+        var selectedCards = function () { return movableCards.filter(function (card) { return card.classList.contains('selected'); }); };
+        var updateSelectionBar = function () {
+            if (!selectionBar) return;
+            var count = selectedCards().length;
+            selectionBar.hidden = count === 0;
+            selectionBar.querySelector('[data-selection-count]').textContent = count;
+        };
+        var setSelected = function (card, selected) {
+            card.classList.toggle('selected', selected);
+            card.setAttribute('aria-selected', selected ? 'true' : 'false');
+        };
+        var clearSelection = function () {
+            movableCards.forEach(function (card) { setSelected(card, false); });
+            updateSelectionBar();
+        };
+
+        // Layar loading menutup halaman supaya tidak ada aksi lain sampai proses selesai & halaman dimuat ulang.
+        var showBusy = function (message) {
+            busyOverlay.querySelector('[data-busy-text]').textContent = message;
+            busyOverlay.hidden = false;
+            document.body.setAttribute('aria-busy', 'true');
+        };
+        var hideBusy = function () {
+            busyOverlay.hidden = true;
+            document.body.removeAttribute('aria-busy');
+        };
+
+        if (movableCards.length) {
+            if (selectionBar) selectionBar.querySelector('[data-clear-selection]').addEventListener('click', clearSelection);
+
+            // Ctrl/⌘ + klik: tambah / kurangi pilihan tanpa membuka file.
+            movableCards.forEach(function (card) {
+                card.addEventListener('click', function (event) {
+                    if (!(event.ctrlKey || event.metaKey) || event.target.closest('button, label, input, .doc-actions a')) return;
+                    event.preventDefault();
+                    setSelected(card, !card.classList.contains('selected'));
+                    updateSelectionBar();
+                }, true);
+            });
+
+            var marquee = document.createElement('div');
+            marquee.className = 'marquee';
+            marquee.hidden = true;
+            document.body.appendChild(marquee);
+            var start = null;
+            var baseSelection = [];
+
+            var startsOnEmptySpace = function (event) {
+                return event.button === 0 && busyOverlay.hidden && !document.querySelector('dialog[open]')
+                    && event.target.closest('main, .shell, body') && !event.target.closest('.doc-card, .folder-card, a, button, input, select, textarea, label, dialog, nav, header, form, .app-nav');
+            };
+
+            document.addEventListener('mousedown', function (event) {
+                if (!startsOnEmptySpace(event)) return;
+                event.preventDefault();
+                start = { x: event.clientX, y: event.clientY, moved: false };
+                baseSelection = event.ctrlKey || event.metaKey || event.shiftKey ? selectedCards() : [];
+            }, onPage);
+
+            document.addEventListener('mousemove', function (event) {
+                if (!start) return;
+                var left = Math.min(start.x, event.clientX);
+                var top = Math.min(start.y, event.clientY);
+                var width = Math.abs(event.clientX - start.x);
+                var height = Math.abs(event.clientY - start.y);
+                if (!start.moved && width < 5 && height < 5) return;
+                start.moved = true;
+                document.body.classList.add('selecting');
+                marquee.hidden = false;
+                marquee.style.left = left + 'px';
+                marquee.style.top = top + 'px';
+                marquee.style.width = width + 'px';
+                marquee.style.height = height + 'px';
+
+                movableCards.forEach(function (card) {
+                    var rect = card.getBoundingClientRect();
+                    var hit = rect.left < left + width && rect.right > left && rect.top < top + height && rect.bottom > top;
+                    setSelected(card, hit || baseSelection.indexOf(card) !== -1);
+                });
+                updateSelectionBar();
+            }, onPage);
+
+            document.addEventListener('mouseup', function () {
+                if (!start) return;
+                // Klik biasa di area kosong (tanpa menarik) = batal pilih.
+                if (!start.moved && !baseSelection.length) clearSelection();
+                start = null;
+                marquee.hidden = true;
+                document.body.classList.remove('selecting');
+            }, onPage);
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && !document.querySelector('dialog[open]')) clearSelection();
+            }, onPage);
+        }
+
+        // ===== Pindah file: tarik kartu (atau semua kartu terpilih) ke kartu folder / breadcrumb =====
+        var moveUrl = {{ Js::from($canManageKategori ? route("iso.{$kategori}.move") : null) }};
+        var draggedCards = [];
+        var dragBadge = document.createElement('div');
+        dragBadge.className = 'drag-badge';
         var clearDropTargets = function () {
             document.querySelectorAll('.drop-target').forEach(function (target) { target.classList.remove('drop-target'); });
         };
-        document.querySelectorAll('[data-move-url]').forEach(function (card) {
+
+        movableCards.forEach(function (card) {
             card.addEventListener('dragstart', function (event) {
-                draggedCard = card;
+                // Kartu yang ditarik ikut terpilih; kalau belum terpilih, pilihan lain dibatalkan.
+                if (!card.classList.contains('selected')) {
+                    clearSelection();
+                    setSelected(card, true);
+                    updateSelectionBar();
+                }
+                draggedCards = selectedCards();
                 event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('application/x-iso-document', card.dataset.moveUrl);
-                card.classList.add('dragging');
+                event.dataTransfer.setData('application/x-iso-document', draggedCards.map(function (item) { return item.dataset.documentId; }).join(','));
+                if (draggedCards.length > 1 && event.dataTransfer.setDragImage) {
+                    dragBadge.textContent = draggedCards.length + ' file';
+                    document.body.appendChild(dragBadge);
+                    event.dataTransfer.setDragImage(dragBadge, 20, 20);
+                    setTimeout(function () { dragBadge.remove(); }, 0);
+                }
+                draggedCards.forEach(function (item) { item.classList.add('dragging'); });
             });
             card.addEventListener('dragend', function () {
-                draggedCard = null;
-                card.classList.remove('dragging');
+                draggedCards.forEach(function (item) { item.classList.remove('dragging'); });
+                draggedCards = [];
                 clearDropTargets();
             });
         });
+
         document.querySelectorAll('[data-drop-folder]').forEach(function (target) {
-            var accepts = function () { return draggedCard && draggedCard.dataset.folderId !== target.dataset.dropFolder; };
+            // Bisa di-drop kalau minimal satu file belum ada di folder itu.
+            var accepts = function () {
+                return moveUrl && draggedCards.some(function (card) { return card.dataset.folderId !== target.dataset.dropFolder; });
+            };
             target.addEventListener('dragover', function (event) {
                 if (!accepts()) return;
                 event.preventDefault();
@@ -1027,25 +1177,33 @@
                 if (!accepts()) return;
                 event.preventDefault();
                 event.stopPropagation();
-                var card = draggedCard;
+                var ids = draggedCards
+                    .filter(function (card) { return card.dataset.folderId !== target.dataset.dropFolder; })
+                    .map(function (card) { return Number(card.dataset.documentId); });
+                var tujuan = target.dataset.dropName || target.textContent.trim();
                 clearDropTargets();
-                card.style.pointerEvents = 'none';
-                fetch(card.dataset.moveUrl, {
+                showBusy('Memindahkan ' + ids.length + ' file ke ' + tujuan + '...');
+
+                fetch(moveUrl, {
                     method: 'PATCH',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ folder_id: target.dataset.dropFolder || null }),
+                    body: JSON.stringify({ documents: ids, folder_id: target.dataset.dropFolder || null }),
                 }).then(function (response) {
-                    if (response.ok) { window.location.reload(); return; }
+                    if (response.ok) {
+                        showBusy('Selesai! Memuat ulang halaman...');
+                        window.location.reload();
+                        return;
+                    }
                     return response.json().catch(function () { return {}; }).then(function (body) {
                         var errors = body.errors ? Object.values(body.errors) : [];
                         throw new Error(response.status === 419 ? 'Sesi habis, muat ulang halaman.' : (errors.length ? errors[0][0] : (body.message || 'Gagal memindahkan file.')));
                     });
                 }).catch(function (error) {
-                    card.style.pointerEvents = '';
+                    hideBusy();
                     alert(error.message);
                 });
             });
