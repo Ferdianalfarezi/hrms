@@ -121,6 +121,30 @@ class AbsensiDetailTest extends TestCase
         $this->assertSame(['S' => 1, 'I' => 1], array_filter($shiftPagi['totals']));
     }
 
+    public function test_cuti_bisa_tidak_dihitung_di_laporan_detail(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $cuti = $this->karyawan('0001', 'Andi Cuti', 'B');
+        $sakit = $this->karyawan('0002', 'Budi Sakit', 'B');
+        $this->karyawan('0003', 'Cici Hadir', 'B');
+        $this->karyawan('0004', 'Dodi Hadir', 'B');
+        $this->absen($cuti, '2026-10-15', 'CT');
+        $this->absen($sakit, '2026-10-15', 'S');
+
+        $shiftPagi = LaporanAbsensiShift::build(Carbon::parse('2026-10-15'))['sections'][1];
+        $this->assertSame(['CT' => 1, 'S' => 1], array_filter($shiftPagi['totals']));
+        $this->assertSame(50.0, $shiftPagi['persen']);
+
+        $shiftPagi = $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.detail', ['tanggal' => '2026-10-15', 'cuti' => 0]))
+            ->assertOk()
+            ->viewData('sections')[1];
+        $this->assertSame([$sakit->id], $shiftPagi['rows']->pluck('karyawan.id')->all());
+        $this->assertSame(0, $shiftPagi['totals']['CT']);
+        $this->assertSame(25.0, $shiftPagi['persen']);
+        $this->assertSame(25.0, collect($shiftPagi['grafik']['points'])->firstWhere('selected', true)['actual']);
+    }
+
     public function test_export_excel_berisi_shift_malam_dan_pagi(): void
     {
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);

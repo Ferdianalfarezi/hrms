@@ -31,7 +31,10 @@ class LaporanAbsensiShift
     /** @var array<string, int> jumlah karyawan per grup */
     private array $headcount;
 
-    public function __construct(private bool $denganGrafik = true)
+    /**
+     * @param  bool  $hitungCuti  false = kategori Cuti (CT) tidak dihitung tidak hadir: tidak masuk daftar, total, persen, maupun grafik.
+     */
+    public function __construct(private bool $denganGrafik = true, private bool $hitungCuti = true)
     {
         $this->rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
         $this->headcount = Karyawan::whereNotNull('group')
@@ -39,17 +42,29 @@ class LaporanAbsensiShift
             ->pluck('total', 'group')->map(fn ($total) => (int) $total)->all();
     }
 
-    public static function build(Carbon $tanggal): array
+    public static function build(Carbon $tanggal, bool $hitungCuti = true): array
     {
-        return (new self)->report($tanggal);
+        return (new self(hitungCuti: $hitungCuti))->report($tanggal);
     }
 
     /**
      * Sama seperti build(), tanpa menghitung grafik bulanan ('grafik' => null).
      */
-    public static function buildTanpaGrafik(Carbon $tanggal): array
+    public static function buildTanpaGrafik(Carbon $tanggal, bool $hitungCuti = true): array
     {
-        return (new self(denganGrafik: false))->report($tanggal);
+        return (new self(denganGrafik: false, hitungCuti: $hitungCuti))->report($tanggal);
+    }
+
+    /**
+     * Kode absen yang dihitung tidak hadir di laporan ini.
+     *
+     * @return list<string>
+     */
+    private function kodeDihitung(): array
+    {
+        return $this->hitungCuti
+            ? Absensi::kodeTidakHadir()
+            : array_values(array_diff(Absensi::kodeTidakHadir(), Absensi::KATEGORI['CT']));
     }
 
     private function report(Carbon $tanggal): array
@@ -91,7 +106,7 @@ class LaporanAbsensiShift
         $absensis = Absensi::query()
             ->with('karyawan.department')
             ->whereDate('tanggal', $tanggal->toDateString())
-            ->whereIn('kode', Absensi::kodeTidakHadir())
+            ->whereIn('kode', $this->kodeDihitung())
             ->whereHas('karyawan', fn ($query) => $query->whereIn('group', $grups))
             ->get();
 
@@ -196,7 +211,7 @@ class LaporanAbsensiShift
         Absensi::query()
             ->join('karyawans', 'karyawans.id', '=', 'absensis.karyawan_id')
             ->whereNotNull('karyawans.group')
-            ->whereIn('absensis.kode', Absensi::kodeTidakHadir())
+            ->whereIn('absensis.kode', $this->kodeDihitung())
             ->whereBetween('absensis.tanggal', [$start->toDateString(), $end->toDateString()])
             ->get(['absensis.tanggal', 'karyawans.group'])
             ->each(function ($row) use (&$counts) {

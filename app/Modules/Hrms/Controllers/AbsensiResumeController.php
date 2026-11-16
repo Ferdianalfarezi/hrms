@@ -21,7 +21,10 @@ class AbsensiResumeController extends Controller
         Gate::authorize('manage-module', 'hrms');
 
         return view('hrms.absensi.resume', [
-            ...ResumeAbsensi::build($this->parseDate((string) $request->query('tanggal')) ?? Carbon::today()),
+            ...ResumeAbsensi::build(
+                $this->parseDate((string) $request->query('tanggal')) ?? Carbon::today(),
+                $request->boolean('cuti', true),
+            ),
             'target' => LaporanAbsensiShift::TARGET_PERSEN,
         ]);
     }

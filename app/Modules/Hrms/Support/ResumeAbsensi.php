@@ -26,15 +26,16 @@ class ResumeAbsensi
     /**
      * @return array{tanggal: Carbon, sections: list<array{judul: string, tanggal: Carbon, grups: list<string>, rows: list<array<string, mixed>>, total: array<string, mixed>}>}
      */
-    public static function build(Carbon $tanggal): array
+    public static function build(Carbon $tanggal, bool $hitungCuti = true): array
     {
-        $laporan = LaporanAbsensiShift::buildTanpaGrafik($tanggal);
+        $laporan = LaporanAbsensiShift::buildTanpaGrafik($tanggal, $hitungCuti);
 
         // Urutan seperti format Excel: Shift 1 (pagi hari ini) dulu, lalu Shift 2 (malam kemarin).
         $sections = collect($laporan['sections'])->sortBy(fn (array $section) => $section['judul'])->values();
 
         return [
             'tanggal' => $tanggal,
+            'hitungCuti' => $hitungCuti,
             'sections' => $sections->map(fn (array $section) => self::section($section))->all(),
         ];
     }

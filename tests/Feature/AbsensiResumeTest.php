@@ -89,6 +89,28 @@ class AbsensiResumeTest extends TestCase
         $this->assertNull($shift2['rows'][3]['persen']);
     }
 
+    public function test_cuti_bisa_tidak_dihitung_ke_persentase(): void
+    {
+        $this->absen($this->karyawan('0001', 'PSD', 'B'), '2026-10-15', 'CT');
+        $this->absen($this->karyawan('0002', 'PSD', 'B'), '2026-10-15', 'S');
+        $this->karyawan('0003', 'PSD', 'B');
+        $this->karyawan('0004', 'PSD', 'B');
+
+        $total = fn (array $data) => $data['sections'][0]['total'];
+
+        $dihitung = $total(ResumeAbsensi::build(Carbon::parse('2026-10-15')));
+        $this->assertSame([1, 1, 2], [$dihitung['cuti'], $dihitung['ct'], $dihitung['total_absen']]);
+        $this->assertEquals(50, $dihitung['persen']);
+
+        $response = $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.resume', ['tanggal' => '2026-10-15', 'cuti' => 0]))
+            ->assertOk()
+            ->assertSee('name="cuti" value="0"', false);
+        $tanpaCuti = $total(['sections' => $response->viewData('sections')]);
+        $this->assertSame([0, 0, 1, 3], [$tanpaCuti['cuti'], $tanpaCuti['ct'], $tanpaCuti['total_absen'], $tanpaCuti['kerja']]);
+        $this->assertEquals(25, $tanpaCuti['persen']);
+    }
+
     public function test_halaman_resume_hanya_untuk_admin_hrms(): void
     {
         $this->karyawan('0001', 'PSD', 'B');

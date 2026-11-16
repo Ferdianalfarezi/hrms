@@ -10,6 +10,12 @@
     .day-nav a { padding: 9px 14px; font-size: 13px; font-weight: 600; color: var(--text); }
     .day-nav a + a { border-left: 1px solid var(--line-strong); }
     .day-nav a:hover { background: #fff; }
+    .cuti-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--glass-strong); font-size: 13px; font-weight: 600; color: var(--text); }
+    .cuti-toggle:hover { background: #fff; }
+    .cuti-toggle .switch { position: relative; width: 28px; height: 16px; border-radius: 999px; background: var(--line-strong); transition: background .15s; }
+    .cuti-toggle .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left .15s; }
+    .cuti-toggle.on .switch { background: var(--navy); }
+    .cuti-toggle.on .switch::after { left: 14px; }
 
     .rotasi { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 14px 20px; margin-bottom: 20px; }
     .rotasi-info { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
@@ -61,6 +67,7 @@
 @php
     $prev = $tanggal->copy()->subDay()->toDateString();
     $next = $tanggal->copy()->addDay()->toDateString();
+    $keepCuti = $hitungCuti ? [] : ['cuti' => 0];
     $statusMp = fn (string $status) => str_starts_with($status, 'PKWT') ? 'Kontrak' : $status;
 @endphp
 
@@ -71,12 +78,18 @@
     </div>
     <form method="GET" class="det-toolbar">
         <span class="day-nav">
-            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $prev]) }}" title="Hari sebelumnya">&lsaquo;</a>
-            <a href="{{ route('hrms.absensi.detail') }}">Hari ini</a>
-            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $next]) }}" title="Hari berikutnya">&rsaquo;</a>
+            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $prev, ...$keepCuti]) }}" title="Hari sebelumnya">&lsaquo;</a>
+            <a href="{{ route('hrms.absensi.detail', $keepCuti) }}">Hari ini</a>
+            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $next, ...$keepCuti]) }}" title="Hari berikutnya">&rsaquo;</a>
         </span>
+        <a href="{{ route('hrms.absensi.detail', ['tanggal' => $tanggal->toDateString(), ...($hitungCuti ? ['cuti' => 0] : [])]) }}" @class(['cuti-toggle', 'on' => $hitungCuti]) role="switch" aria-checked="{{ $hitungCuti ? 'true' : 'false' }}" title="{{ $hitungCuti ? 'Klik supaya cuti tidak dihitung ke persentase' : 'Klik supaya cuti ikut dihitung ke persentase' }}">
+            <span class="switch"></span> Hitung cuti
+        </a>
+        @unless ($hitungCuti)
+            <input type="hidden" name="cuti" value="0">
+        @endunless
         <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal laporan">
-        <a href="{{ route('hrms.absensi.detail.export', ['tanggal' => $tanggal->toDateString()]) }}" class="btn btn-ghost btn-sm" data-turbo="false">Export Excel</a>
+        <a href="{{ route('hrms.absensi.detail.export', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" data-turbo="false">Export Excel</a>
         <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
     </form>
 </div>

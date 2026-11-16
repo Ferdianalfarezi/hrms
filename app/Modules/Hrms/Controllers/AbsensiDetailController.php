@@ -37,7 +37,8 @@ class AbsensiDetailController extends Controller
             'kategoris' => array_keys(Absensi::KATEGORI),
             'kodes' => Absensi::KODE,
             'grupOptions' => ShiftRotasi::GRUP,
-            ...LaporanAbsensiShift::build($tanggal),
+            'hitungCuti' => $request->boolean('cuti', true),
+            ...LaporanAbsensiShift::build($tanggal, $request->boolean('cuti', true)),
         ]);
     }
 
@@ -49,7 +50,7 @@ class AbsensiDetailController extends Controller
         Gate::authorize('manage-module', 'hrms');
 
         $tanggal = $this->parseDate((string) $request->query('tanggal')) ?? Carbon::today();
-        $laporan = LaporanAbsensiShift::build($tanggal);
+        $laporan = LaporanAbsensiShift::build($tanggal, $request->boolean('cuti', true));
         $kategoris = array_keys(Absensi::KATEGORI);
 
         return response()->streamDownload(function () use ($tanggal, $laporan, $kategoris) {
