@@ -80,7 +80,8 @@ class AbsensiBulananImportTest extends TestCase
         $hasil = (new AbsensiBulananImport)->import($this->path, "Nop'26");
 
         $this->assertSame('2026-11', $hasil['bulan']->format('Y-m'));
-        $this->assertSame([2, 2, 1, 1], [$hasil['ditambah'], $hasil['diubah'], $hasil['sama'], $hasil['hanya_di_database']]);
+        $this->assertSame([2, 2, 1, 0], [$hasil['ditambah'], $hasil['diubah'], $hasil['sama'], $hasil['dihapus']]);
+        $this->assertSame(['0001 2026-11-20 A'], $hasil['hanya_di_database']);
         $this->assertSame(['9999'], $hasil['nik_tidak_terdaftar']);
         $this->assertSame(['0001 2026-11-06 "XX"'], $hasil['kode_tidak_dikenal']);
 
@@ -93,6 +94,30 @@ class AbsensiBulananImportTest extends TestCase
         $diganti = Absensi::where('karyawan_id', $andi->id)->whereDate('tanggal', '2026-11-02')->first();
         $this->assertSame('Sakit demam', $diganti->keterangan);
         $this->assertSame(12, Absensi::where('karyawan_id', $andi->id)->whereDate('tanggal', '2026-11-04')->value('menit_terlambat'));
+    }
+
+    public function test_opsi_hapus_menyamakan_persis_dengan_sheet(): void
+    {
+        $andi = $this->karyawan('0001');
+        $kosong = $this->karyawan('0002');
+        $diLuarSheet = $this->karyawan('0003');
+        foreach ([[$andi, '2026-10-05', 'S'], [$andi, '2026-10-06', 'I'], [$andi, '2026-10-07', 'A'], [$kosong, '2026-10-15', 'I'], [$diLuarSheet, '2026-10-15', 'S'], [$kosong, '2026-11-02', 'S']] as [$karyawan, $tanggal, $kode]) {
+            Absensi::create(['karyawan_id' => $karyawan->id, 'tanggal' => $tanggal, 'kode' => $kode]);
+        }
+        // Baris 0002 kosong sebulan penuh tetap dihitung "ada di sheet"; sel dengan kode tidak dikenal tidak dihapus.
+        $this->sheet("Okt'26", [['0001', [5 => 'S', 7 => '??']], ['0002', []]]);
+
+        $this->artisan('hrms:import-absensi', ['file' => $this->path, 'sheet' => "Okt'26", '--hapus' => true])
+            ->expectsOutputToContain('0001 2026-10-06 I')
+            ->expectsOutputToContain('0002 2026-10-15 I')
+            ->assertSuccessful();
+        $this->assertSame(6, Absensi::count());
+
+        $this->artisan('hrms:import-absensi', ['file' => $this->path, 'sheet' => "Okt'26", '--simpan' => true, '--hapus' => true])->assertSuccessful();
+
+        $sisa = Absensi::with('karyawan')->orderBy('tanggal')->get()
+            ->map(fn (Absensi $absensi) => $absensi->karyawan->nik.' '.$absensi->tanggal->toDateString())->sort()->values()->all();
+        $this->assertSame(['0001 2026-10-05', '0001 2026-10-07', '0002 2026-11-02', '0003 2026-10-15'], $sisa);
     }
 
     public function test_command_tanpa_simpan_tidak_mengubah_database(): void
@@ -117,6 +142,10 @@ class AbsensiBulananImportTest extends TestCase
 
         $this->artisan('hrms:import-absensi', ['file' => $this->path, 'sheet' => 'total'])
             ->expectsOutputToContain('Bulan tidak terbaca dari nama sheet')
+            ->assertFailed();
+
+        $this->artisan('hrms:import-absensi', ['file' => '/tidak/ada.xlsm', 'sheet' => "Nop'26"])
+            ->expectsOutputToContain('tidak ditemukan')
             ->assertFailed();
     }
 }

@@ -32,12 +32,13 @@ Artisan::command('iso:thumbnails {--ulang : Coba lagi thumbnail yang sebelumnya 
 })->purpose('Buat thumbnail kartu dokumen ISO (gambar & PDF)');
 
 // Samakan absensi satu bulan dengan sheet bulanan di rekap Excel HRD. Tanpa --simpan hanya menampilkan perubahan (dry-run).
-Artisan::command('hrms:import-absensi {file : Path file .xlsx / .xlsm} {sheet : Nama sheet, mis. "Nop\'26"} {--bulan= : Bulan YYYY-MM kalau tidak terbaca dari nama sheet} {--simpan : Simpan perubahan ke database}', function () {
+Artisan::command('hrms:import-absensi {file : Path file .xlsx / .xlsm} {sheet : Nama sheet, mis. "Nop\'26"} {--bulan= : Bulan YYYY-MM kalau tidak terbaca dari nama sheet} {--simpan : Simpan perubahan ke database} {--hapus : Hapus absensi karyawan di sheet yang selnya kosong (sama persis dengan sheet)}', function () {
     $bulan = $this->option('bulan') ? Carbon::createFromFormat('!Y-m', (string) $this->option('bulan')) : null;
     $simpan = (bool) $this->option('simpan');
+    $hapus = (bool) $this->option('hapus');
 
     try {
-        $hasil = (new AbsensiBulananImport)->import((string) $this->argument('file'), (string) $this->argument('sheet'), $simpan, $bulan);
+        $hasil = (new AbsensiBulananImport)->import((string) $this->argument('file'), (string) $this->argument('sheet'), $simpan, $bulan, $hapus);
     } catch (RuntimeException $exception) {
         $this->error($exception->getMessage());
 
@@ -45,13 +46,20 @@ Artisan::command('hrms:import-absensi {file : Path file .xlsx / .xlsm} {sheet : 
     }
 
     $this->info(($simpan ? 'Import' : 'Cek (dry-run)').' absensi '.$hasil['bulan']->translatedFormat('F Y').' dari sheet "'.$this->argument('sheet').'"');
-    $this->table(['Sel berkode di sheet', 'Ditambah', 'Diubah', 'Sudah sama', 'Ada di DB, kosong di sheet (tidak dihapus)'], [[
-        $hasil['sel'], $hasil['ditambah'], $hasil['diubah'], $hasil['sama'], $hasil['hanya_di_database'],
+    $this->table(['Sel berkode di sheet', 'Ditambah', 'Diubah', 'Sudah sama', 'Ada di DB, kosong di sheet'.($hapus ? ($simpan ? ' (dihapus)' : ' (akan dihapus)') : ' (tidak dihapus)')], [[
+        $hasil['sel'], $hasil['ditambah'], $hasil['diubah'], $hasil['sama'], count($hasil['hanya_di_database']),
     ]]);
 
     if ($hasil['contoh_diubah'] !== []) {
         $this->line('Kode yang diganti:');
         foreach ($hasil['contoh_diubah'] as $baris) {
+            $this->line("  {$baris}");
+        }
+    }
+
+    if ($hasil['hanya_di_database'] !== []) {
+        $this->line('Ada di database, kosong di sheet'.($hapus ? ($simpan ? ' (dihapus):' : ' (akan dihapus):') : ' (pakai --hapus untuk menghapus):'));
+        foreach ($hasil['hanya_di_database'] as $baris) {
             $this->line("  {$baris}");
         }
     }

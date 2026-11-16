@@ -18,8 +18,9 @@ use Throwable;
  * di sheet berisi rumus TODAY().
  *
  * Sel berkode ditambahkan atau kodenya diganti; keterangan yang sudah ada dibiarkan. Menit terlambat tidak ada di sheet,
- * jadi menit lama dipertahankan kalau kode sebelumnya juga DT, selain itu kosong. Absensi yang ada di database tapi
- * kosong di sheet tidak dihapus, hanya dihitung. NIK yang belum terdaftar dan kode yang tidak dikenal dilewati.
+ * jadi menit lama dipertahankan kalau kode sebelumnya juga DT, selain itu kosong. Absensi bulan itu milik karyawan yang
+ * ada di sheet tapi selnya kosong hanya dihapus kalau $hapus = true. Karyawan yang tidak ada di sheet tidak disentuh.
+ * NIK yang belum terdaftar dan kode yang tidak dikenal dilewati (data lama di sel itu juga tidak dihapus).
  */
 class AbsensiBulananImport
 {
@@ -37,22 +38,27 @@ class AbsensiBulananImport
 
     /**
      * @param  bool  $simpan  false = hanya hitung perubahan (dry-run), database tidak diubah.
-     * @return array{bulan: Carbon, sel: int, ditambah: int, diubah: int, sama: int, hanya_di_database: int, nik_tidak_terdaftar: list<string>, kode_tidak_dikenal: list<string>, contoh_diubah: list<string>}
+     * @param  bool  $hapus  true = hapus absensi karyawan di sheet yang selnya kosong, supaya sama persis dengan sheet.
+     * @return array{bulan: Carbon, sel: int, ditambah: int, diubah: int, sama: int, hanya_di_database: list<string>, dihapus: int, nik_tidak_terdaftar: list<string>, kode_tidak_dikenal: list<string>, contoh_diubah: list<string>}
      */
-    public function import(string $path, string $sheetName, bool $simpan = true, ?Carbon $bulan = null): array
+    public function import(string $path, string $sheetName, bool $simpan = true, ?Carbon $bulan = null, bool $hapus = false): array
     {
         $bulan = ($bulan ?? self::bulanDariNamaSheet($sheetName))->copy()->startOfMonth();
         $rows = $this->readSheet($path, $sheetName);
         [$headerRow, $nikColumn, $dayColumns] = $this->locateHeader($rows);
 
-        // [nik][Y-m-d] => kode
+        // [nik][Y-m-d] => kode. $nikDiSheet juga memuat karyawan yang barisnya kosong sebulan penuh.
         $sel = [];
+        $nikDiSheet = [];
+        $abaikan = [];
         $kodeTidakDikenal = [];
         foreach (array_slice($rows, $headerRow + 2) as $cells) {
             $nik = $this->nik($cells[$nikColumn] ?? null);
             if ($nik === null) {
                 continue;
             }
+
+            $nikDiSheet[$nik] = true;
 
             foreach ($dayColumns as $column => $day) {
                 $kode = mb_strtoupper(trim((string) ($cells[$column] ?? '')));
@@ -63,6 +69,7 @@ class AbsensiBulananImport
                 $tanggal = $bulan->copy()->day($day)->toDateString();
                 if (! isset(Absensi::KODE[$kode])) {
                     $kodeTidakDikenal[] = "{$nik} {$tanggal} \"{$kode}\"";
+                    $abaikan["{$nik}|{$tanggal}"] = true;
 
                     continue;
                 }
@@ -73,7 +80,8 @@ class AbsensiBulananImport
 
         // Kunci array PHP seperti "3556" otomatis jadi integer, jadi NIK dikembalikan ke string sebelum dicari.
         $niks = array_map('strval', array_keys($sel));
-        $karyawanIds = Karyawan::whereIn('nik', $niks)->pluck('id', 'nik');
+        $karyawanIds = Karyawan::whereIn('nik', array_map('strval', array_keys($nikDiSheet)))->pluck('id', 'nik');
+        $nikOf = $karyawanIds->flip();
         $nikTidakTerdaftar = array_values(array_diff($niks, array_map('strval', $karyawanIds->keys()->all())));
 
         $existing = Absensi::query()
@@ -127,13 +135,33 @@ class AbsensiBulananImport
             }
         };
 
-        $simpan ? DB::transaction($proses) : $proses();
+        // Dihitung setelah $proses mengisi $dipakai: absensi yang tidak punya pasangan sel berkode di sheet.
+        $sisa = function () use ($existing, &$dipakai, $abaikan, $nikOf) {
+            return $existing->reject(fn (Absensi $absensi, string $key) => isset($dipakai[$key])
+                || isset($abaikan[$nikOf[$absensi->karyawan_id].'|'.$absensi->tanggal->toDateString()]));
+        };
+
+        $hanyaDiDatabase = $simpan
+            ? DB::transaction(function () use ($proses, $sisa, $hapus) {
+                $proses();
+                $hanyaDiDatabase = $sisa();
+
+                if ($hapus && $hanyaDiDatabase->isNotEmpty()) {
+                    Absensi::whereKey($hanyaDiDatabase->modelKeys())->delete();
+                }
+
+                return $hanyaDiDatabase;
+            })
+            : ($proses() ?? $sisa());
 
         return [
             'bulan' => $bulan,
             'sel' => array_sum(array_map('count', $sel)),
             ...$hasil,
-            'hanya_di_database' => $existing->keys()->diff(array_keys($dipakai))->count(),
+            'hanya_di_database' => $hanyaDiDatabase
+                ->map(fn (Absensi $absensi) => $nikOf[$absensi->karyawan_id].' '.$absensi->tanggal->toDateString().' '.$absensi->kode)
+                ->values()->all(),
+            'dihapus' => $simpan && $hapus ? $hanyaDiDatabase->count() : 0,
             'nik_tidak_terdaftar' => $nikTidakTerdaftar,
             'kode_tidak_dikenal' => $kodeTidakDikenal,
             'contoh_diubah' => $contohDiubah,
@@ -145,6 +173,10 @@ class AbsensiBulananImport
      */
     private function readSheet(string $path, string $sheetName): array
     {
+        if (! is_file($path)) {
+            throw new RuntimeException("File {$path} tidak ditemukan. Periksa lagi path-nya (pakai tanda kutip kalau ada spasi).");
+        }
+
         $reader = new Reader;
 
         try {
