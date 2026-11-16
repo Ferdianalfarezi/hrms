@@ -1,8 +1,10 @@
 <?php
 
+use App\Modules\Hrms\Imports\AbsensiBulananImport;
 use App\Modules\Iso\Models\IsoDocument;
 use App\Modules\Iso\Support\IsoThumbnail;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 
 Artisan::command('inspire', function () {
@@ -28,3 +30,43 @@ Artisan::command('iso:thumbnails {--ulang : Coba lagi thumbnail yang sebelumnya 
 
     $this->info(($documents->count() - $failed).' thumbnail siap, '.$failed.' gagal (kartu memakai ikon).');
 })->purpose('Buat thumbnail kartu dokumen ISO (gambar & PDF)');
+
+// Samakan absensi satu bulan dengan sheet bulanan di rekap Excel HRD. Tanpa --simpan hanya menampilkan perubahan (dry-run).
+Artisan::command('hrms:import-absensi {file : Path file .xlsx / .xlsm} {sheet : Nama sheet, mis. "Nop\'26"} {--bulan= : Bulan YYYY-MM kalau tidak terbaca dari nama sheet} {--simpan : Simpan perubahan ke database}', function () {
+    $bulan = $this->option('bulan') ? Carbon::createFromFormat('!Y-m', (string) $this->option('bulan')) : null;
+    $simpan = (bool) $this->option('simpan');
+
+    try {
+        $hasil = (new AbsensiBulananImport)->import((string) $this->argument('file'), (string) $this->argument('sheet'), $simpan, $bulan);
+    } catch (RuntimeException $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info(($simpan ? 'Import' : 'Cek (dry-run)').' absensi '.$hasil['bulan']->translatedFormat('F Y').' dari sheet "'.$this->argument('sheet').'"');
+    $this->table(['Sel berkode di sheet', 'Ditambah', 'Diubah', 'Sudah sama', 'Ada di DB, kosong di sheet (tidak dihapus)'], [[
+        $hasil['sel'], $hasil['ditambah'], $hasil['diubah'], $hasil['sama'], $hasil['hanya_di_database'],
+    ]]);
+
+    if ($hasil['contoh_diubah'] !== []) {
+        $this->line('Kode yang diganti:');
+        foreach ($hasil['contoh_diubah'] as $baris) {
+            $this->line("  {$baris}");
+        }
+    }
+
+    if ($hasil['nik_tidak_terdaftar'] !== []) {
+        $this->warn(count($hasil['nik_tidak_terdaftar']).' NIK belum terdaftar sebagai karyawan, absensinya dilewati: '.implode(', ', $hasil['nik_tidak_terdaftar']));
+    }
+
+    if ($hasil['kode_tidak_dikenal'] !== []) {
+        $this->warn('Kode tidak dikenal, dilewati: '.implode('; ', $hasil['kode_tidak_dikenal']));
+    }
+
+    if (! $simpan) {
+        $this->comment('Belum ada yang disimpan. Jalankan ulang dengan --simpan untuk menyimpan.');
+    }
+
+    return 0;
+})->purpose('Samakan absensi satu bulan dengan sheet rekap Excel HRD');
