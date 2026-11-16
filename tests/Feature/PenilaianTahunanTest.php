@@ -84,6 +84,20 @@ class PenilaianTahunanTest extends TestCase
         $this->assertSame(['0001', '0002', '0003'], $niks($this->section));
     }
 
+    public function test_list_is_paginated_while_status_counts_cover_all_rows(): void
+    {
+        for ($i = 10; $i < 40; $i++) {
+            $this->karyawan('00'.$i, "Operator {$i}", 'Karyawan', $this->hrd);
+        }
+
+        $response = $this->actingAs($this->asstLeader)->get(route('hrms.penilaian.index', ['page' => 2]))->assertOk();
+
+        $this->assertCount(6, $response->viewData('rows'));
+        $this->assertSame(31, $response->viewData('rows')->total());
+        $this->assertSame(31, $response->viewData('statusCounts')->sum());
+        $this->assertSame(31, $response->viewData('perluTindakan'));
+    }
+
     public function test_employee_level_account_cannot_open_the_menu(): void
     {
         $operatorUser = $this->penilai('0006', 'Karyawan', $this->hrd);

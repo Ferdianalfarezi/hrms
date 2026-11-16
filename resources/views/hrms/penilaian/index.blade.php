@@ -106,8 +106,9 @@
                 @forelse ($rows as $row)
                     @php($karyawan = $row['karyawan'])
                     @php($penilaian = $row['penilaian'])
+                    @php($url = route('hrms.penilaian.show', [$karyawan, 'tahun' => $tahun]))
                     <tr class="{{ $row['perlu_tindakan'] ? 'todo' : '' }}">
-                        <td class="muted">{{ $loop->iteration }}</td>
+                        <td class="muted">{{ $rows->firstItem() + $loop->index }}</td>
                         <td class="nowrap">{{ $karyawan->nik }}</td>
                         <td style="font-weight: 600;">{{ $karyawan->nama }}</td>
                         <td class="nowrap">{{ $karyawan->jabatan }}</td>
@@ -133,9 +134,9 @@
                         </td>
                         <td style="text-align: right; white-space: nowrap;">
                             @if ($row['perlu_tindakan'])
-                                <a class="btn btn-sm" href="{{ $row['url'] }}">{{ $row['status'] === 'menunggu' ? 'Review' : 'Nilai' }}</a>
+                                <a class="btn btn-sm" href="{{ $url }}">{{ $row['status'] === 'menunggu' ? 'Review' : 'Nilai' }}</a>
                             @else
-                                <a class="btn btn-ghost btn-sm" href="{{ $row['url'] }}">Lihat</a>
+                                <a class="btn btn-ghost btn-sm" href="{{ $url }}">Lihat</a>
                                 @if ($row['status'] === 'disetujui')
                                     <a class="btn btn-ghost btn-sm" href="{{ route('hrms.penilaian.print', [$karyawan, 'tahun' => $tahun]) }}" target="_blank" rel="noopener" title="Cetak form penilaian (A4)">Print</a>
                                 @endif
@@ -151,6 +152,7 @@
         </table>
     </div>
 </div>
+{{ $rows->links() }}
 <p class="muted small" style="margin-top: 12px;">
     Nilai absen dihitung otomatis dari data absensi 1 Januari - 31 Desember {{ $tahun }}. Selama penilaian belum dikirim, nilainya ikut berubah kalau data absensi berubah.
 </p>

@@ -13,6 +13,7 @@ use App\Modules\Hrms\Support\FormPenilaian;
 use App\Modules\Hrms\Support\JenjangPenilaian;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -65,7 +66,7 @@ class PenilaianTahunanController extends Controller
         $jumlahAbsen = $this->jumlahAbsen($karyawans->pluck('id')->all(), $tahun);
         $alur = new JenjangPenilaian;
 
-        $rows = $karyawans->map(function (Karyawan $karyawan) use ($penilaians, $jumlahAbsen, $alur, $user, $tahun) {
+        $rows = $karyawans->map(function (Karyawan $karyawan) use ($penilaians, $jumlahAbsen, $alur, $user) {
             $penilaian = $penilaians[$karyawan->id] ?? null;
             $tahapan = $penilaian?->tahapan ?? $alur->tahapanFor($karyawan);
             $form = $penilaian?->form ?? FormPenilaian::formForJabatan($karyawan->jabatan);
@@ -84,7 +85,6 @@ class PenilaianTahunanController extends Controller
                 'nilai_absen' => $nilaiAbsen,
                 'perlu_tindakan' => $rowStatus !== PenilaianTahunan::STATUS_DISETUJUI
                     && JenjangPenilaian::actsAs($user, $posisi, $karyawan->department_id ? (int) $karyawan->department_id : null),
-                'url' => route('hrms.penilaian.show', [$karyawan, 'tahun' => $tahun]),
             ];
         });
 
@@ -96,6 +96,12 @@ class PenilaianTahunanController extends Controller
         } elseif ($status !== '') {
             $rows = $rows->where('status', $status)->values();
         }
+
+        $perPage = 25;
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $rows = (new LengthAwarePaginator($rows->forPage($page, $perPage)->values(), $rows->count(), $perPage, $page, [
+            'path' => $request->url(),
+        ]))->withQueryString();
 
         return view('hrms.penilaian.index', [
             'rows' => $rows,
