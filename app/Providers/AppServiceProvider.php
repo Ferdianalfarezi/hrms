@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Policies\KaryawanPolicy;
+use App\Modules\Hrms\Support\JenjangPenilaian;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -44,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
         // Dashboard ISO: semua yang punya akses dokumen kecuali Guest (Guest langsung ke Procedures).
         Gate::define('iso-dashboard', fn (User $user) => Gate::forUser($user)->allows('iso-documents')
             && ($user->isModuleAdmin('iso') || $user->roleFor('iso')?->code !== 'guest'));
+
+        // Penilaian akhir tahun (HRMS): Admin HRMS (lihat semua) dan karyawan berjabatan Asst. Leader/Senior Staff ke atas.
+        Gate::define('penilaian-tahunan', fn (User $user) => $user->isModuleAdmin('hrms')
+            || JenjangPenilaian::rank(JenjangPenilaian::userLevel($user)) >= JenjangPenilaian::RANK['asst_leader']);
 
         Gate::policy(Karyawan::class, KaryawanPolicy::class);
 

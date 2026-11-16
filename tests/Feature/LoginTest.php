@@ -111,8 +111,8 @@ class LoginTest extends TestCase
         $this->actingAs($this->userWithAccess(['hrms' => 'admin', 'sms' => 'staff']))
             ->get('/')
             ->assertOk()
-            ->assertSee('HRMS')
-            ->assertSee('SMS');
+            ->assertSee('HRD')
+            ->assertSee('Safety');
     }
 
     public function test_user_without_access_is_logged_out(): void

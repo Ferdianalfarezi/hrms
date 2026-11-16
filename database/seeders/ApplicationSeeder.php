@@ -14,14 +14,14 @@ class ApplicationSeeder extends Seeder
     {
         $modules = [
             'hrms' => [
-                'name' => 'HRMS',
+                'name' => 'HRD',
                 'description' => 'Human Resource Management System',
                 'sort_order' => 1,
                 // dept_admin hanya melihat & mengelola karyawan di departemen yang dipilihkan untuknya.
                 'roles' => ['admin' => 'Admin HRMS', 'dept_admin' => 'Admin Departemen'],
             ],
             'sms' => [
-                'name' => 'SMS',
+                'name' => 'Safety',
                 'description' => 'Modul SMS',
                 'sort_order' => 2,
                 // dept_admin mengisi Daily Patrol untuk departemen (area) yang dipilihkan untuknya.

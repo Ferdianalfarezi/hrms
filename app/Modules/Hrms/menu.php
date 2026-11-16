@@ -5,6 +5,7 @@
 // "badge" = closure angka notifikasi (mis. jumlah yang menunggu approval); tab dropdown menampilkan total badge anaknya.
 
 use App\Modules\Hrms\Models\AbsensiApproval;
+use App\Modules\Hrms\Models\PenilaianTahunan;
 
 return [
     ['label' => 'Dashboard', 'route' => 'hrms.dashboard', 'active' => 'hrms.dashboard'],
@@ -22,5 +23,8 @@ return [
         ['label' => 'Approval', 'route' => 'hrms.absensi.approval', 'active' => 'hrms.absensi.approval*', 'can' => ['manage-module', 'hrms'],
             'badge' => fn (): int => AbsensiApproval::where('status', AbsensiApproval::STATUS_PENDING)->count()],
     ]],
+    // Penilaian akhir tahun: badge = penilaian yang menunggu approval / revisi dari user ini.
+    ['label' => 'Penilaian', 'route' => 'hrms.penilaian.index', 'active' => 'hrms.penilaian.*', 'can' => ['penilaian-tahunan'],
+        'badge' => fn (): int => PenilaianTahunan::perluTindakan(auth()->user())->count()],
     ['label' => 'Departemen', 'route' => 'hrms.departments.index', 'active' => 'hrms.departments.*', 'can' => ['manage-module', 'hrms']],
 ];

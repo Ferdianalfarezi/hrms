@@ -5,7 +5,7 @@
         <div class="login-hero">
             <span class="brand">HR System</span>
             <div>
-                <h2>Satu login untuk HRMS dan SMS.</h2>
+                <h2>Satu login untuk HRD dan Safety.</h2>
                 <p style="opacity: .75; margin: 10px 0 0;">Masuk dengan NIK, sistem akan mengarahkan Anda ke modul sesuai hak akses.</p>
             </div>
             {{-- Maskot menempel di bawah panel, kakinya terpotong. Pupil digambar terpisah supaya bisa mengikuti kursor (lihat script di layouts.base). --}}

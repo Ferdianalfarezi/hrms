@@ -10,6 +10,7 @@ use App\Modules\Hrms\Controllers\AbsensiResumeController;
 use App\Modules\Hrms\Controllers\DashboardController;
 use App\Modules\Hrms\Controllers\DepartmentController;
 use App\Modules\Hrms\Controllers\KaryawanController;
+use App\Modules\Hrms\Controllers\PenilaianTahunanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class)->name('dashboard');
@@ -55,3 +56,9 @@ Route::get('absensi/approval', [AbsensiApprovalController::class, 'index'])->nam
 Route::post('absensi/approval/{approval}/approve', [AbsensiApprovalController::class, 'approve'])->name('absensi.approval.approve');
 Route::post('absensi/approval/{approval}/reject', [AbsensiApprovalController::class, 'reject'])->name('absensi.approval.reject');
 Route::get('absensi/approval/{approval}/evidence', [AbsensiApprovalController::class, 'evidence'])->name('absensi.approval.evidence');
+
+// Penilaian akhir tahun: diisi jenjang di atas karyawan lalu di-approve bertingkat (lihat JenjangPenilaian).
+Route::get('penilaian', [PenilaianTahunanController::class, 'index'])->name('penilaian.index');
+Route::get('penilaian/karyawan/{karyawan}', [PenilaianTahunanController::class, 'show'])->name('penilaian.show');
+Route::get('penilaian/karyawan/{karyawan}/print', [PenilaianTahunanController::class, 'print'])->name('penilaian.print');
+Route::post('penilaian/karyawan/{karyawan}', [PenilaianTahunanController::class, 'save'])->name('penilaian.save');

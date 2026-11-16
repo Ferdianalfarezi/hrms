@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Hrms\Models\Karyawan;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -53,6 +55,14 @@ class User extends Authenticatable
     protected function firstName(): Attribute
     {
         return Attribute::get(fn () => Str::before($this->name, ' '));
+    }
+
+    /**
+     * Data karyawan dengan NIK yang sama (dipakai untuk jabatan & departemen penilai).
+     */
+    public function karyawan(): HasOne
+    {
+        return $this->hasOne(Karyawan::class, 'nik', 'nik');
     }
 
     public function applications(): BelongsToMany
