@@ -10,8 +10,8 @@
     .ent-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
     .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
     .filters input.dp-input { width: 160px; border-radius: 999px; padding: 9px 38px 9px 14px; }
-    /* Kalender di dalam modal ditempel ke input (mode static), jadi modal tidak boleh memotongnya. */
-    #entry-modal { overflow: visible; }
+    /* Kalender di dalam modal ditempel ke input (mode static); modal tetap bisa di-scroll supaya kalender & tombol Simpan terjangkau. */
+    #entry-modal { overflow-y: auto; }
     #entry-modal .flatpickr-wrapper { display: block; }
 
     /* Kalender tanggal (flatpickr) dibuat mirip date picker bawaan browser; bedanya Sabtu & Minggu tidak bisa dipilih. */

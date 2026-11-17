@@ -188,7 +188,10 @@
         .modal-close { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--soft-2); color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
         .modal-close:hover { background: var(--soft); color: var(--text); }
         .modal-body { padding: 20px 24px; }
-        .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 0 24px 20px; }
+        .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 24px 20px; }
+        /* Tombol Simpan/Batal tetap terlihat di bawah walaupun isi popup panjang dan di-scroll. */
+        dialog.modal { overscroll-behavior: contain; }
+        dialog.modal .modal-foot { position: sticky; bottom: 0; z-index: 2; background: #fff; border-top: 1px solid var(--line, #e5e9f2); }
 
         /* Tabel */
         .table-wrap { overflow-x: auto; }
