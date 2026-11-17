@@ -36,6 +36,7 @@ Route::delete('absensi/entries/{absensi}', [AbsensiController::class, 'destroyEn
 // Laporan detail per shift (khusus Admin HRMS) + pengaturan rotasi grup A/B.
 Route::get('absensi/detail', [AbsensiDetailController::class, 'index'])->name('absensi.detail');
 Route::get('absensi/detail/export', [AbsensiDetailController::class, 'export'])->name('absensi.detail.export');
+Route::get('absensi/detail/pdf', [AbsensiDetailController::class, 'pdf'])->name('absensi.detail.pdf');
 Route::post('absensi/rotasi', [AbsensiDetailController::class, 'storeRotasi'])->name('absensi.rotasi');
 
 // Resume absensi harian per shift & plant (khusus Admin HRMS).

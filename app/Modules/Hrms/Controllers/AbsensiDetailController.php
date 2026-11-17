@@ -43,6 +43,24 @@ class AbsensiDetailController extends Controller
     }
 
     /**
+     * Halaman cetak A4 landscape (tabel per shift + grafik); dialog print langsung terbuka untuk disimpan sebagai PDF.
+     */
+    public function pdf(Request $request): View
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        $tanggal = $this->parseDate((string) $request->query('tanggal')) ?? Carbon::today();
+
+        return view('hrms.absensi.detail-pdf', [
+            'tanggal' => $tanggal,
+            'kategoris' => array_keys(Absensi::KATEGORI),
+            'kodes' => Absensi::KODE,
+            'hitungCuti' => $request->boolean('cuti', true),
+            ...LaporanAbsensiShift::build($tanggal, $request->boolean('cuti', true)),
+        ]);
+    }
+
+    /**
      * Export laporan detail tanggal ini ke Excel: sheet "Detail" (shift malam + shift pagi) dan sheet "Grafik" (data grafik bulanan).
      */
     public function export(Request $request): StreamedResponse

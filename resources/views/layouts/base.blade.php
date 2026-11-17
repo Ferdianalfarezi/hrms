@@ -146,7 +146,8 @@
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 999px;
             padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--primary); color: #fff;
-            transition: background .15s;
+            /* Line-height tetap supaya <a class="btn"> dan <button class="btn"> sama tinggi. */
+            line-height: 1.25; transition: background .15s;
         }
         .btn:hover { background: var(--primary-hover); }
         .btn-ghost { background: var(--glass-strong); color: var(--text); border: 1px solid var(--line-strong); }

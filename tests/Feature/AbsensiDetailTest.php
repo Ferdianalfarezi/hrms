@@ -145,6 +145,25 @@ class AbsensiDetailTest extends TestCase
         $this->assertSame(25.0, collect($shiftPagi['grafik']['points'])->firstWhere('selected', true)['actual']);
     }
 
+    public function test_pdf_detail_berisi_kedua_shift_dan_grafik(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $this->absen($this->karyawan('0001', 'Andi Malam', 'A'), '2026-10-14', 'CT', 'Cuti pulang kampung');
+        $this->absen($this->karyawan('0002', 'Budi Pagi', 'B'), '2026-10-15', 'S', 'Sakit demam');
+
+        $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.detail.pdf', ['tanggal' => '2026-10-15']))
+            ->assertOk()
+            ->assertSeeInOrder(['LAPORAN ABSENSI HARIAN',
+                'Rabu : 14 Oktober 2026 (Shift 2)', 'Andi Malam', 'Cuti pulang kampung',
+                'Kamis : 15 Oktober 2026 (Shift 1)', 'Budi Pagi', 'Sakit demam',
+                'Grafik ketidakhadiran Shift 2', 'Grafik ketidakhadiran Shift 1']);
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
+        $this->actingAs($deptAdmin)->get(route('hrms.absensi.detail.pdf'))->assertForbidden();
+    }
+
     public function test_durasi_libur_tidak_terputus_akhir_pekan(): void
     {
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
