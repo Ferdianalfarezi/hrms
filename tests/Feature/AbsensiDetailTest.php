@@ -149,21 +149,24 @@ class AbsensiDetailTest extends TestCase
     {
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
         $leader = $this->karyawan('0001', 'Andi Leader', 'B', jabatan: 'Leader');
-        $this->karyawan('0002', 'Budi Asst', 'B', jabatan: 'Asst. Leader');
+        $asstLeader = $this->karyawan('0002', 'Budi Asst', 'B', jabatan: 'Asst. Leader');
         $operator = $this->karyawan('0003', 'Cici Operator', 'B', jabatan: 'Karyawan');
         $this->karyawan('0004', 'Dodi Operator', 'B', jabatan: 'Karyawan');
         $this->absen($leader, '2026-10-15', 'S');
+        $this->absen($asstLeader, '2026-10-15', 'CT');
         $this->absen($operator, '2026-10-15', 'I');
 
         $shiftPagi = $this->actingAs($this->hrmsAdmin())
             ->get(route('hrms.absensi.detail', ['tanggal' => '2026-10-15']))
             ->assertOk()
-            ->assertSee('Asst. Leader up (%)')
+            ->assertSee('Actual tanpa cuti (%)')
+            ->assertSee('Asst. Leader up tanpa cuti (%)')
             ->viewData('sections')[1];
         $point = collect($shiftPagi['grafik']['points'])->firstWhere('selected', true);
 
-        $this->assertSame(50.0, $point['actual']);   // 2 dari 4 karyawan
-        $this->assertSame(50.0, $point['leader']);   // 1 dari 2 Asst. Leader up
+        $this->assertSame(75.0, $point['actual']);       // 3 dari 4 karyawan, cuti dihitung
+        $this->assertSame(50.0, $point['tanpa_cuti']);   // 2 dari 4 karyawan
+        $this->assertSame(50.0, $point['leader']);       // 1 dari 2 Asst. Leader up; yang cuti tidak dihitung
     }
 
     public function test_export_excel_berisi_shift_malam_dan_pagi(): void

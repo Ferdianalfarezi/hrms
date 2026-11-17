@@ -212,18 +212,25 @@ class LaporanAbsensiShift
 
     /**
      * Persentase ketidakhadiran shift ini per hari kerja (Senin - Jumat) dalam bulan tanggal laporan.
-     * Hari setelah tanggal laporan dibiarkan kosong.
+     * "tanpa_cuti" dan "leader" (Asst. Leader up) selalu tidak menghitung cuti. Hari setelah tanggal laporan dibiarkan kosong.
      */
     private function grafik(string $shift, Carbon $tanggal): array
     {
         $start = $tanggal->copy()->startOfMonth();
         $end = $tanggal->copy()->endOfMonth();
 
-        // [Y-m-d][grup] => jumlah karyawan tidak hadir; $leaderCounts sama, khusus Asst. Leader up.
+        // [Y-m-d][grup] => jumlah karyawan tidak hadir: semua kode, tanpa cuti, dan Asst. Leader up tanpa cuti.
         $counts = [];
+        $tanpaCutiCounts = [];
         $leaderCounts = [];
-        $tambah = function (string $key, string $grup, ?string $jabatan) use (&$counts, &$leaderCounts) {
+        $tambah = function (string $key, string $grup, ?string $jabatan, bool $cuti) use (&$counts, &$tanpaCutiCounts, &$leaderCounts) {
             $counts[$key][$grup] = ($counts[$key][$grup] ?? 0) + 1;
+
+            if ($cuti) {
+                return;
+            }
+
+            $tanpaCutiCounts[$key][$grup] = ($tanpaCutiCounts[$key][$grup] ?? 0) + 1;
 
             if (self::isAsstLeaderUp($jabatan)) {
                 $leaderCounts[$key][$grup] = ($leaderCounts[$key][$grup] ?? 0) + 1;
@@ -233,16 +240,16 @@ class LaporanAbsensiShift
         Absensi::query()
             ->join('karyawans', 'karyawans.id', '=', 'absensis.karyawan_id')
             ->whereNotNull('karyawans.group')
-            ->whereIn('absensis.kode', $this->kodeDihitung())
+            ->whereIn('absensis.kode', Absensi::kodeTidakHadir())
             ->whereBetween('absensis.tanggal', [$start->toDateString(), $end->toDateString()])
-            ->get(['absensis.tanggal', 'karyawans.group', 'karyawans.jabatan'])
-            ->each(fn ($row) => $tambah($row->tanggal->toDateString(), $row->group, $row->jabatan));
+            ->get(['absensis.tanggal', 'absensis.kode', 'karyawans.group', 'karyawans.jabatan'])
+            ->each(fn ($row) => $tambah($row->tanggal->toDateString(), $row->group, $row->jabatan, in_array($row->kode, Absensi::KATEGORI['CT'], true)));
 
         // Ditambah karyawan yang tidak absen di mesin dan belum ada keterangan (dihitung Alpa).
         $karyawans = Karyawan::whereNotNull('group')->get(['id', 'nik', 'group', 'jabatan'])->keyBy('id');
         foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $start, $end) as $karyawanId => $dates) {
             foreach (array_keys($dates) as $key) {
-                $tambah($key, $karyawans[$karyawanId]->group, $karyawans[$karyawanId]->jabatan);
+                $tambah($key, $karyawans[$karyawanId]->group, $karyawans[$karyawanId]->jabatan, false);
             }
         }
 
@@ -260,16 +267,24 @@ class LaporanAbsensiShift
             }
 
             $actual = null;
+            $tanpaCuti = null;
             $leader = null;
 
             if ($day->lte($tanggal)) {
                 $grups = $this->grups($shift, $day);
                 $key = $day->toDateString();
-                $actual = $persen($counts[$key] ?? [], $grups, $this->headcountOf($grups));
+                $tanpaCuti = $persen($tanpaCutiCounts[$key] ?? [], $grups, $this->headcountOf($grups));
+                $actual = $this->hitungCuti ? $persen($counts[$key] ?? [], $grups, $this->headcountOf($grups)) : $tanpaCuti;
                 $leader = $persen($leaderCounts[$key] ?? [], $grups, $this->headcountOf($grups, $leaderHeadcount));
             }
 
-            $points[] = ['day' => $day->day, 'actual' => $actual, 'leader' => $leader, 'selected' => $day->isSameDay($tanggal)];
+            $points[] = [
+                'day' => $day->day,
+                'actual' => $actual,
+                'tanpa_cuti' => $tanpaCuti,
+                'leader' => $leader,
+                'selected' => $day->isSameDay($tanggal),
+            ];
         }
 
         return ['bulan' => $start, 'target' => self::TARGET_PERSEN, 'points' => $points];
