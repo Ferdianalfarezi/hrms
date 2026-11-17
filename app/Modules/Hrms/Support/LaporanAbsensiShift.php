@@ -29,9 +29,6 @@ class LaporanAbsensiShift
         'Manager', 'Ast. General Manager', 'GM', 'Direktur',
     ];
 
-    /** Batas hari ke belakang/depan saat menghitung durasi libur berturut-turut. */
-    private const DURASI_MAKS = 60;
-
     private Collection $rotasis;
 
     /** @var array<string, int> jumlah karyawan per grup */
@@ -174,7 +171,8 @@ class LaporanAbsensiShift
     }
 
     /**
-     * Jumlah hari tidak hadir berturut-turut (termasuk tanggal laporan) per karyawan.
+     * Jumlah hari kerja tidak hadir berturut-turut (termasuk tanggal laporan) per karyawan, tanpa batas panjang.
+     * Hari tanpa input tidak memutus hitungan kalau itu akhir pekan atau hari libur (lihat hariLibur()).
      *
      * @return array<int, int>
      */
@@ -186,28 +184,61 @@ class LaporanAbsensiShift
 
         $dates = Absensi::whereIn('karyawan_id', $karyawanIds)
             ->whereIn('kode', Absensi::kodeTidakHadir())
-            ->whereBetween('tanggal', [
-                $tanggal->copy()->subDays(self::DURASI_MAKS)->toDateString(),
-                $tanggal->copy()->addDays(self::DURASI_MAKS)->toDateString(),
-            ])
             ->get(['karyawan_id', 'tanggal'])
             ->groupBy('karyawan_id')
             ->map(fn (Collection $items) => $items->mapWithKeys(fn (Absensi $absensi) => [$absensi->tanggal->toDateString() => true])->all());
 
-        return $dates->map(function (array $set) use ($tanggal) {
+        $allDates = $dates->flatMap(fn (array $set) => array_keys($set));
+        $libur = $this->hariLibur($allDates->min(), $allDates->max());
+
+        return $dates->map(function (array $set) use ($tanggal, $libur) {
             $total = 1;
+            [$first, $last] = [min(array_keys($set)), max(array_keys($set))];
 
             foreach ([-1, 1] as $step) {
                 $day = $tanggal->copy()->addDays($step);
 
-                while (isset($set[$day->toDateString()])) {
-                    $total++;
+                while ($day->toDateString() >= $first && $day->toDateString() <= $last) {
+                    $key = $day->toDateString();
+
+                    if (isset($set[$key])) {
+                        $total++;
+                    } elseif (! $day->isWeekend() && ! isset($libur[$key])) {
+                        break;
+                    }
+
                     $day->addDays($step);
                 }
             }
 
             return $total;
         })->all();
+    }
+
+    /**
+     * Hari kerja (Senin - Jumat) yang tidak punya satu pun data absensi dari seluruh karyawan dianggap libur
+     * (tanggal merah / cuti bersama), karena di hari kerja biasa selalu ada yang diinput.
+     *
+     * @return array<string, true>
+     */
+    private function hariLibur(string $mulai, string $sampai): array
+    {
+        $adaData = Absensi::query()
+            ->whereBetween('tanggal', [$mulai, $sampai])
+            ->distinct()
+            ->pluck('tanggal')
+            ->mapWithKeys(fn ($tanggal) => [Carbon::parse($tanggal)->toDateString() => true])
+            ->all();
+
+        $libur = [];
+
+        for ($day = Carbon::parse($mulai); $day->toDateString() <= $sampai; $day->addDay()) {
+            if (! $day->isWeekend() && ! isset($adaData[$day->toDateString()])) {
+                $libur[$day->toDateString()] = true;
+            }
+        }
+
+        return $libur;
     }
 
     /**

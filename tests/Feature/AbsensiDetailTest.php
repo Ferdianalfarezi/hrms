@@ -145,6 +145,42 @@ class AbsensiDetailTest extends TestCase
         $this->assertSame(25.0, collect($shiftPagi['grafik']['points'])->firstWhere('selected', true)['actual']);
     }
 
+    public function test_durasi_libur_tidak_terputus_akhir_pekan(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $sakit = $this->karyawan('0001', 'Andi Sakit', 'NS');
+        // Kamis 8 Okt masuk; sakit Jumat 9 Okt s/d Kamis 15 Okt (Sabtu & Minggu tidak diinput), lalu Jumat 16 Okt.
+        foreach (['2026-10-09', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16'] as $tanggal) {
+            $this->absen($sakit, $tanggal, 'S');
+        }
+
+        $shiftPagi = LaporanAbsensiShift::build(Carbon::parse('2026-10-15'))['sections'][1];
+
+        $this->assertSame(6, $shiftPagi['rows']->firstWhere('karyawan.id', $sakit->id)['durasi']);
+    }
+
+    public function test_durasi_libur_tidak_terputus_tanggal_merah_dan_tanpa_batas_hari(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $sakit = $this->karyawan('0001', 'Andi Sakit', 'NS');
+        $lain = $this->karyawan('0002', 'Budi Lain', 'NS');
+
+        // Sakit tiap hari kerja Juli s/d 15 Okt (lebih dari 60 hari), kecuali 17 Agu yang tidak ada data sama sekali (tanggal merah).
+        for ($day = Carbon::parse('2026-07-01'); $day->lte(Carbon::parse('2026-10-15')); $day->addDay()) {
+            if (! $day->isWeekend() && $day->toDateString() !== '2026-08-17') {
+                $this->absen($sakit, $day->toDateString(), 'S');
+            }
+        }
+        // 30 Juni hari kerja biasa (ada data karyawan lain) dan Andi tidak diinput = masuk, jadi hitungan berhenti di situ.
+        $this->absen($lain, '2026-06-30', 'I');
+        $this->absen($sakit, '2026-06-29', 'S');
+
+        $shiftPagi = LaporanAbsensiShift::build(Carbon::parse('2026-10-15'))['sections'][1];
+
+        // Hari kerja 1 Jul - 15 Okt = 77, dikurangi 17 Agu.
+        $this->assertSame(76, $shiftPagi['rows']->firstWhere('karyawan.id', $sakit->id)['durasi']);
+    }
+
     public function test_grafik_berisi_persentase_asst_leader_up(): void
     {
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
