@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Resume Absensi')
+@section('title', __('Resume Absensi'))
 
 @section('styles')
     .rsm-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -48,53 +48,53 @@
 
 <div class="rsm-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Resume Absensi</h1>
-        <p class="muted" style="margin: 2px 0 0;">Laporan {{ $tanggal->translatedFormat('l, d F Y') }} · MP = man power (karyawan)</p>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Resume Absensi') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Laporan :tanggal · MP = man power (karyawan)', ['tanggal' => $tanggal->translatedFormat('l, d F Y')]) }}</p>
     </div>
     <form method="GET" class="rsm-toolbar">
         <span class="day-nav">
-            <a href="{{ route('hrms.absensi.resume', ['tanggal' => $tanggal->copy()->subDay()->toDateString(), ...$keepCuti]) }}" title="Hari sebelumnya">&lsaquo;</a>
-            <a href="{{ route('hrms.absensi.resume', $keepCuti) }}">Hari ini</a>
-            <a href="{{ route('hrms.absensi.resume', ['tanggal' => $tanggal->copy()->addDay()->toDateString(), ...$keepCuti]) }}" title="Hari berikutnya">&rsaquo;</a>
+            <a href="{{ route('hrms.absensi.resume', ['tanggal' => $tanggal->copy()->subDay()->toDateString(), ...$keepCuti]) }}" title="{{ __('Hari sebelumnya') }}">&lsaquo;</a>
+            <a href="{{ route('hrms.absensi.resume', $keepCuti) }}">{{ __('Hari ini') }}</a>
+            <a href="{{ route('hrms.absensi.resume', ['tanggal' => $tanggal->copy()->addDay()->toDateString(), ...$keepCuti]) }}" title="{{ __('Hari berikutnya') }}">&rsaquo;</a>
         </span>
-        <a href="{{ route('hrms.absensi.resume', ['tanggal' => $tanggal->toDateString(), ...($hitungCuti ? ['cuti' => 0] : [])]) }}" @class(['cuti-toggle', 'on' => $hitungCuti]) role="switch" aria-checked="{{ $hitungCuti ? 'true' : 'false' }}" title="{{ $hitungCuti ? 'Klik supaya cuti tidak dihitung ke persentase' : 'Klik supaya cuti ikut dihitung ke persentase' }}">
-            <span class="switch"></span> Hitung cuti
+        <a href="{{ route('hrms.absensi.resume', ['tanggal' => $tanggal->toDateString(), ...($hitungCuti ? ['cuti' => 0] : [])]) }}" @class(['cuti-toggle', 'on' => $hitungCuti]) role="switch" aria-checked="{{ $hitungCuti ? 'true' : 'false' }}" title="{{ $hitungCuti ? __('Klik supaya cuti tidak dihitung ke persentase') : __('Klik supaya cuti ikut dihitung ke persentase') }}">
+            <span class="switch"></span> {{ __('Hitung cuti') }}
         </a>
         @unless ($hitungCuti)
             <input type="hidden" name="cuti" value="0">
         @endunless
-        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal laporan">
-        <a href="{{ route('hrms.absensi.resume.pdf', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">Unduh PDF</a>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
+        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal laporan') }}">
+        <a href="{{ route('hrms.absensi.resume.pdf', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">{{ __('Unduh PDF') }}</a>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">{{ __('Cetak') }}</button>
     </form>
 </div>
 
 @foreach ($sections as $section)
     <section class="card rsm-section">
         <div class="rsm-title">
-            <h2>{{ $section['tanggal']->translatedFormat('l, d F Y') }} ({{ $section['judul'] }})</h2>
-            <span class="muted small">Grup {{ $section['grups'] ? implode(', ', $section['grups']) : '-' }}</span>
+            <h2>{{ $section['tanggal']->translatedFormat('l, d F Y') }} ({{ __($section['judul']) }})</h2>
+            <span class="muted small">{{ __('Grup') }} {{ $section['grups'] ? implode(', ', $section['grups']) : '-' }}</span>
         </div>
         <div class="table-wrap">
             <table class="rsm">
                 <thead>
                     <tr>
-                        <th rowspan="2">Plant</th>
-                        <th rowspan="2">Status</th>
-                        <th rowspan="2">Jumlah Kary</th>
-                        <th colspan="4">Kategori Absen</th>
-                        <th rowspan="2">Total Absen</th>
-                        <th rowspan="2">Total %<br>dgn Cuti</th>
-                        <th rowspan="2">Total %<br>tanpa Cuti</th>
-                        <th rowspan="2">Jml Kary. Kerja</th>
-                        <th rowspan="2" title="Sakit dengan surat dokter">SKD</th>
-                        <th rowspan="2" title="Cuti tahunan">CT</th>
+                        <th rowspan="2">{{ __('Plant') }}</th>
+                        <th rowspan="2">{{ __('Status') }}</th>
+                        <th rowspan="2">{{ __('Jumlah Kary') }}</th>
+                        <th colspan="4">{{ __('Kategori Absen') }}</th>
+                        <th rowspan="2">{{ __('Total Absen') }}</th>
+                        <th rowspan="2">{{ __('Total %') }}<br>{{ __('dgn Cuti') }}</th>
+                        <th rowspan="2">{{ __('Total %') }}<br>{{ __('tanpa Cuti') }}</th>
+                        <th rowspan="2">{{ __('Jml Kary. Kerja') }}</th>
+                        <th rowspan="2" title="{{ __('Sakit dengan surat dokter') }}">SKD</th>
+                        <th rowspan="2" title="{{ __('Cuti tahunan') }}">CT</th>
                     </tr>
                     <tr>
-                        <th>Cuti</th>
-                        <th>Sakit</th>
-                        <th>Ijin</th>
-                        <th>Alpa</th>
+                        <th>{{ __('Cuti') }}</th>
+                        <th>{{ __('Sakit') }}</th>
+                        <th>{{ __('Ijin') }}</th>
+                        <th>{{ __('Alpa') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -117,13 +117,13 @@
                             </tr>
                         @endforeach
                     @else
-                        <tr><td colspan="13" class="empty">Grup shift belum diketahui — atur jadwal rotasi di menu Detail.</td></tr>
+                        <tr><td colspan="13" class="empty">{{ __('Grup shift belum diketahui — atur jadwal rotasi di menu Detail.') }}</td></tr>
                     @endif
                 </tbody>
                 @if ($section['grups'])
                     <tfoot>
                         <tr>
-                            <td colspan="2">TOTAL</td>
+                            <td colspan="2">{{ __('TOTAL') }}</td>
                             <td>{{ $section['total']['jumlah'] }}</td>
                             <td>{{ $section['total']['cuti'] }}</td>
                             <td>{{ $section['total']['sakit'] }}</td>

@@ -248,7 +248,7 @@ class AbsensiBulananImport
             }
         }
 
-        throw new RuntimeException('Header sheet tidak dikenali: butuh kolom "NIK" dan "DATE" dengan nomor tanggal 1 - 31 di baris bawahnya.');
+        throw new RuntimeException(__('Header sheet tidak dikenali: butuh kolom "NIK" dan "DATE" dengan nomor tanggal 1 - 31 di baris bawahnya.'));
     }
 
     /**

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,7 @@
     @stack('head')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --page: #c9d3e3;
@@ -32,7 +32,7 @@
         [hidden] { display: none !important; }
         html, body { margin: 0; }
         body {
-            font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-family: "Plus Jakarta Sans", "Noto Sans JP", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
             background:
                 radial-gradient(1200px 600px at 0% 0%, rgba(147, 180, 245, .35), transparent 60%),
                 radial-gradient(900px 500px at 100% 100%, rgba(120, 160, 240, .25), transparent 60%),
@@ -104,6 +104,13 @@
             background: var(--glass); border: 1px solid rgba(255,255,255,.9); color: var(--muted);
         }
         .icon-btn:hover { color: var(--primary); background: #fff; }
+        /* Pilihan bahasa ID / JP di navbar dan halaman login. */
+        .lang-switch { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(255,255,255,.9); }
+        .lang-switch a { padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.25; color: var(--muted); }
+        .lang-switch a:hover { color: var(--text); }
+        .lang-switch a.active { background: var(--navy); color: #fff; }
+        .app-nav .lang-switch { background: rgba(255, 255, 255, .5); border-color: rgba(255, 255, 255, .8); }
+        .login-form .lang-switch { float: right; background: var(--soft); border-color: var(--line); }
         .icon-btn svg { width: 18px; height: 18px; }
         @media (max-width: 900px) {
             .topbar { flex-wrap: wrap; }
@@ -337,6 +344,15 @@
     </style>
 
     {{-- Turbo: pindah menu & submit form tanpa reload penuh (hanya isi <body> yang diganti). --}}
+    {{-- Terjemahan teks di JavaScript: __t('Teks Indonesia', { nama: nilai }) memakai kamus lang/{locale}.json yang sama dengan __() di Blade. --}}
+    <script>
+        window.hrTrans = {{ Js::from((object) (app()->getLocale() === 'id' ? [] : app('translator')->getLoader()->load(app()->getLocale(), '*', '*'))) }};
+        window.__t = function (key, replace) {
+            var text = Object.prototype.hasOwnProperty.call(window.hrTrans, key) ? window.hrTrans[key] : key;
+            Object.keys(replace || {}).forEach(function (name) { text = text.split(':' + name).join(replace[name]); });
+            return text;
+        };
+    </script>
     <script type="module" src="{{ asset('vendor/turbo/turbo.es2017-esm.js') }}"></script>
     <script>
         // Request AJAX (fetch) yang mendapat 419 (sesi habis) langsung diarahkan ke halaman login.
@@ -373,7 +389,7 @@
                     el.className = 'page-loading';
                     el.setAttribute('role', 'status');
                     el.setAttribute('aria-live', 'polite');
-                    el.innerHTML = '<div class="page-loading-box"><span class="spinner" aria-hidden="true"></span><span>Memuat...</span></div>';
+                    el.innerHTML = '<div class="page-loading-box"><span class="spinner" aria-hidden="true"></span><span>' + __t('Memuat...') + '</span></div>';
                     document.body.appendChild(el);
                     requestAnimationFrame(function () { el.classList.add('show'); });
                 }, 300);

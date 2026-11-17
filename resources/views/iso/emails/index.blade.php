@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Email Notifikasi')
+@section('title', __('Email Notifikasi'))
 
 @section('styles')
     .em-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -28,15 +28,15 @@
 @section('content')
 <div class="em-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Email Notifikasi</h1>
-        <p class="muted" style="margin: 2px 0 0;">Penerima notifikasi pembaruan dokumen ISO. Hanya email yang <b>aktif</b> yang bisa dikirimi.</p>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Email Notifikasi') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Penerima notifikasi pembaruan dokumen ISO. Hanya email yang') }} <b>{{ __('aktif') }}</b> {{ __('yang bisa dikirimi.') }}</p>
     </div>
-    <button type="button" class="btn" data-create>+ Tambah Email</button>
+    <button type="button" class="btn" data-create>{{ __('+ Tambah Email') }}</button>
 </div>
 
 <form method="GET" class="em-filters">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari nama / email...">
-    <span class="total">Aktif <b>{{ $activeCount }}</b> dari <b>{{ $recipients->total() }}</b></span>
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari nama / email...') }}">
+    <span class="total">{{ __('Aktif') }} <b>{{ $activeCount }}</b> {{ __('dari') }} <b>{{ $recipients->total() }}</b></span>
 </form>
 
 <div class="card" style="padding: 8px 12px;">
@@ -45,10 +45,10 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Nama</th>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th style="text-align: right;">Aksi</th>
+                    <th>{{ __('Nama') }}</th>
+                    <th>{{ __('Email') }}</th>
+                    <th>{{ __('Status') }}</th>
+                    <th style="text-align: right;">{{ __('Aksi') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -61,16 +61,16 @@
                             <label class="switch">
                                 <input type="checkbox" data-status-url="{{ route('iso.emails.status', $recipient) }}" @checked($recipient->is_active) aria-label="Status {{ $recipient->email }}">
                                 <span class="track"></span>
-                                <span data-status-label>{{ $recipient->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                                <span data-status-label>{{ $recipient->is_active ? __('Aktif') : __('Nonaktif') }}</span>
                             </label>
                         </td>
                         <td style="text-align: right;">
                             <div class="act">
-                                <button type="button" class="act-btn" title="Edit" aria-label="Edit" data-edit="{{ $recipient->id }}"
+                                <button type="button" class="act-btn" title="{{ __('Edit') }}" aria-label="{{ __('Edit') }}" data-edit="{{ $recipient->id }}"
                                         data-record="{{ json_encode(['nama' => $recipient->nama, 'email' => $recipient->email]) }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
                                 </button>
-                                <button type="button" class="act-btn danger" title="Hapus" aria-label="Hapus" data-delete="{{ $recipient->id }}" data-name="{{ $recipient->nama }} ({{ $recipient->email }})">
+                                <button type="button" class="act-btn danger" title="{{ __('Hapus') }}" aria-label="{{ __('Hapus') }}" data-delete="{{ $recipient->id }}" data-name="{{ $recipient->nama }} ({{ $recipient->email }})">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>
                                 </button>
                             </div>
@@ -79,7 +79,7 @@
                 @empty
                     <tr>
                         <td colspan="5" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $search !== '' ? 'Email tidak ditemukan.' : 'Belum ada email penerima. Klik + Tambah Email.' }}
+                            {{ $search !== '' ? __('Email tidak ditemukan.') : __('Belum ada email penerima. Klik + Tambah Email.') }}
                         </td>
                     </tr>
                 @endforelse
@@ -96,24 +96,24 @@
         <input type="hidden" name="_modal" value="create">
         <input type="hidden" name="keep[q]" value="{{ $search }}">
         <div class="modal-head">
-            <h2 id="recipient-modal-title">Tambah Email</h2>
-            <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+            <h2 id="recipient-modal-title">{{ __('Tambah Email') }}</h2>
+            <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
         </div>
         <div class="modal-body">
             <div>
-                <label for="f-nama">Nama</label>
-                <input id="f-nama" type="text" name="nama" maxlength="255" placeholder="Mis. Budi (QA)" required>
+                <label for="f-nama">{{ __('Nama') }}</label>
+                <input id="f-nama" type="text" name="nama" maxlength="255" placeholder="{{ __('Mis. Budi (QA)') }}" required>
                 @error('nama') <div class="field-error">{{ $message }}</div> @enderror
             </div>
             <div>
-                <label for="f-email">Email</label>
-                <input id="f-email" type="email" name="email" maxlength="255" placeholder="nama@perusahaan.com" required>
+                <label for="f-email">{{ __('Email') }}</label>
+                <input id="f-email" type="email" name="email" maxlength="255" placeholder="{{ __('nama@perusahaan.com') }}" required>
                 @error('email') <div class="field-error">{{ $message }}</div> @enderror
             </div>
         </div>
         <div class="modal-foot">
-            <button type="button" class="btn btn-ghost" data-close>Batal</button>
-            <button type="submit" class="btn">Simpan</button>
+            <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+            <button type="submit" class="btn">{{ __('Simpan') }}</button>
         </div>
     </form>
 </dialog>
@@ -123,13 +123,13 @@
         @csrf
         @method('DELETE')
         <div class="modal-head">
-            <h2>Hapus Email</h2>
-            <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+            <h2>{{ __('Hapus Email') }}</h2>
+            <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
         </div>
-        <div class="modal-body">Hapus <strong id="delete-name"></strong> dari daftar penerima?</div>
+        <div class="modal-body">{{ __('Hapus') }} <strong id="delete-name"></strong> {{ __('dari daftar penerima?') }}</div>
         <div class="modal-foot">
-            <button type="button" class="btn btn-ghost" data-close>Batal</button>
-            <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+            <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+            <button type="submit" class="btn" style="background: var(--danger);">{{ __('Hapus') }}</button>
         </div>
     </form>
 </dialog>
@@ -154,7 +154,7 @@
                 var apply = function (value) {
                     toggle.checked = value;
                     row.classList.toggle('inactive', !value);
-                    label.textContent = value ? 'Aktif' : 'Nonaktif';
+                    label.textContent = value ? __t('Aktif') : __t('Nonaktif');
                 };
                 apply(active);
                 toggle.disabled = true;
@@ -163,7 +163,7 @@
                     headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json', 'Content-Type': 'application/json' },
                     body: JSON.stringify({ is_active: active }),
                 }).then(function (response) {
-                    if (!response.ok) throw new Error(response.status === 419 ? 'Sesi habis, muat ulang halaman.' : 'Gagal mengubah status.');
+                    if (!response.ok) throw new Error(response.status === 419 ? __t('Sesi habis, muat ulang halaman.') : __t('Gagal mengubah status.'));
                     return response.json();
                 }).then(function (body) { apply(body.is_active); })
                     .catch(function (error) { apply(!active); alert(error.message); })
@@ -186,7 +186,7 @@
             form.action = id ? updateUrl.replace('__ID__', id) : storeUrl;
             form.elements._method.value = id ? 'PUT' : 'POST';
             form.elements._modal.value = id ? 'edit:' + id : 'create';
-            document.getElementById('recipient-modal-title').textContent = id ? 'Edit Email' : 'Tambah Email';
+            document.getElementById('recipient-modal-title').textContent = id ? __t('Edit Email') : __t('Tambah Email');
             form.elements.nama.value = (record && record.nama) || '';
             form.elements.email.value = (record && record.email) || '';
             if (!keepErrors) modal.querySelectorAll('.field-error').forEach(function (el) { el.remove(); });

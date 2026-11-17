@@ -85,7 +85,7 @@ class KaryawanImport
 
             $errors = $this->validate($data);
             if ($data['nik'] !== null && isset($seenNik[$data['nik']])) {
-                $errors[] = "NIK {$data['nik']} sudah muncul di baris {$seenNik[$data['nik']]}.";
+                $errors[] = __('NIK :nik sudah muncul di baris :baris.', ['nik' => $data['nik'], 'baris' => $seenNik[$data['nik']]]);
             }
 
             if ($errors) {
@@ -102,7 +102,7 @@ class KaryawanImport
                 if ($department !== null && $data['department_id'] === null) {
                     $result['unknown_departments'][$department] = ($result['unknown_departments'][$department] ?? 0) + 1;
                     $result['warnings'][] = ['row' => $rowNumber, 'nik' => $data['nik'],
-                        'message' => "Departemen \"{$department}\" belum terdaftar, karyawan diimport tanpa departemen."];
+                        'message' => __('Departemen ":nama" belum terdaftar, karyawan diimport tanpa departemen.', ['nama' => $department])];
                 }
 
                 unset($data['department']);
@@ -144,7 +144,7 @@ class KaryawanImport
         try {
             $reader->open($path);
         } catch (Throwable) {
-            throw new RuntimeException('File tidak bisa dibaca. Pastikan file berformat .xlsx.');
+            throw new RuntimeException(__('File tidak bisa dibaca. Pastikan file berformat .xlsx.'));
         }
 
         $rows = [];
@@ -198,7 +198,7 @@ class KaryawanImport
                 }
                 if ($index === false) {
                     $required = array_diff(array_keys(self::COLUMNS), self::OPTIONAL_COLUMNS);
-                    throw new RuntimeException("Kolom \"{$label}\" tidak ditemukan di file. Kolom wajib: ".implode(', ', $required).'.');
+                    throw new RuntimeException(__('Kolom ":kolom" tidak ditemukan di file. Kolom wajib: :wajib.', ['kolom' => $label, 'wajib' => implode(', ', $required)]));
                 }
                 $columnMap[$attribute] = $index;
             }
@@ -207,7 +207,7 @@ class KaryawanImport
             return [['dataStart' => $number + ($hasSubHeader ? 1 : 0)], $columnMap];
         }
 
-        throw new RuntimeException('Header tidak ditemukan. Pastikan ada kolom "NIK" di 10 baris pertama.');
+        throw new RuntimeException(__('Header tidak ditemukan. Pastikan ada kolom "NIK" di 10 baris pertama.'));
     }
 
     /**
@@ -222,7 +222,7 @@ class KaryawanImport
         if (is_int($nik) || is_float($nik)) {
             // Excel menyimpan NIK sebagai angka sehingga nol di depan hilang (mis. 774 => 0774).
             $padded = str_pad((string) (int) $nik, self::NIK_PAD_LENGTH, '0', STR_PAD_LEFT);
-            $warnings[] = "NIK tersimpan sebagai angka di Excel ({$nik}), diimport sebagai {$padded}. Mohon dicek.";
+            $warnings[] = __('NIK tersimpan sebagai angka di Excel (:nik), diimport sebagai :padded. Mohon dicek.', ['nik' => $nik, 'padded' => $padded]);
             $nik = $padded;
         }
 
@@ -268,16 +268,16 @@ class KaryawanImport
             'status' => ['required', Rule::in(Karyawan::STATUS)],
             'group' => ['nullable', 'max:20'],
         ], [
-            'nik.required' => 'NIK kosong.',
-            'nik.regex' => 'NIK hanya boleh berisi angka.',
-            'nama.required' => 'Nama kosong.',
-            'jenis_kelamin.required' => 'Jenis kelamin kosong.',
-            'jenis_kelamin.in' => 'Jenis kelamin harus Laki-laki atau Perempuan.',
-            'tgl_lahir.date' => 'Format TGL LAHIR tidak dikenali.',
-            'tanggal_masuk.date' => 'Format TANGGAL MASUK tidak dikenali.',
-            'status.required' => 'Status kosong.',
-            'status.in' => 'Status harus salah satu dari: '.implode(', ', Karyawan::STATUS).'.',
-            'max' => 'Isian :attribute terlalu panjang (maks. :max karakter).',
+            'nik.required' => __('NIK kosong.'),
+            'nik.regex' => __('NIK hanya boleh berisi angka.'),
+            'nama.required' => __('Nama kosong.'),
+            'jenis_kelamin.required' => __('Jenis kelamin kosong.'),
+            'jenis_kelamin.in' => __('Jenis kelamin harus Laki-laki atau Perempuan.'),
+            'tgl_lahir.date' => __('Format TGL LAHIR tidak dikenali.'),
+            'tanggal_masuk.date' => __('Format TANGGAL MASUK tidak dikenali.'),
+            'status.required' => __('Status kosong.'),
+            'status.in' => __('Status harus salah satu dari: ').implode(', ', Karyawan::STATUS).'.',
+            'max' => __('Isian :attribute terlalu panjang (maks. :max karakter).'),
         ]);
 
         return $validator->errors()->all();

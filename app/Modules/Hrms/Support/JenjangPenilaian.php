@@ -87,7 +87,7 @@ class JenjangPenilaian
 
     public static function label(?string $level): string
     {
-        return self::LABEL[$level] ?? '-';
+        return __(self::LABEL[$level] ?? '-');
     }
 
     public static function userLevel(User $user): ?string

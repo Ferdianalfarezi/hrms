@@ -206,10 +206,12 @@ class DocumentController extends Controller
             throw $exception;
         }
 
-        $tujuan = $folder ? "folder {$folder->nama}" : IsoDocument::KATEGORI[$kategori];
+        $tujuan = $folder ? __('folder :nama', ['nama' => $folder->nama]) : IsoDocument::KATEGORI[$kategori];
         $totalFiles = count($paths) + (int) ($data['sudah_diupload'] ?? 0);
         $totalFolders = $createdFolders + (int) ($data['folder_dibuat'] ?? 0);
-        $message = $totalFiles.' file'.($totalFolders ? " & {$totalFolders} folder" : '')." berhasil diupload ke {$tujuan}.";
+        $message = ($totalFolders
+            ? __(':files file & :folders folder berhasil diupload ke :tujuan.', ['files' => $totalFiles, 'folders' => $totalFolders, 'tujuan' => $tujuan])
+            : __(':files file berhasil diupload ke :tujuan.', ['files' => $totalFiles, 'tujuan' => $tujuan]));
 
         if ($request->expectsJson()) {
             // Pesan muncul setelah halaman dimuat ulang (batch terakhir yang menang).
@@ -238,13 +240,13 @@ class DocumentController extends Controller
             'documents' => ['required', 'array', 'max:500'],
             'documents.*' => ['integer', 'distinct'],
             'folder_id' => ['nullable', 'integer'],
-        ], ['documents.required' => 'Pilih minimal satu file.']);
+        ], ['documents.required' => __('Pilih minimal satu file.')]);
 
         $folder = $this->targetFolder($request, $kategori, $data['folder_id'] ?? null);
         $documents = IsoDocument::query()->visibleTo($user)->where('kategori', $kategori)->whereIn('id', $data['documents'])->get();
 
-        abort_if($documents->count() !== count($data['documents']), 403, 'Sebagian file tidak ditemukan atau milik departemen lain.');
-        abort_unless($documents->every(fn (IsoDocument $document) => $document->isManageableBy($user)), 403, 'Data umum hanya bisa diubah oleh Admin ISO.');
+        abort_if($documents->count() !== count($data['documents']), 403, __('Sebagian file tidak ditemukan atau milik departemen lain.'));
+        abort_unless($documents->every(fn (IsoDocument $document) => $document->isManageableBy($user)), 403, __('Data umum hanya bisa diubah oleh Admin ISO.'));
 
         DB::transaction(function () use ($documents, $folder, $user) {
             foreach ($documents as $document) {
@@ -256,8 +258,8 @@ class DocumentController extends Controller
             }
         });
 
-        $tujuan = $folder ? "folder {$folder->nama}" : IsoDocument::KATEGORI[$kategori];
-        $message = ($documents->count() === 1 ? $documents->first()->nama : $documents->count().' file')." dipindahkan ke {$tujuan}.";
+        $tujuan = $folder ? __('folder :nama', ['nama' => $folder->nama]) : IsoDocument::KATEGORI[$kategori];
+        $message = __(':dokumen dipindahkan ke :tujuan.', ['dokumen' => $documents->count() === 1 ? $documents->first()->nama : __(':count file', ['count' => $documents->count()]), 'tujuan' => $tujuan]);
         $request->session()->flash('status', $message);
 
         return response()->json(['message' => $message]);
@@ -354,7 +356,7 @@ class DocumentController extends Controller
         }
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
-            ->with('status', "Dokumen {$document->nama} berhasil diperbarui.");
+            ->with('status', __('Dokumen :nama berhasil diperbarui.', ['nama' => $document->nama]));
     }
 
     public function destroy(Request $request, IsoDocument $document): RedirectResponse
@@ -366,7 +368,7 @@ class DocumentController extends Controller
         IsoThumbnail::forget($document->path);
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
-            ->with('status', "Dokumen {$document->nama} berhasil dihapus.");
+            ->with('status', __('Dokumen :nama berhasil dihapus.', ['nama' => $document->nama]));
     }
 
     /**
@@ -375,18 +377,18 @@ class DocumentController extends Controller
     public function status(Request $request, IsoDocument $document): JsonResponse|RedirectResponse
     {
         $kategori = $this->authorizeItem($request, $document, manage: true);
-        abort_unless($request->user()->isModuleAdmin('iso'), 403, 'Hanya Admin ISO yang bisa mengubah status dokumen.');
+        abort_unless($request->user()->isModuleAdmin('iso'), 403, __('Hanya Admin ISO yang bisa mengubah status dokumen.'));
 
         $data = $request->validate(['is_active' => ['required', 'boolean']]);
         $document->update(['is_active' => (bool) $data['is_active'], 'updated_by' => $request->user()->id]);
-        $label = $document->is_active ? 'aktif' : 'nonaktif';
+        $label = $document->is_active ? __('aktif') : __('nonaktif');
 
         if ($request->expectsJson()) {
-            return response()->json(['is_active' => $document->is_active, 'message' => "{$document->nama} sekarang {$label}."]);
+            return response()->json(['is_active' => $document->is_active, 'message' => __(':nama sekarang :status.', ['nama' => $document->nama, 'status' => $label])]);
         }
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
-            ->with('status', "Dokumen {$document->nama} sekarang {$label}.");
+            ->with('status', __('Dokumen :nama sekarang :status.', ['nama' => $document->nama, 'status' => $label]));
     }
 
     /**
@@ -397,10 +399,10 @@ class DocumentController extends Controller
     {
         $kategori = $this->authorizeItem($request, $document, manage: true);
         $user = $request->user();
-        abort_unless($user->isModuleAdmin('iso'), 403, 'Hanya Admin ISO yang bisa mengirim notifikasi.');
+        abort_unless($user->isModuleAdmin('iso'), 403, __('Hanya Admin ISO yang bisa mengirim notifikasi.'));
 
         if (! $document->is_active) {
-            throw ValidationException::withMessages(['notify' => 'Notifikasi hanya bisa dikirim untuk dokumen yang aktif.']);
+            throw ValidationException::withMessages(['notify' => __('Notifikasi hanya bisa dikirim untuk dokumen yang aktif.')]);
         }
 
         $data = $request->validate([
@@ -409,19 +411,19 @@ class DocumentController extends Controller
             'pesan' => ['nullable', 'string', 'max:1000'],
             'lampirkan' => ['nullable', 'boolean'],
         ], [
-            'recipients.required' => 'Pilih minimal satu penerima.',
-            'pesan.max' => 'Catatan maksimal 1000 karakter.',
+            'recipients.required' => __('Pilih minimal satu penerima.'),
+            'pesan.max' => __('Catatan maksimal 1000 karakter.'),
         ]);
 
         $lampirkan = (bool) ($data['lampirkan'] ?? false);
         if ($lampirkan && $document->size > self::MAX_ATTACHMENT_BYTES) {
-            throw ValidationException::withMessages(['lampirkan' => 'File lebih dari 10 MB, terlalu besar untuk dilampirkan. Kirim tanpa lampiran.']);
+            throw ValidationException::withMessages(['lampirkan' => __('File lebih dari 10 MB, terlalu besar untuk dilampirkan. Kirim tanpa lampiran.')]);
         }
 
         // Penerima nonaktif / tidak dikenal diabaikan walaupun ikut terkirim dari form.
         $recipients = IsoRecipient::active()->whereIn('id', $data['recipients'])->get();
         if ($recipients->isEmpty()) {
-            throw ValidationException::withMessages(['recipients' => 'Tidak ada penerima aktif yang dipilih.']);
+            throw ValidationException::withMessages(['recipients' => __('Tidak ada penerima aktif yang dipilih.')]);
         }
 
         $document->loadMissing(['folder', 'department']);
@@ -444,10 +446,10 @@ class DocumentController extends Controller
 
         $redirect = redirect()->route("iso.{$kategori}.index", $this->keptFilters($request));
         if ($failed !== []) {
-            $redirect->withErrors(['notify' => 'Gagal mengirim ke: '.implode(', ', $failed).'. Cek pengaturan email server.']);
+            $redirect->withErrors(['notify' => __('Gagal mengirim ke: :email. Cek pengaturan email server.', ['email' => implode(', ', $failed)])]);
         }
 
-        return $redirect->with('status', "Notifikasi {$document->nama} terkirim ke {$sent} email.");
+        return $redirect->with('status', __('Notifikasi :nama terkirim ke :count email.', ['nama' => $document->nama, 'count' => $sent]));
     }
 
     /**
@@ -456,7 +458,7 @@ class DocumentController extends Controller
     public function file(Request $request, IsoDocument $document): StreamedResponse
     {
         $this->authorizeItem($request, $document, manage: false);
-        abort_unless(Storage::disk(self::DISK)->exists($document->path), 404, 'File tidak ditemukan.');
+        abort_unless(Storage::disk(self::DISK)->exists($document->path), 404, __('File tidak ditemukan.'));
 
         $inline = $document->isPreviewable() && ! $request->boolean('download');
 
@@ -536,16 +538,16 @@ class DocumentController extends Controller
         $maxMb = IsoDocument::MAX_KB / 1024;
 
         return [
-            'files.required' => 'Pilih minimal satu file.',
-            'files.max' => 'Maksimal '.IsoDocument::MAX_FILES.' file sekali upload.',
-            'files.*.file' => 'File gagal diupload, coba lagi.',
-            'files.*.uploaded' => "File gagal diupload. Pastikan ukurannya tidak lebih dari {$maxMb} MB.",
-            'files.*.max' => "Ukuran tiap file maksimal {$maxMb} MB.",
-            'file.uploaded' => "File gagal diupload. Pastikan ukurannya tidak lebih dari {$maxMb} MB.",
-            'file.max' => "Ukuran file maksimal {$maxMb} MB.",
-            'nama.required' => 'Nama dokumen wajib diisi.',
-            'nama.max' => 'Nama dokumen maksimal 255 karakter.',
-            'department_id.exists' => 'Departemen tidak dikenal.',
+            'files.required' => __('Pilih minimal satu file.'),
+            'files.max' => __('Maksimal :count file sekali upload.', ['count' => IsoDocument::MAX_FILES]),
+            'files.*.file' => __('File gagal diupload, coba lagi.'),
+            'files.*.uploaded' => __('File gagal diupload. Pastikan ukurannya tidak lebih dari :mb MB.', ['mb' => $maxMb]),
+            'files.*.max' => __('Ukuran tiap file maksimal :mb MB.', ['mb' => $maxMb]),
+            'file.uploaded' => __('File gagal diupload. Pastikan ukurannya tidak lebih dari :mb MB.', ['mb' => $maxMb]),
+            'file.max' => __('Ukuran file maksimal :mb MB.', ['mb' => $maxMb]),
+            'nama.required' => __('Nama dokumen wajib diisi.'),
+            'nama.max' => __('Nama dokumen maksimal 255 karakter.'),
+            'department_id.exists' => __('Departemen tidak dikenal.'),
         ];
     }
 }

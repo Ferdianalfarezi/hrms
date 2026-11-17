@@ -72,7 +72,7 @@ class AbsensiMesinImport
 
             $tanggal = $this->date($cells[$columns['tanggal']] ?? null);
             if ($tanggal === null) {
-                throw new RuntimeException("Tanggal untuk Employee Code {$nik} kosong atau formatnya tidak dikenali.");
+                throw new RuntimeException(__('Tanggal untuk Employee Code :nik kosong atau formatnya tidak dikenali.', ['nik' => $nik]));
             }
 
             $masuk = $this->minuteOfDay($cells[$columns['masuk']] ?? null);
@@ -84,7 +84,7 @@ class AbsensiMesinImport
         }
 
         if ($pagi === [] && $malam === []) {
-            throw new RuntimeException('Tidak ada data karyawan di file.');
+            throw new RuntimeException(__('Tidak ada data karyawan di file.'));
         }
 
         $now = now();
@@ -110,7 +110,7 @@ class AbsensiMesinImport
             ->all();
 
         $peringatan = isset($pagi[$kemarin]) || isset($malam[$kemarin]) ? null
-            : 'File tidak berisi tanggal '.$hariKerja->copy()->subDay()->format('d/m/Y').', jadi shift malam dianggap tidak absen.';
+            : __('File tidak berisi tanggal :tanggal, jadi shift malam dianggap tidak absen.', ['tanggal' => $hariKerja->copy()->subDay()->format('d/m/Y')]);
 
         $terlambat = [
             ...$this->terlambat($pagi[$tanggal] ?? [], $tanggal, self::ACUAN_PAGI, 'pagi'),
@@ -240,7 +240,7 @@ class AbsensiMesinImport
         return match ($extension) {
             'xls' => $this->readXls($path),
             'xlsx' => $this->readXlsx($path),
-            default => throw new RuntimeException('File harus berformat .xls atau .xlsx.'),
+            default => throw new RuntimeException(__('File harus berformat .xls atau .xlsx.')),
         };
     }
 
@@ -254,7 +254,7 @@ class AbsensiMesinImport
         try {
             $reader->open($path);
         } catch (Throwable) {
-            throw new RuntimeException('File tidak bisa dibaca. Pastikan file berformat .xlsx.');
+            throw new RuntimeException(__('File tidak bisa dibaca. Pastikan file berformat .xlsx.'));
         }
 
         $rows = [];
@@ -282,11 +282,11 @@ class AbsensiMesinImport
         $bytes = (string) file_get_contents($path);
 
         if (str_starts_with($bytes, "\xD0\xCF\x11\xE0")) {
-            throw new RuntimeException('File .xls ini sudah disimpan ulang lewat Excel. Upload file asli dari mesin, atau simpan sebagai .xlsx.');
+            throw new RuntimeException(__('File .xls ini sudah disimpan ulang lewat Excel. Upload file asli dari mesin, atau simpan sebagai .xlsx.'));
         }
 
         if (strlen($bytes) < 4 || ! in_array(unpack('v', $bytes)[1], [0x0009, 0x0209, 0x0409, 0x0809], true)) {
-            throw new RuntimeException('File tidak bisa dibaca. Pastikan file adalah export .xls dari mesin absen.');
+            throw new RuntimeException(__('File tidak bisa dibaca. Pastikan file adalah export .xls dari mesin absen.'));
         }
 
         $cells = [];
@@ -395,7 +395,7 @@ class AbsensiMesinImport
             }
         }
 
-        throw new RuntimeException('Header tidak ditemukan. Pastikan ada kolom "Employee Code" dan "Attendance Date" seperti file Attendance Report.');
+        throw new RuntimeException(__('Header tidak ditemukan. Pastikan ada kolom "Employee Code" dan "Attendance Date" seperti file Attendance Report.'));
     }
 
     private function nik(mixed $value): ?string

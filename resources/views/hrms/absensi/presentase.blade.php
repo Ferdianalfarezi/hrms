@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Presentase Absensi')
+@section('title', __('Presentase Absensi'))
 
 @section('styles')
     .pst-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -41,18 +41,18 @@
 
 <div class="pst-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Presentase Absensi</h1>
-        <p class="muted" style="margin: 2px 0 0;">{{ $bulan->translatedFormat('F Y') }} · hari kerja Senin - Jumat · rate = (Cuti + S+I) / Total</p>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Presentase Absensi') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ $bulan->translatedFormat('F Y') }} · {{ __('hari kerja Senin - Jumat · rate = (Cuti + S+I) / Total') }}</p>
     </div>
     <form method="GET" class="pst-toolbar">
         <span class="day-nav">
-            <a href="{{ route('hrms.absensi.presentase', ['bulan' => $bulan->copy()->subMonth()->format('Y-m')]) }}" title="Bulan sebelumnya">&lsaquo;</a>
-            <a href="{{ route('hrms.absensi.presentase') }}">Bulan ini</a>
-            <a href="{{ route('hrms.absensi.presentase', ['bulan' => $bulan->copy()->addMonth()->format('Y-m')]) }}" title="Bulan berikutnya">&rsaquo;</a>
+            <a href="{{ route('hrms.absensi.presentase', ['bulan' => $bulan->copy()->subMonth()->format('Y-m')]) }}" title="{{ __('Bulan sebelumnya') }}">&lsaquo;</a>
+            <a href="{{ route('hrms.absensi.presentase') }}">{{ __('Bulan ini') }}</a>
+            <a href="{{ route('hrms.absensi.presentase', ['bulan' => $bulan->copy()->addMonth()->format('Y-m')]) }}" title="{{ __('Bulan berikutnya') }}">&rsaquo;</a>
         </span>
-        <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="Bulan">
-        <a href="{{ route('hrms.absensi.presentase.pdf', ['bulan' => $bulan->format('Y-m')]) }}" title="10 hari kerja terakhir" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">Unduh PDF</a>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
+        <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Bulan') }}">
+        <a href="{{ route('hrms.absensi.presentase.pdf', ['bulan' => $bulan->format('Y-m')]) }}" title="{{ __('10 hari kerja terakhir') }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">{{ __('Unduh PDF') }}</a>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">{{ __('Cetak') }}</button>
     </form>
 </div>
 
@@ -69,13 +69,13 @@
                     <th @class(['n', 'bad' => $total['rate'] > $target])>{{ $rate($total['rate']) }}</th>
                 </tr>
                 <tr>
-                    <th>Day</th>
-                    <th colspan="3">Date</th>
-                    <th class="n">Total</th>
-                    <th class="n">Hadir</th>
-                    <th class="n">Cuti</th>
-                    <th class="n" title="Sakit, izin, dan alpa">S+I</th>
-                    <th class="n">Rate</th>
+                    <th>{{ __('Day') }}</th>
+                    <th colspan="3">{{ __('Date') }}</th>
+                    <th class="n">{{ __('Total') }}</th>
+                    <th class="n">{{ __('Hadir') }}</th>
+                    <th class="n">{{ __('Cuti') }}</th>
+                    <th class="n" title="{{ __('Sakit, izin, dan alpa') }}">S+I</th>
+                    <th class="n">{{ __('Rate') }}</th>
                 </tr>
             </thead>
             @forelse ($days as $day)
@@ -103,7 +103,7 @@
                     @endforeach
                 </tbody>
             @empty
-                <tbody><tr><td colspan="9" class="empty">Belum ada hari kerja di bulan ini.</td></tr></tbody>
+                <tbody><tr><td colspan="9" class="empty">{{ __('Belum ada hari kerja di bulan ini.') }}</td></tr></tbody>
             @endforelse
         </table>
     </div>

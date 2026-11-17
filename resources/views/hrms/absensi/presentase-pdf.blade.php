@@ -9,7 +9,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Presentase Absensi {{ $mulai->format('d-m-Y') }} sd {{ $sampai->format('d-m-Y') }}</title>
+    <title>{{ __('Presentase Absensi') }} {{ $mulai->format('d-m-Y') }} - {{ $sampai->format('d-m-Y') }}</title>
     <style>
         @page { size: A4 portrait; margin: 10mm 12mm; }
         * { box-sizing: border-box; }
@@ -47,13 +47,13 @@
 </head>
 <body>
 <div class="toolbar">
-    <button type="button" onclick="window.print()">Unduh / Simpan PDF</button>
-    <button type="button" class="ghost" onclick="window.close()">Tutup</button>
+    <button type="button" onclick="window.print()">{{ __('Unduh / Simpan PDF') }}</button>
+    <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
 </div>
 
 <div class="sheet">
-    <h1>PRESENTASE ABSENSI {{ Str::upper($periode) }}</h1>
-    <p class="sub">{{ count($days) }} hari kerja terakhir (Senin - Jumat) · rate = (Cuti + S+I) / Total · target {{ $target }}%</p>
+    <h1>{{ __('PRESENTASE ABSENSI') }} {{ Str::upper($periode) }}</h1>
+    <p class="sub">{{ __(':count hari kerja terakhir (Senin - Jumat) · rate = (Cuti + S+I) / Total · target :target%', ['count' => count($days), 'target' => $target]) }}</p>
 
     <table class="pst">
         <colgroup>
@@ -62,7 +62,7 @@
         </colgroup>
         <thead>
             <tr class="sum">
-                <th colspan="4">TOTAL {{ count($days) }} HARI KERJA</th>
+                <th colspan="4">{{ __('TOTAL :count HARI KERJA', ['count' => count($days)]) }}</th>
                 <th class="n">{{ $angka($total['total']) }}</th>
                 <th class="n">{{ $angka($total['hadir']) }}</th>
                 <th class="n">{{ $angka($total['cuti']) }}</th>
@@ -70,15 +70,15 @@
                 <th @class(['n', 'bad' => $total['rate'] > $target])>{{ $rate($total['rate']) }}</th>
             </tr>
             <tr>
-                <th>Day</th>
-                <th>Date</th>
-                <th>Grup</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Hadir</th>
-                <th>Cuti</th>
+                <th>{{ __('Day') }}</th>
+                <th>{{ __('Date') }}</th>
+                <th>{{ __('Grup') }}</th>
+                <th>{{ __('Status') }}</th>
+                <th>{{ __('Total') }}</th>
+                <th>{{ __('Hadir') }}</th>
+                <th>{{ __('Cuti') }}</th>
                 <th>S+I</th>
-                <th>Rate</th>
+                <th>{{ __('Rate') }}</th>
             </tr>
         </thead>
         @forelse ($days as $day)
@@ -106,7 +106,7 @@
                 @endforeach
             </tbody>
         @empty
-            <tbody><tr><td colspan="9" class="empty">Belum ada hari kerja di periode ini.</td></tr></tbody>
+            <tbody><tr><td colspan="9" class="empty">{{ __('Belum ada hari kerja di periode ini.') }}</td></tr></tbody>
         @endforelse
     </table>
 </div>

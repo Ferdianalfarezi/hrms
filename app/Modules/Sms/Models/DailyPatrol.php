@@ -29,7 +29,7 @@ class DailyPatrol extends Model
 
     public function resikoLabel(): string
     {
-        return self::RESIKO[$this->resiko]['label'] ?? (string) $this->resiko;
+        return __(self::RESIKO[$this->resiko]['label'] ?? (string) $this->resiko);
     }
 
     /** Kategori dikelompokkan seperti di dropdown: Stop 6 dan Other. */
@@ -78,7 +78,7 @@ class DailyPatrol extends Model
 
     public function kategoriLabel(): string
     {
-        return self::kategoriOptions()[$this->kategori] ?? $this->kategori;
+        return __(self::kategoriOptions()[$this->kategori] ?? $this->kategori);
     }
 
     /**

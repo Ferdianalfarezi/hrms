@@ -72,7 +72,7 @@
                 if (!shown.length) {
                     var empty = document.createElement('div');
                     empty.className = 'kp-empty';
-                    empty.textContent = 'Karyawan tidak ditemukan.';
+                    empty.textContent = __t('Karyawan tidak ditemukan.');
                     list.appendChild(empty);
                 }
                 shown.forEach(function (option, index) {

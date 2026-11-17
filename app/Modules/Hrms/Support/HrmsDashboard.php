@@ -22,7 +22,7 @@ class HrmsDashboard
         $application = Application::where('code', 'hrms')->firstOrFail();
         $visible = fn () => Karyawan::query()->visibleTo($viewer);
         $managedDepartments = $viewer->managedDepartmentList();
-        $departmentLabel = $managedDepartments->isNotEmpty() ? 'Departemen '.$managedDepartments->pluck('name')->implode(', ') : null;
+        $departmentLabel = $managedDepartments->isNotEmpty() ? __('Departemen').' '.$managedDepartments->pluck('name')->implode(', ') : null;
 
         $total = $visible()->count();
         $statusCounts = $visible()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
@@ -52,7 +52,7 @@ class HrmsDashboard
                 ...self::shiftAktif(),
                 ['label' => 'Karyawan', 'value' => $total, 'icon' => 'users'],
                 ['label' => 'Karyawan Tetap', 'value' => $tetap, 'icon' => 'badge'],
-                ['label' => 'Masuk '.now()->year, 'value' => $visible()->whereYear('tanggal_masuk', now()->year)->count(), 'icon' => 'calendar'],
+                ['label' => __('Masuk :tahun', ['tahun' => now()->year]), 'value' => $visible()->whereYear('tanggal_masuk', now()->year)->count(), 'icon' => 'calendar'],
             ],
             'pills' => collect([
                 ['label' => 'Tetap', 'count' => $tetap],
@@ -85,7 +85,7 @@ class HrmsDashboard
                     ->orderByDesc('tanggal_masuk')->orderByDesc('nik')->take(5)->get()
                     ->map(fn (Karyawan $karyawan) => [
                         'name' => $karyawan->nama,
-                        'sub' => collect(["NIK {$karyawan->nik}", $karyawan->department?->name, 'masuk '.$karyawan->tanggal_masuk->translatedFormat('d M Y')])
+                        'sub' => collect(["NIK {$karyawan->nik}", $karyawan->department?->name, __('masuk :tanggal', ['tanggal' => $karyawan->tanggal_masuk->translatedFormat('d M Y')])])
                             ->filter()->join(' · '),
                         'check' => $karyawan->status === 'Tetap',
                         'url' => route('hrms.karyawans.index', ['q' => $karyawan->nik]),
@@ -172,7 +172,7 @@ class HrmsDashboard
             ->values();
 
         return [
-            'title' => 'Kehadiran '.$today->translatedFormat('M'),
+            'title' => __('Kehadiran :bulan', ['bulan' => $today->translatedFormat('M')]),
             'subtitle' => $departmentLabel,
             'value' => $totalHariKerja > 0 ? self::persenHadir($totalHadir, $totalHariKerja).'%' : '-',
             'unit' => 'hari',
@@ -192,7 +192,7 @@ class HrmsDashboard
             ])->all(),
             'note' => $rows->isEmpty()
                 ? 'Belum ada hari kerja bulan ini.'
-                : 'Hari kerja Senin - Jumat, 1 - '.$today->translatedFormat('d M').'. Merah = tidak hadir di atas '.LaporanAbsensiShift::TARGET_PERSEN.'%.',
+                : __('Hari kerja Senin - Jumat, 1 - :tanggal. Merah = tidak hadir di atas :target%.', ['tanggal' => $today->translatedFormat('d M'), 'target' => LaporanAbsensiShift::TARGET_PERSEN]),
         ];
     }
 
@@ -248,11 +248,11 @@ class HrmsDashboard
         $hadir = max($total - $kodes->count() - $tanpaKeterangan, 0);
 
         $note = AbsensiMesin::whereDate('tanggal', $today->toDateString())->exists()
-            ? ($cekUlang > 0 ? "{$cekUlang} kode tidak hadir perlu dicek ulang (hadir di mesin absen)." : 'Data mesin absen hari ini sudah diupload.')
-            : 'Data mesin absen hari ini belum diupload.';
+            ? ($cekUlang > 0 ? __(':count kode tidak hadir perlu dicek ulang (hadir di mesin absen).', ['count' => $cekUlang]) : __('Data mesin absen hari ini sudah diupload.'))
+            : __('Data mesin absen hari ini belum diupload.');
 
         return [
-            'title' => 'Absensi '.$today->translatedFormat('d M'),
+            'title' => __('Absensi').' '.$today->translatedFormat('d M'),
             'value' => self::persenHadir($hadir, $total).'%',
             'unit' => 'orang',
             'segments' => [

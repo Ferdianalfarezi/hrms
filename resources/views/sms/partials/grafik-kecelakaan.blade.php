@@ -12,13 +12,13 @@
             <h2 class="card-title">{{ $chart['title'] }}</h2>
             <div class="muted small">{{ $chart['subtitle'] }}</div>
         </div>
-        <button type="button" class="mini-btn" data-chart-expand="{{ $key }}" title="Perbesar" aria-label="Perbesar grafik {{ $chart['title'] }}">
+        <button type="button" class="mini-btn" data-chart-expand="{{ $key }}" title="{{ __('Perbesar') }}" aria-label="Perbesar grafik {{ $chart['title'] }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
         </button>
     </div>
 
     <div class="chart-plot chart-plot-sm" data-chart="{{ $chartData }}" role="img"
-         aria-label="Grafik {{ $chart['title'] }}, {{ $chart['subtitle'] }}. Klik perbesar untuk tabel angka.">
+         aria-label="{{ __('Grafik :judul, :sub. Klik perbesar untuk tabel angka.', ['judul' => $chart['title'], 'sub' => $chart['subtitle']]) }}">
         <div class="chart-tip" hidden></div>
     </div>
     <div class="chart-legend chart-legend-sm">
@@ -34,7 +34,7 @@
                 <span><i @class(['swatch', 'swatch-target' => $series['target']]) style="--c: {{ $series['color'] }};"></i>{{ $series['label'] }}</span>
             @endforeach
         </div>
-        <div class="chart-plot chart-plot-lg" data-chart="{{ $chartData }}" role="img" aria-label="Grafik {{ $chart['title'] }}">
+        <div class="chart-plot chart-plot-lg" data-chart="{{ $chartData }}" role="img" aria-label="{{ __('Grafik') }} {{ $chart['title'] }}">
             <div class="chart-tip" hidden></div>
         </div>
         <div class="table-wrap">
@@ -43,7 +43,7 @@
                     <tr>
                         <th></th>
                         @foreach (\App\Modules\Sms\Support\GrafikKecelakaan::MONTHS as $month)
-                            <th>{{ $month }}</th>
+                            <th>{{ __($month) }}</th>
                         @endforeach
                     </tr>
                 </thead>

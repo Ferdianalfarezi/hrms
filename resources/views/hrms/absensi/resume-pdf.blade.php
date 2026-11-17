@@ -9,7 +9,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Resume Absensi {{ $tanggal->format('d-m-Y') }}</title>
+    <title>{{ __('Resume Absensi') }} {{ $tanggal->format('d-m-Y') }}</title>
     <style>
         @page { size: A4 portrait; margin: 12mm 12mm; }
         * { box-sizing: border-box; }
@@ -48,37 +48,37 @@
 </head>
 <body>
 <div class="toolbar">
-    <button type="button" onclick="window.print()">Unduh / Simpan PDF</button>
-    <button type="button" class="ghost" onclick="window.close()">Tutup</button>
+    <button type="button" onclick="window.print()">{{ __('Unduh / Simpan PDF') }}</button>
+    <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
 </div>
 
 <div class="sheet">
-    <h1>RESUME ABSENSI HARIAN PT.STEP</h1>
+    <h1>{{ __('RESUME ABSENSI HARIAN PT.STEP') }}</h1>
 
     @foreach ($urutSections as $section)
         @php
             $suffix = $section['judul'] === 'Shift 2' ? ' S.2' : '';
         @endphp
-        <div class="sec-title">{{ $section['tanggal']->translatedFormat('l, d F Y') }} ({{ $section['judul'] }})</div>
+        <div class="sec-title">{{ $section['tanggal']->translatedFormat('l, d F Y') }} ({{ __($section['judul']) }})</div>
         <table class="rsm">
             <thead>
                 <tr>
-                    <th rowspan="2" style="width: 6%;">PLANT</th>
-                    <th rowspan="2" style="width: 25%;">STATUS</th>
-                    <th rowspan="2" style="width: 9%;">JUMLAH KARY</th>
-                    <th colspan="4">KATEGORI ABSEN</th>
-                    <th rowspan="2" class="tot" style="width: 7%;">TOTAL ABSEN</th>
-                    <th rowspan="2" class="tot" style="width: 8%;">TOTAL %<br>DGN CUTI</th>
-                    <th rowspan="2" class="tot" style="width: 8%;">TOTAL %<br>TANPA CUTI</th>
-                    <th rowspan="2" style="width: 8%;">JML KARY. KERJA</th>
+                    <th rowspan="2" style="width: 6%;">{{ __('PLANT') }}</th>
+                    <th rowspan="2" style="width: 25%;">{{ __('STATUS') }}</th>
+                    <th rowspan="2" style="width: 9%;">{{ __('JUMLAH KARY') }}</th>
+                    <th colspan="4">{{ __('KATEGORI ABSEN') }}</th>
+                    <th rowspan="2" class="tot" style="width: 7%;">{{ __('TOTAL ABSEN') }}</th>
+                    <th rowspan="2" class="tot" style="width: 8%;">{{ __('TOTAL %') }}<br>{{ __('DGN CUTI') }}</th>
+                    <th rowspan="2" class="tot" style="width: 8%;">{{ __('TOTAL %') }}<br>{{ __('TANPA CUTI') }}</th>
+                    <th rowspan="2" style="width: 8%;">{{ __('JML KARY. KERJA') }}</th>
                     <th rowspan="2" style="width: 5%;">SKD</th>
                     <th rowspan="2" style="width: 5%;">CT</th>
                 </tr>
                 <tr>
-                    <th>CUTI</th>
-                    <th>SAKIT</th>
-                    <th>IJIN</th>
-                    <th>ALPA</th>
+                    <th>{{ __('CUTI') }}</th>
+                    <th>{{ __('SAKIT') }}</th>
+                    <th>{{ __('IJIN') }}</th>
+                    <th>{{ __('ALPA') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -101,13 +101,13 @@
                         </tr>
                     @endforeach
                 @else
-                    <tr><td colspan="13" class="empty">Grup shift belum diketahui — atur jadwal rotasi di menu Detail.</td></tr>
+                    <tr><td colspan="13" class="empty">{{ __('Grup shift belum diketahui — atur jadwal rotasi di menu Detail.') }}</td></tr>
                 @endif
             </tbody>
             @if ($section['grups'])
                 <tfoot>
                     <tr>
-                        <td colspan="2">TOTAL</td>
+                        <td colspan="2">{{ __('TOTAL') }}</td>
                         <td>{{ $section['total']['jumlah'] }}</td>
                         <td>{{ $section['total']['cuti'] }}</td>
                         <td>{{ $section['total']['sakit'] }}</td>
@@ -130,7 +130,7 @@
         <table class="ttd-box">
             <tr>
                 @foreach ($penandatangan as $ttd)
-                    <td>{{ $ttd['jabatan'] }}</td>
+                    <td>{{ __($ttd['jabatan']) }}</td>
                 @endforeach
             </tr>
             <tr class="space">

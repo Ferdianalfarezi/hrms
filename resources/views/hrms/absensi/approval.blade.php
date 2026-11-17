@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Approval Absensi')
+@section('title', __('Approval Absensi'))
 
 @section('styles')
     .ap-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -56,13 +56,13 @@
 
         return '<i class="k k-tag k-'.e($kodes[$kode]['tone'] ?? 'blue').'" title="'.e($kodes[$kode]['label'] ?? $kode).'">'.e($kode).'</i>';
     };
-    $chips = ['pending' => 'Menunggu', 'approved' => 'Disetujui', 'rejected' => 'Ditolak', '' => 'Semua'];
+    $chips = ['pending' => __('Menunggu'), 'approved' => __('Disetujui'), 'rejected' => __('Ditolak'), '' => __('Semua')];
 @endphp
 
 <div class="ap-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Approval Absensi</h1>
-        <p class="muted" style="margin: 2px 0 0;">Pengajuan perubahan absensi dari Admin Departemen. Absensi baru berubah setelah disetujui.</p>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Approval Absensi') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Pengajuan perubahan absensi dari Admin Departemen. Absensi baru berubah setelah disetujui.') }}</p>
     </div>
 </div>
 
@@ -83,10 +83,10 @@
 
 <form method="GET" class="filters">
     <input type="hidden" name="status" value="{{ $status === '' ? 'semua' : $status }}">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari NIK / nama karyawan...">
-    <button type="submit" class="btn btn-ghost">Cari</button>
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari NIK / nama karyawan...') }}">
+    <button type="submit" class="btn btn-ghost">{{ __('Cari') }}</button>
     @if ($search !== '')
-        <a href="{{ route('hrms.absensi.approval', ['status' => $status === '' ? 'semua' : $status]) }}" class="muted small">Reset</a>
+        <a href="{{ route('hrms.absensi.approval', ['status' => $status === '' ? 'semua' : $status]) }}" class="muted small">{{ __('Reset') }}</a>
     @endif
 </form>
 
@@ -95,15 +95,15 @@
         <table>
             <thead>
                 <tr>
-                    <th>No</th>
-                    <th class="nowrap">Diajukan</th>
-                    <th>Karyawan</th>
-                    <th class="nowrap">Tgl Absensi</th>
-                    <th>Perubahan</th>
-                    <th>Evidence</th>
-                    <th class="nowrap">Diajukan oleh</th>
-                    <th>Status</th>
-                    <th style="text-align: right;">Aksi</th>
+                    <th>{{ __('No') }}</th>
+                    <th class="nowrap">{{ __('Diajukan') }}</th>
+                    <th>{{ __('Karyawan') }}</th>
+                    <th class="nowrap">{{ __('Tgl Absensi') }}</th>
+                    <th>{{ __('Perubahan') }}</th>
+                    <th>{{ __('Evidence') }}</th>
+                    <th class="nowrap">{{ __('Diajukan oleh') }}</th>
+                    <th>{{ __('Status') }}</th>
+                    <th style="text-align: right;">{{ __('Aksi') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -114,7 +114,7 @@
                         <td class="nowrap small">{{ $approval->created_at->translatedFormat('d M Y H:i') }}</td>
                         <td>
                             <div style="font-weight: 600;">{{ $karyawan->nama }}</div>
-                            <div class="small muted">{{ $karyawan->nik }} · {{ $karyawan->department?->name ?? 'Tanpa departemen' }}</div>
+                            <div class="small muted">{{ $karyawan->nik }} · {{ $karyawan->department?->name ?? __('Tanpa departemen') }}</div>
                         </td>
                         <td class="nowrap">
                             {{ $approval->tanggal_lama->translatedFormat('D, d M Y') }}
@@ -129,7 +129,7 @@
                         </td>
                         <td class="nowrap small">
                             @if ($approval->evidence_path)
-                                <span class="badge">Ada lampiran</span>
+                                <span class="badge">{{ __('Ada lampiran') }}</span>
                             @else
                                 <span class="muted">-</span>
                             @endif
@@ -138,15 +138,15 @@
                         <td><span class="ap-badge ap-{{ $approval->statusTone() }}">{{ $approval->statusLabel() }}</span></td>
                         <td>
                             <div class="actions">
-                                <button type="button" class="btn btn-ghost btn-sm" data-detail="{{ $approval->id }}">Detail</button>
+                                <button type="button" class="btn btn-ghost btn-sm" data-detail="{{ $approval->id }}">{{ __('Detail') }}</button>
                                 @if ($approval->isPending())
                                     <form method="POST" action="{{ route('hrms.absensi.approval.approve', $approval) }}" data-confirm="Setujui perubahan absensi {{ $karyawan->nama }}?">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-success">Setuju</button>
+                                        <button type="submit" class="btn btn-sm btn-success">{{ __('Setuju') }}</button>
                                     </form>
                                     <form method="POST" action="{{ route('hrms.absensi.approval.reject', $approval) }}" data-confirm="Tolak perubahan absensi {{ $karyawan->nama }}?">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-danger">Tidak Setuju</button>
+                                        <button type="submit" class="btn btn-sm btn-danger">{{ __('Tidak Setuju') }}</button>
                                     </form>
                                 @endif
                             </div>
@@ -154,61 +154,61 @@
                             {{-- Isi modal detail; disalin ke modal saat tombol Detail diklik. --}}
                             <template id="detail-{{ $approval->id }}">
                                 <div class="detail-meta">
-                                    <div><span>Karyawan</span>{{ $karyawan->nik }} - {{ $karyawan->nama }}</div>
-                                    <div><span>Departemen / Group</span>{{ $karyawan->department?->name ?? '-' }} / {{ $karyawan->group ?? '-' }}</div>
-                                    <div><span>Diajukan oleh</span>{{ $approval->requester?->name ?? '-' }} · {{ $approval->created_at->translatedFormat('d M Y H:i') }}</div>
-                                    <div><span>Status</span><span class="ap-badge ap-{{ $approval->statusTone() }}" style="display: inline-block; color: inherit;">{{ $approval->statusLabel() }}</span></div>
+                                    <div><span>{{ __('Karyawan') }}</span>{{ $karyawan->nik }} - {{ $karyawan->nama }}</div>
+                                    <div><span>{{ __('Departemen / Group') }}</span>{{ $karyawan->department?->name ?? '-' }} / {{ $karyawan->group ?? '-' }}</div>
+                                    <div><span>{{ __('Diajukan oleh') }}</span>{{ $approval->requester?->name ?? '-' }} · {{ $approval->created_at->translatedFormat('d M Y H:i') }}</div>
+                                    <div><span>{{ __('Status') }}</span><span class="ap-badge ap-{{ $approval->statusTone() }}" style="display: inline-block; color: inherit;">{{ $approval->statusLabel() }}</span></div>
                                 </div>
                                 <div class="compare">
                                     <div>
-                                        <h4>Sebelum</h4>
+                                        <h4>{{ __('Sebelum') }}</h4>
                                         <dl>
-                                            <dt>Tanggal</dt><dd>{{ $approval->tanggal_lama->translatedFormat('l, d M Y') }}</dd>
-                                            <dt>Kode</dt><dd>{!! $tag($approval->kode_lama) !!} {{ $kodes[$approval->kode_lama]['label'] ?? '' }}</dd>
+                                            <dt>{{ __('Tanggal') }}</dt><dd>{{ $approval->tanggal_lama->translatedFormat('l, d M Y') }}</dd>
+                                            <dt>{{ __('Kode') }}</dt><dd>{!! $tag($approval->kode_lama) !!} {{ $kodes[$approval->kode_lama]['label'] ?? '' }}</dd>
                                             @if ($approval->menit_lama)
-                                                <dt>Terlambat</dt><dd>{{ $approval->menit_lama }} menit</dd>
+                                                <dt>{{ __('Terlambat') }}</dt><dd>{{ __(':menit menit', ['menit' => $approval->menit_lama]) }}</dd>
                                             @endif
-                                            <dt>Keterangan</dt><dd>{{ $approval->keterangan_lama ?: '-' }}</dd>
+                                            <dt>{{ __('Keterangan') }}</dt><dd>{{ $approval->keterangan_lama ?: '-' }}</dd>
                                         </dl>
                                     </div>
                                     <div class="after">
-                                        <h4>Diajukan</h4>
+                                        <h4>{{ __('Diajukan') }}</h4>
                                         @if ($approval->isDeletion())
-                                            <div style="font-size: 13px;">Data absensi <strong>dihapus</strong> — karyawan dianggap <strong>masuk</strong>.</div>
+                                            <div style="font-size: 13px;">{{ __('Data absensi') }} <strong>{{ __('dihapus') }}</strong> {{ __('— karyawan dianggap') }} <strong>{{ __('masuk') }}</strong>.</div>
                                         @else
                                             <dl>
-                                                <dt>Tanggal</dt><dd>{{ $approval->tanggal_baru->translatedFormat('l, d M Y') }}</dd>
-                                                <dt>Kode</dt><dd>{!! $tag($approval->kode_baru) !!} {{ $kodes[$approval->kode_baru]['label'] ?? '' }}</dd>
+                                                <dt>{{ __('Tanggal') }}</dt><dd>{{ $approval->tanggal_baru->translatedFormat('l, d M Y') }}</dd>
+                                                <dt>{{ __('Kode') }}</dt><dd>{!! $tag($approval->kode_baru) !!} {{ $kodes[$approval->kode_baru]['label'] ?? '' }}</dd>
                                                 @if ($approval->menit_baru)
-                                                    <dt>Terlambat</dt><dd>{{ $approval->menit_baru }} menit</dd>
+                                                    <dt>{{ __('Terlambat') }}</dt><dd>{{ __(':menit menit', ['menit' => $approval->menit_baru]) }}</dd>
                                                 @endif
-                                                <dt>Keterangan</dt><dd>{{ $approval->keterangan_baru ?: '-' }}</dd>
+                                                <dt>{{ __('Keterangan') }}</dt><dd>{{ $approval->keterangan_baru ?: '-' }}</dd>
                                             </dl>
                                         @endif
                                     </div>
                                 </div>
                                 <div class="detail-section">
-                                    <h4>Alasan</h4>
+                                    <h4>{{ __('Alasan') }}</h4>
                                     <div class="alasan">{{ $approval->alasan }}</div>
                                 </div>
                                 <div class="detail-section">
-                                    <h4>Evidence @if ($approval->evidence_name)<span class="muted small" style="font-weight: 400;">· {{ $approval->evidence_name }}</span>@endif</h4>
+                                    <h4>{{ __('Evidence') }} @if ($approval->evidence_name)<span class="muted small" style="font-weight: 400;">· {{ $approval->evidence_name }}</span>@endif</h4>
                                     @if ($approval->evidence_path)
                                         @php($evidenceUrl = route('hrms.absensi.approval.evidence', $approval))
                                         @if ($approval->evidenceIsImage())
-                                            <a href="{{ $evidenceUrl }}" target="_blank" data-turbo="false"><img src="{{ $evidenceUrl }}" alt="Evidence" class="evidence-img" loading="lazy"></a>
+                                            <a href="{{ $evidenceUrl }}" target="_blank" data-turbo="false"><img src="{{ $evidenceUrl }}" alt="{{ __('Evidence') }}" class="evidence-img" loading="lazy"></a>
                                         @else
-                                            <iframe src="{{ $evidenceUrl }}" class="evidence-frame" title="Evidence"></iframe>
+                                            <iframe src="{{ $evidenceUrl }}" class="evidence-frame" title="{{ __('Evidence') }}"></iframe>
                                         @endif
-                                        <div style="margin-top: 6px;"><a href="{{ $evidenceUrl }}" target="_blank" data-turbo="false" class="small" style="color: var(--primary); font-weight: 600;">Buka di tab baru</a></div>
+                                        <div style="margin-top: 6px;"><a href="{{ $evidenceUrl }}" target="_blank" data-turbo="false" class="small" style="color: var(--primary); font-weight: 600;">{{ __('Buka di tab baru') }}</a></div>
                                     @else
-                                        <div class="evidence-empty">Tidak ada lampiran.</div>
+                                        <div class="evidence-empty">{{ __('Tidak ada lampiran.') }}</div>
                                     @endif
                                 </div>
                                 @unless ($approval->isPending())
                                     <div class="detail-section">
-                                        <h4>Keputusan HRD</h4>
-                                        <div class="small">{{ $approval->statusLabel() }} oleh {{ $approval->reviewer?->name ?? '-' }} · {{ $approval->reviewed_at?->translatedFormat('d M Y H:i') }}</div>
+                                        <h4>{{ __('Keputusan HRD') }}</h4>
+                                        <div class="small">{{ __(':status oleh :nama', ['status' => $approval->statusLabel(), 'nama' => $approval->reviewer?->name ?? '-']) }} · {{ $approval->reviewed_at?->translatedFormat('d M Y H:i') }}</div>
                                         @if ($approval->catatan_review)
                                             <div class="alasan" style="margin-top: 6px;">{{ $approval->catatan_review }}</div>
                                         @endif
@@ -223,7 +223,7 @@
                 @empty
                     <tr>
                         <td colspan="9" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $status === 'pending' ? 'Tidak ada pengajuan yang menunggu approval.' : 'Belum ada pengajuan.' }}
+                            {{ $status === 'pending' ? __('Tidak ada pengajuan yang menunggu approval.') : __('Belum ada pengajuan.') }}
                         </td>
                     </tr>
                 @endforelse
@@ -238,20 +238,20 @@
     <form method="POST" id="review-form">
         @csrf
         <div class="modal-head">
-            <h2>Detail Pengajuan</h2>
-            <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+            <h2>{{ __('Detail Pengajuan') }}</h2>
+            <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
         </div>
         <div class="modal-body">
             <div id="detail-body"></div>
             <div class="detail-section" id="review-fields">
-                <label for="catatan_review">Catatan HRD <span class="muted">(opsional)</span></label>
-                <textarea id="catatan_review" name="catatan_review" rows="2" maxlength="255" placeholder="Mis. Surat dokter tidak terbaca, mohon upload ulang"></textarea>
+                <label for="catatan_review">{{ __('Catatan HRD') }} <span class="muted">{{ __('(opsional)') }}</span></label>
+                <textarea id="catatan_review" name="catatan_review" rows="2" maxlength="255" placeholder="{{ __('Mis. Surat dokter tidak terbaca, mohon upload ulang') }}"></textarea>
             </div>
         </div>
         <div class="modal-foot">
-            <button type="button" class="btn btn-ghost" data-close>Tutup</button>
-            <button type="submit" class="btn btn-danger" id="review-reject">Tidak Setuju</button>
-            <button type="submit" class="btn btn-success" id="review-approve">Setuju</button>
+            <button type="button" class="btn btn-ghost" data-close>{{ __('Tutup') }}</button>
+            <button type="submit" class="btn btn-danger" id="review-reject">{{ __('Tidak Setuju') }}</button>
+            <button type="submit" class="btn btn-success" id="review-approve">{{ __('Setuju') }}</button>
         </div>
     </form>
 </dialog>

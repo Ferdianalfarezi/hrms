@@ -5,7 +5,7 @@
     $absen = $penilaian->absen;
     $skor = $penilaian->skor ?? [];
     $kolomAbsen = ['0', '1 x', '2 x', '3 x', '4 x', '5 x', '6 x', '7 ~ 10', '11~15', '≥ 16'];
-    $singkatanAbsen = ['A' => 'A', 'I' => 'I', 'S' => 'S', 'DT' => 'DT', 'DT30' => 'DT > 30 mnt', 'PC' => 'PC', 'PC30' => 'PC > 30 mnt', 'SD' => 'SD'];
+    $singkatanAbsen = ['A' => 'A', 'I' => 'I', 'S' => 'S', 'DT' => 'DT', 'DT30' => __('DT > 30 mnt'), 'PC' => 'PC', 'PC30' => __('PC > 30 mnt'), 'SD' => 'SD'];
     // Status karyawan di data (PKWT) => pilihan di form kertas (KKWT).
     $statusForm = ['PKWT 1' => 'KKWT 1', 'PKWT 2' => 'KKWT 2', 'PKWT 3' => 'KKWT 2+', 'Tetap' => 'Tetap'];
     $statusTerpilih = $statusForm[$karyawan->status] ?? null;
@@ -19,7 +19,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Penilaian {{ $karyawan->nik }} - {{ $karyawan->nama }} ({{ $tahun }})</title>
+    <title>{{ __('Penilaian') }} {{ $karyawan->nik }} - {{ $karyawan->nama }} ({{ $tahun }})</title>
     <style>
         @page { size: A4 portrait; margin: 8mm 9mm; }
         * { box-sizing: border-box; }
@@ -86,8 +86,8 @@
 </head>
 <body>
 <div class="toolbar">
-    <button type="button" onclick="window.print()">Print / Simpan PDF</button>
-    <button type="button" class="ghost" onclick="window.close()">Tutup</button>
+    <button type="button" onclick="window.print()">{{ __('Print / Simpan PDF') }}</button>
+    <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
 </div>
 
 <div class="sheet">
@@ -95,16 +95,16 @@
     <table class="kop">
         <tr>
             <td class="logo">
-                <img src="{{ asset('images/step-logo.jpeg') }}" alt="STEP">
-                <span>PT. SARI TAKAGI ELOK PRODUK</span>
+                <img src="{{ asset('images/step-logo.jpeg') }}" alt="{{ __('STEP') }}">
+                <span>{{ __('PT. SARI TAKAGI ELOK PRODUK') }}</span>
             </td>
-            <td class="judul">FORM PENILAIAN<br>{{ $form['judul'] }}</td>
+            <td class="judul">{{ __('FORM PENILAIAN') }}<br>{{ __($form['judul']) }}</td>
             <td class="dok">
                 <table>
-                    <tr><td>No. Dokumen</td><td>: {{ str_replace('/', ' / ', $form['dokumen']) }}</td></tr>
-                    <tr><td>Tanggal efektif</td><td>: {{ $form['tanggal_efektif'] }}</td></tr>
-                    <tr><td>No. Revisi</td><td>: {{ $form['revisi'] }}</td></tr>
-                    <tr><td>Halaman</td><td>: 1 dari 1</td></tr>
+                    <tr><td>{{ __('No. Dokumen') }}</td><td>: {{ str_replace('/', ' / ', $form['dokumen']) }}</td></tr>
+                    <tr><td>{{ __('Tanggal efektif') }}</td><td>: {{ $form['tanggal_efektif'] }}</td></tr>
+                    <tr><td>{{ __('No. Revisi') }}</td><td>: {{ $form['revisi'] }}</td></tr>
+                    <tr><td>{{ __('Halaman') }}</td><td>{{ __(': 1 dari 1') }}</td></tr>
                 </table>
             </td>
         </tr>
@@ -116,15 +116,15 @@
         <tr>
             <td style="width: 42%;">
                 <table class="ident">
-                    <tr><td>Nama</td><td class="b">{{ $karyawan->nama }}</td></tr>
-                    <tr><td>Bagian</td><td class="b">{{ $penilaian->department?->name ?? '-' }} · {{ $penilaian->jabatan ?? $karyawan->jabatan }}</td></tr>
+                    <tr><td>{{ __('Nama') }}</td><td class="b">{{ $karyawan->nama }}</td></tr>
+                    <tr><td>{{ __('Bagian') }}</td><td class="b">{{ $penilaian->department?->name ?? '-' }} · {{ $penilaian->jabatan ?? $karyawan->jabatan }}</td></tr>
                 </table>
             </td>
             <td></td>
             <td style="width: 32%;">
                 <table class="ident">
                     <tr><td>N.I.K</td><td class="b">{{ $karyawan->nik }}</td></tr>
-                    <tr><td>Periode</td><td class="b">Januari - Desember {{ $tahun }}</td></tr>
+                    <tr><td>{{ __('Periode') }}</td><td class="b">{{ __('Januari - Desember :tahun', ['tahun' => $tahun]) }}</td></tr>
                 </table>
             </td>
         </tr>
@@ -148,12 +148,12 @@
                     </tr>
                 </table>
 
-                <div class="sec-title">I. ABSEN (di isi oleh HRD)</div>
+                <div class="sec-title">{{ __('I. ABSEN (di isi oleh HRD)') }}</div>
                 <table class="matriks">
                     <tr>
-                        <th rowspan="2" style="width: 27%;">Kategori Absen</th>
-                        <th colspan="{{ count($kolomAbsen) }}">Banyaknya Absen</th>
-                        <th rowspan="2" style="width: 7%;">Nilai</th>
+                        <th rowspan="2" style="width: 27%;">{{ __('Kategori Absen') }}</th>
+                        <th colspan="{{ count($kolomAbsen) }}">{{ __('Banyaknya Absen') }}</th>
+                        <th rowspan="2" style="width: 7%;">{{ __('Nilai') }}</th>
                     </tr>
                     <tr>
                         @foreach ($kolomAbsen as $kolom)
@@ -163,7 +163,7 @@
                     @foreach (FormPenilaian::KONVERSI_ABSEN as $kategori => $konversi)
                         @php($terpakai = FormPenilaian::kolomAbsen($absen['rincian'][$kategori]['jumlah'] ?? 0))
                         <tr>
-                            <td>{{ $konversi['label'] }}</td>
+                            <td>{{ __($konversi['label']) }}</td>
                             @foreach ($konversi['poin'] as $index => $poin)
                                 <td class="{{ $index === $terpakai ? 'on' : '' }}"><span>{{ $poin }}</span></td>
                             @endforeach
@@ -171,19 +171,19 @@
                         </tr>
                     @endforeach
                     <tr class="b">
-                        <td colspan="{{ count($kolomAbsen) + 1 }}">TOTAL</td>
+                        <td colspan="{{ count($kolomAbsen) + 1 }}">{{ __('TOTAL') }}</td>
                         <td>{{ $absen['total_poin'] }}</td>
                     </tr>
                 </table>
                 <div class="rumus">
-                    <span>Nilai Maksimum = {{ FormPenilaian::MAKS_ABSEN }} (a) · Bobot Absen = {{ $form['bobot_absen'] }}% (b)</span>
-                    <span>Nilai akhir = (Total nilai / a) x (b% x 100) = <b>{{ $angka($penilaian->nilai_absen) }}</b></span>
+                    <span>{{ __('Nilai Maksimum = :maks (a) · Bobot Absen = :bobot% (b)', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</span>
+                    <span>{{ __('Nilai akhir = (Total nilai / a) x (b% x 100) =') }} <b>{{ $angka($penilaian->nilai_absen) }}</b></span>
                 </div>
             </td>
             <td style="width: 24%;">
                 <table class="range">
-                    <tr><th colspan="2">RANGE NILAI AKHIR</th></tr>
-                    <tr><th>ANGKA</th><th>HURUF</th></tr>
+                    <tr><th colspan="2">{{ __('RANGE NILAI AKHIR') }}</th></tr>
+                    <tr><th>{{ __('ANGKA') }}</th><th>{{ __('HURUF') }}</th></tr>
                     @foreach (['91 ~ 100' => 'A', '80 ~ 90' => 'B', '60 ~ 79' => 'C', '39 ~ 59' => 'D', '16 ~ 38' => 'E'] as $range => $huruf)
                         <tr class="{{ $penilaian->huruf === $huruf ? 'on' : '' }}"><td>{{ $range }}</td><td>{{ $huruf }}</td></tr>
                     @endforeach
@@ -194,11 +194,11 @@
 
     {{-- ===== II - VI. PERFORMANCE ===== --}}
     @foreach ($form['butir'] as $kategori => $butirs)
-        <div class="sec-title">{{ strtoupper(FormPenilaian::KATEGORI[$kategori]) }}</div>
+        <div class="sec-title">{{ Str::upper(__(FormPenilaian::KATEGORI[$kategori])) }}</div>
         <table>
             <tr>
-                <th style="width: 4%;">No</th>
-                <th style="text-align: left;">Faktor Penilaian</th>
+                <th style="width: 4%;">{{ __('No') }}</th>
+                <th style="text-align: left;">{{ __('Faktor Penilaian') }}</th>
                 @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
                     <th style="width: 5%; line-height: 1;">{{ $huruf }}<br><span style="font-weight: 400; font-size: 6pt;">{{ $nilai }}</span></th>
                 @endforeach
@@ -206,7 +206,7 @@
             @foreach ($butirs as $index => $butir)
                 <tr>
                     <td class="c">{{ $index + 1 }}</td>
-                    <td>{{ $butir }}</td>
+                    <td>{{ __($butir) }}</td>
                     @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
                         <td class="c mark">{{ ($skor[$kategori][$index] ?? null) === $huruf ? '✓' : '' }}</td>
                     @endforeach
@@ -214,8 +214,8 @@
             @endforeach
         </table>
         <div class="rumus">
-            <span>Total nilai = <b>{{ $performance['kategori'][$kategori]['total'] }}</b> · Nilai Max = {{ count($butirs) * 5 }} (a) · Bobot = {{ $form['bobot_kategori'] }}% (b)</span>
-            <span>Nilai Akhir = (Total nilai / a) x (b% x 100) = <b>{{ $angka($performance['kategori'][$kategori]['nilai']) }}</b></span>
+            <span>{{ __('Total nilai =') }} <b>{{ $performance['kategori'][$kategori]['total'] }}</b> · {{ __('Nilai Max = :maks (a) · Bobot = :bobot% (b)', ['maks' => count($butirs) * 5, 'bobot' => $form['bobot_kategori']]) }}</span>
+            <span>{{ __('Nilai Akhir = (Total nilai / a) x (b% x 100) =') }} <b>{{ $angka($performance['kategori'][$kategori]['nilai']) }}</b></span>
         </div>
     @endforeach
 
@@ -230,10 +230,10 @@
                     @foreach (PenilaianTahunan::HASIL as $option)
                         <tr>
                             @if ($loop->first)
-                                <td rowspan="{{ count(PenilaianTahunan::HASIL) }}" style="width: 36%;">Hasil Penilaian</td>
+                                <td rowspan="{{ count(PenilaianTahunan::HASIL) }}" style="width: 36%;">{{ __('Hasil Penilaian') }}</td>
                             @endif
                             <td class="o">{{ $bulat($penilaian->hasil === $option) }}</td>
-                            <td>{{ $option }}</td>
+                            <td>{{ __($option) }}</td>
                         </tr>
                     @endforeach
                 </table>
@@ -242,49 +242,49 @@
 
                 <table class="pilihan" style="width: 92%;">
                     <tr>
-                        <td rowspan="3" style="width: 36%; vertical-align: top;">Status Karyawan*</td>
+                        <td rowspan="3" style="width: 36%; vertical-align: top;">{{ __('Status Karyawan*') }}</td>
                         <td class="o">{{ $bulat($statusTerpilih === 'KKWT 1') }}</td>
-                        <td>KKWT 1*</td>
+                        <td>{{ __('KKWT 1*') }}</td>
                         <td class="o">{{ $bulat($statusTerpilih === 'Tetap') }}</td>
-                        <td>Tetap*</td>
+                        <td>{{ __('Tetap*') }}</td>
                     </tr>
                     <tr>
                         <td class="o">{{ $bulat($statusTerpilih === 'KKWT 2') }}</td>
-                        <td colspan="3">KKWT 2*</td>
+                        <td colspan="3">{{ __('KKWT 2*') }}</td>
                     </tr>
                     <tr>
                         <td class="o">{{ $bulat($statusTerpilih === 'KKWT 2+') }}</td>
-                        <td colspan="3">KKWT 2+*</td>
+                        <td colspan="3">{{ __('KKWT 2+*') }}</td>
                     </tr>
                 </table>
 
                 <div class="gap"></div>
 
                 <div class="rekom">
-                    <u>Rekomendasi Akhir HRD*</u>
-                    <span class="note">Note : Tanda (**) diisi oleh HRD</span>
+                    <u>{{ __('Rekomendasi Akhir HRD*') }}</u>
+                    <span class="note">{{ __('Note : Tanda (**) diisi oleh HRD') }}</span>
                 </div>
             </td>
             <td>
                 <table class="nilai-akhir">
-                    <tr><th colspan="3">NILAI AKHIR</th></tr>
+                    <tr><th colspan="3">{{ __('NILAI AKHIR') }}</th></tr>
                     <tr>
-                        <td class="catatan" rowspan="5"><u>Catatan Atasan</u>{{ $penilaian->catatan ?: '' }}</td>
-                        <td class="lbl" colspan="2">NILAI ABSEN</td>
+                        <td class="catatan" rowspan="5"><u>{{ __('Catatan Atasan') }}</u>{{ $penilaian->catatan ?: '' }}</td>
+                        <td class="lbl" colspan="2">{{ __('NILAI ABSEN') }}</td>
                     </tr>
                     <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_absen) }}</td></tr>
-                    <tr><td class="lbl" colspan="2">PERFORMANCE</td></tr>
+                    <tr><td class="lbl" colspan="2">{{ __('PERFORMANCE') }}</td></tr>
                     <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_performance) }}</td></tr>
-                    <tr><td class="lbl">ANGKA</td><td class="lbl">HURUF</td></tr>
+                    <tr><td class="lbl">{{ __('ANGKA') }}</td><td class="lbl">{{ __('HURUF') }}</td></tr>
                     <tr>
-                        <td style="font-family: 'Times New Roman', serif; font-size: 8.5pt;">TOTAL NILAI AKHIR **</td>
+                        <td style="font-family: 'Times New Roman', serif; font-size: 8.5pt;">{{ __('TOTAL NILAI AKHIR **') }}</td>
                         <td class="val">{{ $angka($penilaian->nilai_akhir) }}</td>
                         <td class="val">{{ $penilaian->huruf }}</td>
                     </tr>
                 </table>
 
                 <table class="ttd" style="width: 84%; margin: -1px 0 0 auto;">
-                    <tr><th colspan="{{ count($penilaiPerTahap) }}">Penilai</th></tr>
+                    <tr><th colspan="{{ count($penilaiPerTahap) }}">{{ __('Penilai') }}</th></tr>
                     <tr>
                         @foreach (array_reverse($penilaiPerTahap) as $tahap)
                             <td class="isi" style="width: {{ 100 / count($penilaiPerTahap) }}%;"></td>
@@ -301,8 +301,8 @@
     </table>
 
     <div class="foot">
-        <span>Disetujui secara elektronik melalui HR System.</span>
-        <span>Dicetak {{ now()->translatedFormat('d M Y H:i') }} oleh {{ auth()->user()->name }}</span>
+        <span>{{ __('Disetujui secara elektronik melalui HR System.') }}</span>
+        <span>{{ __('Dicetak :waktu oleh :nama', ['waktu' => now()->translatedFormat('d M Y H:i'), 'nama' => auth()->user()->name]) }}</span>
     </div>
 </div>
 

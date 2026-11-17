@@ -68,7 +68,7 @@ class AppServiceProvider extends ServiceProvider
         $tabs = [];
 
         if ($user->is_superadmin || $applications->count() > 1) {
-            $tabs[] = ['label' => 'Beranda', 'url' => route('portal'), 'active' => request()->routeIs('portal')];
+            $tabs[] = ['label' => __('Beranda'), 'url' => route('portal'), 'active' => request()->routeIs('portal')];
         }
 
         foreach ($applications as $application) {
@@ -80,7 +80,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         if ($user->is_superadmin) {
-            $tabs[] = ['label' => 'Kelola User', 'url' => route('admin.users.index'), 'active' => request()->routeIs('admin.*')];
+            $tabs[] = ['label' => __('Kelola User'), 'url' => route('admin.users.index'), 'active' => request()->routeIs('admin.*')];
         }
 
         return $tabs;
@@ -121,7 +121,7 @@ class AppServiceProvider extends ServiceProvider
                 $badge = isset($item['badge']) ? (int) ($item['badge'])() : 0;
 
                 return [
-                    'label' => $item['label'],
+                    'label' => __($item['label']),
                     'url' => $children[0]['url'] ?? route($item['route']),
                     'active' => request()->routeIs($item['active']),
                     'badge' => $badge + array_sum(array_column($children, 'badge')),

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Kecelakaan')
+@section('title', __('Kecelakaan'))
 
 @section('styles')
     @include('sms.partials.patrol-styles')
@@ -23,11 +23,11 @@
 
 <div class="dp-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Kecelakaan</h1>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Kecelakaan') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            Laporan work accident & traffic accident
+            {{ __('Laporan work accident & traffic accident') }}
             @if ($lockedDepartments->isNotEmpty())
-                · departemen
+                {{ __('· departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
@@ -35,32 +35,32 @@
         </p>
     </div>
     @if ($canManage)
-        <button type="button" class="btn" data-create>+ Tambah Kecelakaan</button>
+        <button type="button" class="btn" data-create>{{ __('+ Tambah Kecelakaan') }}</button>
     @endif
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 
 <form method="GET" class="filters">
-    <select name="tipe" onchange="this.form.requestSubmit()" aria-label="Tipe">
-        <option value="">Semua tipe</option>
+    <select name="tipe" onchange="this.form.requestSubmit()" aria-label="{{ __('Tipe') }}">
+        <option value="">{{ __('Semua tipe') }}</option>
         @foreach ($tipes as $kode => $info)
-            <option value="{{ $kode }}" @selected($tipe === $kode)>{{ $info['label'] }}</option>
+            <option value="{{ $kode }}" @selected($tipe === $kode)>{{ __($info['label']) }}</option>
         @endforeach
     </select>
     @if ($canFilterDepartment)
-        <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
-            <option value="">Semua departemen</option>
+        <select name="department" onchange="this.form.requestSubmit()" aria-label="{{ __('Departemen') }}">
+            <option value="">{{ __('Semua departemen') }}</option>
             @foreach ($departments as $option)
                 <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
             @endforeach
         </select>
     @endif
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari nama korban / deskripsi...">
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari nama korban / deskripsi...') }}">
     <div class="summary">
-        <span class="chip">Total <b>{{ $kecelakaans->total() }}</b></span>
+        <span class="chip">{{ __('Total') }} <b>{{ $kecelakaans->total() }}</b></span>
     </div>
 </form>
 
@@ -70,13 +70,13 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Tipe</th>
-                    <th>Kategori</th>
-                    <th>Waktu</th>
-                    <th>Nama Korban</th>
-                    <th>Departemen</th>
-                    <th>Deskripsi</th>
-                    <th style="text-align: right;">Aksi</th>
+                    <th>{{ __('Tipe') }}</th>
+                    <th>{{ __('Kategori') }}</th>
+                    <th>{{ __('Waktu') }}</th>
+                    <th>{{ __('Nama Korban') }}</th>
+                    <th>{{ __('Departemen') }}</th>
+                    <th>{{ __('Deskripsi') }}</th>
+                    <th style="text-align: right;">{{ __('Aksi') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -91,11 +91,11 @@
                         <td class="c-desc" title="{{ $kecelakaan->deskripsi }}">{{ $kecelakaan->deskripsi }}</td>
                         <td style="text-align: right;">
                             <div class="act">
-                                <button type="button" class="act-btn" data-detail="{{ $kecelakaan->id }}" title="Detail" aria-label="Detail">
+                                <button type="button" class="act-btn" data-detail="{{ $kecelakaan->id }}" title="{{ __('Detail') }}" aria-label="{{ __('Detail') }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
                                 </button>
                                 @if ($canEdit)
-                                    <button type="button" class="act-btn" data-edit="{{ $kecelakaan->id }}" title="Edit" aria-label="Edit"
+                                    <button type="button" class="act-btn" data-edit="{{ $kecelakaan->id }}" title="{{ __('Edit') }}" aria-label="{{ __('Edit') }}"
                                             data-record="{{ json_encode([
                                                 'tipe' => $kecelakaan->tipe,
                                                 'kategori' => $kecelakaan->kategori,
@@ -108,19 +108,19 @@
                                     </button>
                                 @endif
                                 @if ($canManage)
-                                    <button type="button" class="act-btn act-danger" data-delete="{{ $kecelakaan->id }}" data-name="{{ $kecelakaan->nama_korban }} ({{ $kecelakaan->waktu->format('d/m/Y H:i') }})" title="Hapus" aria-label="Hapus">
+                                    <button type="button" class="act-btn act-danger" data-delete="{{ $kecelakaan->id }}" data-name="{{ $kecelakaan->nama_korban }} ({{ $kecelakaan->waktu->format('d/m/Y H:i') }})" title="{{ __('Hapus') }}" aria-label="{{ __('Hapus') }}">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>
                                     </button>
                                 @endif
                             </div>
                             <template id="detail-{{ $kecelakaan->id }}">
                                 <dl class="detail-list">
-                                    <div><dt>Tipe</dt><dd>{{ $kecelakaan->tipeLabel() }}</dd></div>
-                                    <div><dt>Kategori</dt><dd>{{ $kecelakaan->kategoriLabel() ?? '-' }}</dd></div>
-                                    <div><dt>Waktu</dt><dd>{{ $kecelakaan->waktu->translatedFormat('l, d F Y H:i') }}</dd></div>
-                                    <div><dt>Departemen</dt><dd>{{ $kecelakaan->department?->name ?? '-' }}</dd></div>
-                                    <div class="wide"><dt>Nama Korban</dt><dd>{{ $kecelakaan->nama_korban }}</dd></div>
-                                    <div class="wide"><dt>Deskripsi</dt><dd style="white-space: pre-line;">{{ $kecelakaan->deskripsi }}</dd></div>
+                                    <div><dt>{{ __('Tipe') }}</dt><dd>{{ $kecelakaan->tipeLabel() }}</dd></div>
+                                    <div><dt>{{ __('Kategori') }}</dt><dd>{{ $kecelakaan->kategoriLabel() ?? '-' }}</dd></div>
+                                    <div><dt>{{ __('Waktu') }}</dt><dd>{{ $kecelakaan->waktu->translatedFormat('l, d F Y H:i') }}</dd></div>
+                                    <div><dt>{{ __('Departemen') }}</dt><dd>{{ $kecelakaan->department?->name ?? '-' }}</dd></div>
+                                    <div class="wide"><dt>{{ __('Nama Korban') }}</dt><dd>{{ $kecelakaan->nama_korban }}</dd></div>
+                                    <div class="wide"><dt>{{ __('Deskripsi') }}</dt><dd style="white-space: pre-line;">{{ $kecelakaan->deskripsi }}</dd></div>
                                 </dl>
                             </template>
                         </td>
@@ -128,7 +128,7 @@
                 @empty
                     <tr>
                         <td colspan="8" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $listFilters ? 'Data tidak ditemukan.' : 'Belum ada laporan kecelakaan.' }}
+                            {{ $listFilters ? __('Data tidak ditemukan.') : __('Belum ada laporan kecelakaan.') }}
                         </td>
                     </tr>
                 @endforelse
@@ -141,14 +141,14 @@
 {{-- Modal detail --}}
 <dialog class="modal" id="kecelakaan-detail">
     <div class="modal-head">
-        <h2>Detail Kecelakaan</h2>
-        <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+        <h2>{{ __('Detail Kecelakaan') }}</h2>
+        <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
     </div>
     <div class="modal-body" id="detail-body"></div>
     <div class="modal-foot">
-        <button type="button" class="btn btn-ghost" data-close>Tutup</button>
+        <button type="button" class="btn btn-ghost" data-close>{{ __('Tutup') }}</button>
         @if ($canEdit)
-            <button type="button" class="btn" data-detail-edit>Edit</button>
+            <button type="button" class="btn" data-detail-edit>{{ __('Edit') }}</button>
         @endif
     </div>
 </dialog>
@@ -164,28 +164,28 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2 id="kecelakaan-modal-title">Tambah Kecelakaan</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="kecelakaan-modal-title">{{ __('Tambah Kecelakaan') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="grid-2">
                     <div>
-                        <label for="f-tipe">Tipe Kecelakaan <span style="color: var(--danger);">*</span></label>
+                        <label for="f-tipe">{{ __('Tipe Kecelakaan') }} <span style="color: var(--danger);">*</span></label>
                         <select id="f-tipe" name="tipe" required>
-                            <option value="">-- Pilih Tipe --</option>
+                            <option value="">{{ __('-- Pilih Tipe --') }}</option>
                             @foreach ($tipes as $kode => $info)
-                                <option value="{{ $kode }}">{{ $info['label'] }}</option>
+                                <option value="{{ $kode }}">{{ __($info['label']) }}</option>
                             @endforeach
                         </select>
                         @error('tipe') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     {{-- Kategori hanya untuk Traffic Accident. --}}
                     <div id="kategori-field" hidden>
-                        <label for="f-kategori">Kategori <span style="color: var(--danger);">*</span></label>
+                        <label for="f-kategori">{{ __('Kategori') }} <span style="color: var(--danger);">*</span></label>
                         <select id="f-kategori" name="kategori">
-                            <option value="">-- Pilih Kategori --</option>
+                            <option value="">{{ __('-- Pilih Kategori --') }}</option>
                             @foreach ($kategoris as $kode => $label)
-                                <option value="{{ $kode }}">{{ $label }}</option>
+                                <option value="{{ $kode }}">{{ __($label) }}</option>
                             @endforeach
                         </select>
                         @error('kategori') <div class="field-error">{{ $message }}</div> @enderror
@@ -193,15 +193,15 @@
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-waktu">Waktu <span style="color: var(--danger);">*</span></label>
+                        <label for="f-waktu">{{ __('Waktu') }} <span style="color: var(--danger);">*</span></label>
                         <input id="f-waktu" type="datetime-local" name="waktu" required>
                         @error('waktu') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-department_id">Departemen <span style="color: var(--danger);">*</span></label>
+                        <label for="f-department_id">{{ __('Departemen') }} <span style="color: var(--danger);">*</span></label>
                         @if ($canFilterDepartment)
                             <select id="f-department_id" name="department_id" required>
-                                <option value="">-- Pilih Departemen --</option>
+                                <option value="">{{ __('-- Pilih Departemen --') }}</option>
                                 @foreach ($departments as $option)
                                     <option value="{{ $option->id }}">{{ $option->name }}</option>
                                 @endforeach
@@ -213,19 +213,19 @@
                     </div>
                 </div>
                 <div>
-                    <label for="f-nama_korban">Nama Korban <span style="color: var(--danger);">*</span></label>
+                    <label for="f-nama_korban">{{ __('Nama Korban') }} <span style="color: var(--danger);">*</span></label>
                     <input id="f-nama_korban" type="text" name="nama_korban" maxlength="255" required>
                     @error('nama_korban') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-deskripsi">Deskripsi <span style="color: var(--danger);">*</span></label>
-                    <textarea id="f-deskripsi" name="deskripsi" maxlength="5000" rows="4" placeholder="Kronologi singkat kejadian" required></textarea>
+                    <label for="f-deskripsi">{{ __('Deskripsi') }} <span style="color: var(--danger);">*</span></label>
+                    <textarea id="f-deskripsi" name="deskripsi" maxlength="5000" rows="4" placeholder="{{ __('Kronologi singkat kejadian') }}" required></textarea>
                     @error('deskripsi') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -241,13 +241,13 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2>Hapus Kecelakaan</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Hapus Kecelakaan') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
-            <div class="modal-body">Hapus laporan kecelakaan <strong id="delete-name"></strong>?</div>
+            <div class="modal-body">{{ __('Hapus laporan kecelakaan') }} <strong id="delete-name"></strong>?</div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" style="background: var(--danger);">{{ __('Hapus') }}</button>
             </div>
         </form>
     </dialog>
@@ -307,7 +307,7 @@
             form.action = id ? updateUrl.replace('__ID__', id) : storeUrl;
             form.elements._method.value = id ? 'PUT' : 'POST';
             form.elements._modal.value = id ? 'edit:' + id : 'create';
-            document.getElementById('kecelakaan-modal-title').textContent = id ? 'Edit Kecelakaan' : 'Tambah Kecelakaan';
+            document.getElementById('kecelakaan-modal-title').textContent = id ? __t('Edit Kecelakaan') : __t('Tambah Kecelakaan');
             fields.forEach(function (name) {
                 var el = form.elements[name];
                 if (el) el.value = (record && record[name]) || '';

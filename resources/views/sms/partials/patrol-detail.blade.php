@@ -5,33 +5,33 @@
 <template id="detail-{{ $patrol->id }}" data-sub="{{ $patrol->tanggal->translatedFormat('l, d F Y') }}">
     <div class="detail-photos">
         <figure class="detail-photo">
-            <figcaption>Foto temuan</figcaption>
-            <button type="button" data-photo="{{ $patrol->foto_url }}" title="Perbesar"><img src="{{ $patrol->foto_url }}" alt="Foto temuan"></button>
+            <figcaption>{{ __('Foto temuan') }}</figcaption>
+            <button type="button" data-photo="{{ $patrol->foto_url }}" title="{{ __('Perbesar') }}"><img src="{{ $patrol->foto_url }}" alt="{{ __('Foto temuan') }}"></button>
         </figure>
         <figure class="detail-photo">
-            <figcaption>Foto perbaikan</figcaption>
+            <figcaption>{{ __('Foto perbaikan') }}</figcaption>
             @if ($patrol->foto_perbaikan_url)
-                <button type="button" data-photo="{{ $patrol->foto_perbaikan_url }}" title="Perbesar"><img src="{{ $patrol->foto_perbaikan_url }}" alt="Foto perbaikan"></button>
+                <button type="button" data-photo="{{ $patrol->foto_perbaikan_url }}" title="{{ __('Perbesar') }}"><img src="{{ $patrol->foto_perbaikan_url }}" alt="{{ __('Foto perbaikan') }}"></button>
             @else
-                <div class="none">Belum ada</div>
+                <div class="none">{{ __('Belum ada') }}</div>
             @endif
         </figure>
     </div>
     <dl class="detail-list">
         @foreach ($items as $item)
             <div @class(['wide' => $item[2] ?? false])>
-                <dt>{{ $item[0] }}</dt>
+                <dt>{{ __($item[0]) }}</dt>
                 <dd>{{ filled($item[1]) ? $item[1] : '-' }}</dd>
             </div>
         @endforeach
         <div>
-            <dt>Status</dt>
+            <dt>{{ __('Status') }}</dt>
             <dd>
                 @if ($patrol->isClosed())
-                    <span class="status-pill status-closed">Close</span>
+                    <span class="status-pill status-closed">{{ __('Close') }}</span>
                     <span class="small muted">{{ $patrol->closed_at?->format('d/m/Y H:i') }}</span>
                 @else
-                    <span class="status-pill status-open">Open</span>
+                    <span class="status-pill status-open">{{ __('Open') }}</span>
                 @endif
             </dd>
         </div>

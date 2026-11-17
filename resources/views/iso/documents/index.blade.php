@@ -157,14 +157,14 @@
     $folderIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z"/></svg>';
     $editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
     $trashIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>';
-    $lokasi = $currentFolder ? 'folder '.$currentFolder->nama : $judul;
+    $lokasi = $currentFolder ? __('folder :nama', ['nama' => $currentFolder->nama]) : $judul;
 @endphp
 
 <div class="iso-head">
     <div style="min-width: 0;">
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ $judul }}</h1>
         @if ($currentFolder)
-            <nav class="crumbs" aria-label="Lokasi folder">
+            <nav class="crumbs" aria-label="{{ __('Lokasi folder') }}">
                 {{-- Breadcrumb juga jadi tujuan drop untuk memindahkan file keluar ke folder induk. --}}
                 <a href="{{ route("iso.{$kategori}.index") }}" @if ($canManageHere) data-drop-folder="" @endif>{{ $judul }}</a>
                 @foreach ($breadcrumbs as $crumb)
@@ -175,36 +175,36 @@
                         <a href="{{ route("iso.{$kategori}.index", ['folder' => $crumb->id]) }}" @if ($canManageHere) data-drop-folder="{{ $crumb->id }}" @endif>{{ $crumb->nama }}</a>
                     @endif
                 @endforeach
-                <span class="badge" style="margin-left: 6px;">{{ $currentFolder->department?->name ?? 'Umum' }}</span>
+                <span class="badge" style="margin-left: 6px;">{{ $currentFolder->department?->name ?? __('Umum') }}</span>
             </nav>
         @else
             <p class="muted" style="margin: 2px 0 0;">
-                Dokumen ISO
+                {{ __('Dokumen ISO') }}
                 @if ($lockedDepartments->isNotEmpty())
-                    · departemen
+                    {{ __('· departemen') }}
                     @foreach ($lockedDepartments as $lockedDepartment)
                         <span class="badge">{{ $lockedDepartment->name }}</span>
                     @endforeach
-                    + dokumen umum
+                    {{ __('+ dokumen umum') }}
                 @elseif (! $isAdmin)
-                    · hanya dokumen umum
+                    {{ __('· hanya dokumen umum') }}
                 @endif
                 @unless ($canManageKategori)
-                    · <span class="badge">Hanya lihat</span>
+                    · <span class="badge">{{ __('Hanya lihat') }}</span>
                 @endunless
             </p>
         @endif
     </div>
     @if ($canManageHere)
         <div class="iso-head-actions">
-            <button type="button" class="btn btn-ghost" data-create-folder>+ Folder</button>
-            <button type="button" class="btn" data-upload>+ Upload File</button>
+            <button type="button" class="btn btn-ghost" data-create-folder>{{ __('+ Folder') }}</button>
+            <button type="button" class="btn" data-upload>{{ __('+ Upload File') }}</button>
         </div>
     @endif
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen ISO tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen ISO tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 @if ($errors->has('notify'))
     <div class="alert">{{ $errors->first('notify') }}</div>
@@ -214,41 +214,41 @@
     @if ($currentFolder)
         <input type="hidden" name="folder" value="{{ $currentFolder->id }}">
     @endif
-    <input type="search" name="q" value="{{ $search }}" placeholder="{{ $currentFolder ? 'Cari di folder ini...' : 'Cari folder / dokumen...' }}">
-    <select name="jenis" onchange="this.form.requestSubmit()" aria-label="Jenis file">
-        <option value="">Semua jenis</option>
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ $currentFolder ? __('Cari di folder ini...') : __('Cari folder / dokumen...') }}">
+    <select name="jenis" onchange="this.form.requestSubmit()" aria-label="{{ __('Jenis file') }}">
+        <option value="">{{ __('Semua jenis') }}</option>
         @foreach (\App\Modules\Iso\Models\IsoDocument::JENIS as $kode => $info)
-            <option value="{{ $kode }}" @selected($jenis === $kode)>{{ $info['label'] }}</option>
+            <option value="{{ $kode }}" @selected($jenis === $kode)>{{ __($info['label']) }}</option>
         @endforeach
-        <option value="lainnya" @selected($jenis === 'lainnya')>Lainnya</option>
+        <option value="lainnya" @selected($jenis === 'lainnya')>{{ __('Lainnya') }}</option>
     </select>
     {{-- Guest hanya melihat dokumen umum, jadi filter departemen tidak ditampilkan. --}}
     @if ($isAdmin || $departments->isNotEmpty())
-        <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
-            <option value="">Semua departemen</option>
-            <option value="umum" @selected($department === 'umum')>Umum</option>
+        <select name="department" onchange="this.form.requestSubmit()" aria-label="{{ __('Departemen') }}">
+            <option value="">{{ __('Semua departemen') }}</option>
+            <option value="umum" @selected($department === 'umum')>{{ __('Umum') }}</option>
             @foreach ($departments as $option)
                 <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
             @endforeach
         </select>
     @endif
     @if ($isAdmin)
-        <select name="status" onchange="this.form.requestSubmit()" aria-label="Status dokumen">
-            <option value="">Semua status</option>
-            <option value="aktif" @selected($status === 'aktif')>Aktif</option>
-            <option value="nonaktif" @selected($status === 'nonaktif')>Nonaktif</option>
+        <select name="status" onchange="this.form.requestSubmit()" aria-label="{{ __('Status dokumen') }}">
+            <option value="">{{ __('Semua status') }}</option>
+            <option value="aktif" @selected($status === 'aktif')>{{ __('Aktif') }}</option>
+            <option value="nonaktif" @selected($status === 'nonaktif')>{{ __('Nonaktif') }}</option>
         </select>
     @endif
     <span class="total">
         @if ($folders->isNotEmpty())<b>{{ $folders->count() }}</b> folder ·@endif
-        <b>{{ $documents->total() }}</b> file
+        <b>{{ $documents->total() }}</b> {{ __('file') }}
     </span>
     {{-- Tampilan Kartu / List, diingat per menu (cookie iso_view). --}}
-    <div class="view-toggle" role="group" aria-label="Tampilan">
-        <button type="button" data-view="grid" title="Tampilan kartu" aria-label="Tampilan kartu" aria-pressed="{{ $listView ? 'false' : 'true' }}">
+    <div class="view-toggle" role="group" aria-label="{{ __('Tampilan') }}">
+        <button type="button" data-view="grid" title="{{ __('Tampilan kartu') }}" aria-label="{{ __('Tampilan kartu') }}" aria-pressed="{{ $listView ? 'false' : 'true' }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
         </button>
-        <button type="button" data-view="list" title="Tampilan list" aria-label="Tampilan list" aria-pressed="{{ $listView ? 'true' : 'false' }}">
+        <button type="button" data-view="list" title="{{ __('Tampilan list') }}" aria-label="{{ __('Tampilan list') }}" aria-pressed="{{ $listView ? 'true' : 'false' }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
         </button>
     </div>
@@ -257,35 +257,35 @@
 @if ($folders->isEmpty() && $documents->isEmpty())
     <div class="doc-empty">
         @if ($filtering)
-            Folder / dokumen tidak ditemukan.
+            {{ __('Folder / dokumen tidak ditemukan.') }}
         @else
-            {{ $currentFolder ? 'Folder ini masih kosong.' : 'Belum ada folder atau dokumen di '.$judul.'.' }}
+            {{ $currentFolder ? __('Folder ini masih kosong.') : __('Belum ada folder atau dokumen di :judul.', ['judul' => $judul]) }}
             @if ($canManageHere)
-                <div class="small" style="margin-top: 6px;">Klik <b>+ Folder</b> / <b>+ Upload File</b>, atau tarik file / folder dari komputer ke halaman ini.</div>
+                <div class="small" style="margin-top: 6px;">{{ __('Klik') }} <b>{{ __('+ Folder') }}</b> / <b>{{ __('+ Upload File') }}</b>{{ __(', atau tarik file / folder dari komputer ke halaman ini.') }}</div>
             @endif
         @endif
     </div>
 @endif
 
 @if ($folders->isNotEmpty())
-    <h2 class="section-title">Folder</h2>
+    <h2 class="section-title">{{ __('Folder') }}</h2>
     <div @class(['folder-grid', 'is-list' => $listView]) data-view-target>
         @foreach ($folders as $folder)
             @php
-                $isi = collect([$folder->children_count ? $folder->children_count.' folder' : null, $folder->documents_count ? $folder->documents_count.' file' : null])->filter()->join(', ') ?: 'Kosong';
+                $isi = collect([$folder->children_count ? __(':count folder', ['count' => $folder->children_count]) : null, $folder->documents_count ? __(':count file', ['count' => $folder->documents_count]) : null])->filter()->join(', ') ?: __('Kosong');
                 $canManageFolder = $isAdmin || in_array($folder->department_id, $managedDepartmentIds, true);
             @endphp
             <div class="folder-card" @if ($canManageFolder) data-drop-folder="{{ $folder->id }}" data-drop-name="folder {{ $folder->nama }}" @endif>
                 <span class="folder-ico">{!! $folderIcon !!}</span>
                 <div class="folder-text">
                     <div class="folder-name" title="{{ $folder->nama }}">{{ $folder->nama }}</div>
-                    <div class="folder-sub">{{ $folder->department?->name ?? 'Umum' }} · {{ $isi }}</div>
+                    <div class="folder-sub">{{ $folder->department?->name ?? __('Umum') }} · {{ $isi }}</div>
                 </div>
                 <a href="{{ route("iso.{$kategori}.index", ['folder' => $folder->id]) }}" class="folder-open" aria-label="Buka folder {{ $folder->nama }}"></a>
                 @if ($canManageFolder)
-                    <button type="button" class="doc-btn" title="Edit folder" aria-label="Edit folder" data-edit-folder="{{ $folder->id }}"
+                    <button type="button" class="doc-btn" title="{{ __('Edit folder') }}" aria-label="{{ __('Edit folder') }}" data-edit-folder="{{ $folder->id }}"
                             data-record="{{ json_encode(['nama' => $folder->nama, 'department_id' => (string) $folder->department_id, 'root' => $folder->parent_id === null]) }}">{!! $editIcon !!}</button>
-                    <button type="button" class="doc-btn danger" title="Hapus folder" aria-label="Hapus folder" data-delete-folder="{{ $folder->id }}"
+                    <button type="button" class="doc-btn danger" title="{{ __('Hapus folder') }}" aria-label="{{ __('Hapus folder') }}" data-delete-folder="{{ $folder->id }}"
                             data-name="{{ $folder->nama }}" data-isi="{{ $isi }}">{!! $trashIcon !!}</button>
                 @endif
             </div>
@@ -295,7 +295,7 @@
 
 @if ($documents->isNotEmpty())
     @if ($folders->isNotEmpty())
-        <h2 class="section-title">File</h2>
+        <h2 class="section-title">{{ __('File') }}</h2>
     @endif
     <div @class(['doc-grid', 'is-list' => $listView]) data-view-target>
         @foreach ($documents as $document)
@@ -322,10 +322,10 @@
                 <div class="doc-body">
                     <div class="doc-name" title="{{ $document->nama }}">{{ $document->nama }}</div>
                     @if ($isAdmin)
-                        <span class="status-tag" title="Tidak terlihat oleh Admin Departemen">Nonaktif</span>
+                        <span class="status-tag" title="{{ __('Tidak terlihat oleh Admin Departemen') }}">{{ __('Nonaktif') }}</span>
                     @endif
                     <div class="doc-meta">
-                        <span class="badge">{{ $document->department?->name ?? 'Umum' }}</span>
+                        <span class="badge">{{ $document->department?->name ?? __('Umum') }}</span>
                         <span style="white-space: nowrap;">{{ $document->sizeLabel() }} · {{ $document->created_at->translatedFormat('d M Y') }}</span>
                     </div>
                     {{-- Hasil pencarian bisa dari folder mana saja, jadi lokasinya ditampilkan. --}}
@@ -335,35 +335,35 @@
                         </div>
                     @endif
                     @if ($document->creator)
-                        <div class="doc-meta" title="Diupload oleh">oleh {{ $document->creator->name }}</div>
+                        <div class="doc-meta" title="{{ __('Diupload oleh') }}">oleh {{ $document->creator->name }}</div>
                     @endif
                     @if ($isAdmin && $document->notified_at)
-                        <div class="doc-meta" title="Notifikasi email terakhir">✉ {{ $document->notified_at->translatedFormat('d M Y H:i') }}</div>
+                        <div class="doc-meta" title="{{ __('Notifikasi email terakhir') }}">✉ {{ $document->notified_at->translatedFormat('d M Y H:i') }}</div>
                     @endif
                 </div>
                 <div class="doc-actions">
                     @if ($isAdmin)
                         {{-- Toggle status: nonaktif = disembunyikan dari Admin Departemen. --}}
-                        <label class="switch" title="Aktif: terlihat oleh Admin Departemen. Nonaktif: hanya Admin ISO.">
+                        <label class="switch" title="{{ __('Aktif: terlihat oleh Admin Departemen. Nonaktif: hanya Admin ISO.') }}">
                             <input type="checkbox" data-status-url="{{ route("iso.{$kategori}.status", $document) }}" @checked($document->is_active)
                                    aria-label="Status {{ $document->nama }}">
                             <span class="track"></span>
-                            <span data-status-label>{{ $document->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                            <span data-status-label>{{ $document->is_active ? __('Aktif') : __('Nonaktif') }}</span>
                         </label>
                     @endif
                     @if ($isAdmin)
-                        <button type="button" class="doc-btn" title="Kirim notifikasi pembaruan ke email" aria-label="Kirim notifikasi"
+                        <button type="button" class="doc-btn" title="{{ __('Kirim notifikasi pembaruan ke email') }}" aria-label="{{ __('Kirim notifikasi') }}"
                                 data-notify="{{ $document->id }}" data-name="{{ $document->nama }}" data-big="{{ $document->size > 10 * 1024 * 1024 ? 1 : 0 }}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
                         </button>
                     @endif
-                    <a href="{{ $fileUrl }}?download=1" class="doc-btn" title="Unduh" aria-label="Unduh" draggable="false">
+                    <a href="{{ $fileUrl }}?download=1" class="doc-btn" title="{{ __('Unduh') }}" aria-label="{{ __('Unduh') }}" draggable="false">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
                     </a>
                     @if ($canManage)
-                        <button type="button" class="doc-btn" title="Edit" aria-label="Edit" data-edit="{{ $document->id }}"
+                        <button type="button" class="doc-btn" title="{{ __('Edit') }}" aria-label="{{ __('Edit') }}" data-edit="{{ $document->id }}"
                                 data-record="{{ json_encode(['nama' => $document->nama, 'department_id' => (string) $document->department_id, 'folder_id' => (string) $document->folder_id]) }}">{!! $editIcon !!}</button>
-                        <button type="button" class="doc-btn danger" title="Hapus" aria-label="Hapus" data-delete="{{ $document->id }}" data-name="{{ $document->nama }}">{!! $trashIcon !!}</button>
+                        <button type="button" class="doc-btn danger" title="{{ __('Hapus') }}" aria-label="{{ __('Hapus') }}" data-delete="{{ $document->id }}" data-name="{{ $document->nama }}">{!! $trashIcon !!}</button>
                     @endif
                 </div>
             </div>
@@ -375,8 +375,8 @@
 {{-- Jumlah file terpilih (pilih banyak untuk dipindahkan bersama). --}}
 @if ($canManageKategori && $documents->isNotEmpty())
     <div class="selection-bar" id="selection-bar" hidden>
-        <span><b data-selection-count>0</b> file dipilih · tarik ke folder untuk memindahkan</span>
-        <button type="button" class="btn btn-ghost btn-sm" data-clear-selection>Batal pilih</button>
+        <span><b data-selection-count>0</b> {{ __('file dipilih · tarik ke folder untuk memindahkan') }}</span>
+        <button type="button" class="btn btn-ghost btn-sm" data-clear-selection>{{ __('Batal pilih') }}</button>
     </div>
 @endif
 
@@ -384,12 +384,12 @@
 <div class="busy-overlay" id="busy-overlay" role="status" aria-live="assertive" hidden>
     <div class="busy-box">
         <span class="spinner spinner-md" aria-hidden="true"></span>
-        <span data-busy-text>Memproses...</span>
+        <span data-busy-text>{{ __('Memproses...') }}</span>
     </div>
 </div>
 
 @if ($canManageHere)
-    <div class="drop-overlay" id="drop-overlay">Lepaskan file / folder untuk upload ke {{ $lokasi }}</div>
+    <div class="drop-overlay" id="drop-overlay">{{ __('Lepaskan file / folder untuk upload ke :lokasi', ['lokasi' => $lokasi]) }}</div>
 
     {{-- Modal upload: bisa beberapa file sekaligus, semua jenis file, ke folder yang sedang dibuka. --}}
     <dialog class="modal" id="upload-modal">
@@ -401,24 +401,24 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2>Upload ke {{ $lokasi }}</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Upload ke :lokasi', ['lokasi' => $lokasi]) }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 <label class="dropzone" id="dropzone">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
-                    <strong>Klik untuk pilih file, atau tarik file / folder ke sini</strong>
-                    <span class="muted small">PDF, Word, Excel, PowerPoint, gambar, dll · maks. {{ \App\Modules\Iso\Models\IsoDocument::MAX_KB / 1024 }} MB per file. Folder diupload beserta isi & subfolder-nya.</span>
+                    <strong>{{ __('Klik untuk pilih file, atau tarik file / folder ke sini') }}</strong>
+                    <span class="muted small">{{ __('PDF, Word, Excel, PowerPoint, gambar, dll · maks. :mb MB per file. Folder diupload beserta isi & subfolder-nya.', ['mb' => \App\Modules\Iso\Models\IsoDocument::MAX_KB / 1024]) }}</span>
                     <input type="file" id="upload-input" multiple>
                 </label>
                 <div class="upload-picks">
-                    <button type="button" class="btn btn-ghost btn-sm" id="upload-folder-pick">Pilih folder...</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="upload-folder-pick">{{ __('Pilih folder...') }}</button>
                     <input type="file" id="upload-folder-input" webkitdirectory multiple hidden>
                 </div>
                 <div class="upload-progress" id="upload-progress" role="status" aria-live="polite" hidden>
                     <div class="upload-progress-head">
                         <span class="spinner spinner-md" aria-hidden="true"></span>
-                        <span id="upload-progress-text">Mengupload...</span>
+                        <span id="upload-progress-text">{{ __('Mengupload...') }}</span>
                     </div>
                     <div class="progress-bar" id="upload-progress-bar" hidden><span></span></div>
                 </div>
@@ -429,13 +429,13 @@
                     <div class="field-error">{{ $errors->first('files') ?: ($errors->first('files.*') ?: $errors->first('folder_id')) }}</div>
                 @endif
                 <div>
-                    <label for="upload-department">Departemen</label>
+                    <label for="upload-department">{{ __('Departemen') }}</label>
                     @include('iso.documents.partials.department-field', ['id' => 'upload-department', 'inFolder' => $currentFolder])
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" id="upload-submit">Upload</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" id="upload-submit">{{ __('Upload') }}</button>
             </div>
         </form>
     </dialog>
@@ -453,26 +453,26 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2 id="folder-modal-title">Folder Baru</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="folder-modal-title">{{ __('Folder Baru') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 <div>
-                    <label for="folder-nama">Nama folder</label>
-                    <input id="folder-nama" type="text" name="nama" maxlength="255" placeholder="Mis. Produksi, Revisi 2026" required>
+                    <label for="folder-nama">{{ __('Nama folder') }}</label>
+                    <input id="folder-nama" type="text" name="nama" maxlength="255" placeholder="{{ __('Mis. Produksi, Revisi 2026') }}" required>
                     @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 {{-- Departemen hanya dipilih di folder paling atas; subfolder ikut folder induknya. --}}
                 <div id="folder-department-field">
-                    <label for="folder-department">Departemen</label>
+                    <label for="folder-department">{{ __('Departemen') }}</label>
                     @include('iso.documents.partials.department-field', ['id' => 'folder-department', 'inFolder' => null])
-                    <div class="muted small" style="margin-top: 4px;">Semua subfolder & file di dalam folder ini ikut departemen ini.</div>
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Semua subfolder & file di dalam folder ini ikut departemen ini.') }}</div>
                 </div>
-                <div id="folder-department-note" class="muted small" hidden>Departemen ikut folder induk.</div>
+                <div id="folder-department-note" class="muted small" hidden>{{ __('Departemen ikut folder induk.') }}</div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -487,17 +487,17 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2>Edit Dokumen</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Edit Dokumen') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 <div>
-                    <label for="edit-nama">Nama dokumen</label>
+                    <label for="edit-nama">{{ __('Nama dokumen') }}</label>
                     <input id="edit-nama" type="text" name="nama" maxlength="255" required>
                     @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="edit-folder">Folder</label>
+                    <label for="edit-folder">{{ __('Folder') }}</label>
                     <select id="edit-folder" name="folder_id">
                         <option value="">— Di luar folder ({{ $judul }}) —</option>
                         @foreach ($moveTargets as $target)
@@ -507,19 +507,19 @@
                     @error('folder_id') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div id="edit-department-field">
-                    <label for="edit-department">Departemen</label>
+                    <label for="edit-department">{{ __('Departemen') }}</label>
                     @include('iso.documents.partials.department-field', ['id' => 'edit-department', 'inFolder' => null])
                 </div>
-                <div id="edit-department-note" class="muted small" hidden>Departemen ikut folder tujuan.</div>
+                <div id="edit-department-note" class="muted small" hidden>{{ __('Departemen ikut folder tujuan.') }}</div>
                 <div>
-                    <label for="edit-file">Ganti file <span class="muted">(opsional)</span></label>
+                    <label for="edit-file">{{ __('Ganti file') }} <span class="muted">{{ __('(opsional)') }}</span></label>
                     <input id="edit-file" type="file" name="file">
                     @error('file') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -532,13 +532,13 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2 id="delete-title">Hapus Dokumen</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="delete-title">{{ __('Hapus Dokumen') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body" id="delete-body"></div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" style="background: var(--danger);">{{ __('Hapus') }}</button>
             </div>
         </form>
     </dialog>
@@ -555,21 +555,21 @@
             @endforeach
             <div class="modal-head">
                 <div>
-                    <h2>Kirim Notifikasi Pembaruan</h2>
+                    <h2>{{ __('Kirim Notifikasi Pembaruan') }}</h2>
                     <div class="muted small" id="notify-doc"></div>
                 </div>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 @if ($recipients->isEmpty())
                     <div class="alert" style="margin: 0;">
-                        Belum ada email penerima yang aktif. Tambahkan dulu di menu <a href="{{ route('iso.emails.index') }}" style="text-decoration: underline;">Email</a>.
+                        {{ __('Belum ada email penerima yang aktif. Tambahkan dulu di menu') }} <a href="{{ route('iso.emails.index') }}" style="text-decoration: underline;">{{ __('Email') }}</a>.
                     </div>
                 @else
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <label style="margin: 0;">Penerima <span class="muted">({{ $recipients->count() }} email aktif)</span></label>
-                            <button type="button" class="btn btn-ghost btn-sm" data-toggle-all>Pilih semua / tidak</button>
+                            <label style="margin: 0;">{{ __('Penerima') }} <span class="muted">({{ $recipients->count() }} email aktif)</span></label>
+                            <button type="button" class="btn btn-ghost btn-sm" data-toggle-all>{{ __('Pilih semua / tidak') }}</button>
                         </div>
                         <div class="recipient-list">
                             @foreach ($recipients as $recipient)
@@ -582,21 +582,21 @@
                         @error('recipients') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="notify-pesan">Catatan <span class="muted">(opsional)</span></label>
-                        <textarea id="notify-pesan" name="pesan" rows="3" maxlength="1000" placeholder="Mis. Revisi 2: perubahan langkah 4 dan 5.">{{ old('pesan') }}</textarea>
+                        <label for="notify-pesan">{{ __('Catatan') }} <span class="muted">{{ __('(opsional)') }}</span></label>
+                        <textarea id="notify-pesan" name="pesan" rows="3" maxlength="1000" placeholder="{{ __('Mis. Revisi 2: perubahan langkah 4 dan 5.') }}">{{ old('pesan') }}</textarea>
                         @error('pesan') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <label class="check" id="notify-attach">
                         <input type="checkbox" name="lampirkan" value="1">
-                        Lampirkan file ke email <span class="muted small">(maks. 10 MB)</span>
+                        {{ __('Lampirkan file ke email') }} <span class="muted small">{{ __('(maks. 10 MB)') }}</span>
                     </label>
                     @error('lampirkan') <div class="field-error">{{ $message }}</div> @enderror
                 @endif
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
                 @if ($recipients->isNotEmpty())
-                    <button type="submit" class="btn" id="notify-submit">Kirim</button>
+                    <button type="submit" class="btn" id="notify-submit">{{ __('Kirim') }}</button>
                 @endif
             </div>
         </form>
@@ -658,7 +658,7 @@
                 var apply = function (value) {
                     toggle.checked = value;
                     card.classList.toggle('inactive', !value);
-                    label.textContent = value ? 'Aktif' : 'Nonaktif';
+                    label.textContent = value ? __t('Aktif') : __t('Nonaktif');
                 };
                 apply(active);
                 toggle.disabled = true;
@@ -672,7 +672,7 @@
                     },
                     body: JSON.stringify({ is_active: active }),
                 }).then(function (response) {
-                    if (!response.ok) throw new Error(response.status === 419 ? 'Sesi habis, muat ulang halaman.' : 'Gagal mengubah status.');
+                    if (!response.ok) throw new Error(response.status === 419 ? __t('Sesi habis, muat ulang halaman.') : __t('Gagal mengubah status.'));
                     return response.json();
                 }).then(function (body) {
                     apply(body.is_active);
@@ -702,7 +702,7 @@
                     attach.querySelector('input').disabled = big;
                     attach.querySelector('input').checked = attach.querySelector('input').checked && !big;
                     attach.style.opacity = big ? .5 : 1;
-                    attach.title = big ? 'File lebih dari 10 MB, kirim tanpa lampiran.' : '';
+                    attach.title = big ? __t('File lebih dari 10 MB, kirim tanpa lampiran.') : '';
                 }
                 if (!keepErrors) clearErrors(notifyModal);
                 notifyModal.showModal();
@@ -721,7 +721,7 @@
             }
             notifyForm.addEventListener('submit', function () {
                 var submit = document.getElementById('notify-submit');
-                if (submit) { setLoading(submit, 'Mengirim...'); }
+                if (submit) { setLoading(submit, __t('Mengirim...')); }
                 notifyModal.dataset.busy = '1';
             });
 
@@ -863,13 +863,13 @@
             var useDrop = function (dataTransfer) {
                 openUpload();
                 showUploadError('');
-                showProgress('Membaca isi folder...');
+                showProgress(__t('Membaca isi folder...'));
                 readDrop(dataTransfer).then(function (result) {
                     hideProgress();
                     setSelection(result.items, result.folders);
                 }).catch(function () {
                     hideProgress();
-                    showUploadError('Folder tidak bisa dibaca. Coba pakai tombol "Pilih folder...".');
+                    showUploadError(__t('Folder tidak bisa dibaca. Coba pakai tombol "Pilih folder...".'));
                 });
             };
 
@@ -950,15 +950,15 @@
             };
 
             var errorOf = function (xhr) {
-                if (xhr.status === 0) return 'Koneksi terputus, coba lagi.';
-                if (xhr.status === 419) return 'Sesi habis, muat ulang halaman.';
-                if (xhr.status === 413) return 'Ukuran upload terlalu besar untuk server.';
+                if (xhr.status === 0) return __t('Koneksi terputus, coba lagi.');
+                if (xhr.status === 419) return __t('Sesi habis, muat ulang halaman.');
+                if (xhr.status === 413) return __t('Ukuran upload terlalu besar untuk server.');
                 try {
                     var body = JSON.parse(xhr.responseText);
                     var errors = body.errors ? Object.values(body.errors) : [];
-                    return errors.length ? errors[0][0] : (body.message || 'Upload gagal, coba lagi.');
+                    return errors.length ? errors[0][0] : (body.message || __t('Upload gagal, coba lagi.'));
                 } catch (error) {
-                    return 'Upload gagal, coba lagi.';
+                    return __t('Upload gagal, coba lagi.');
                 }
             };
 
@@ -973,7 +973,7 @@
                     });
                     xhr.addEventListener('load', function () {
                         if (xhr.status >= 200 && xhr.status < 300) {
-                            try { resolve(JSON.parse(xhr.responseText)); } catch (error) { reject(new Error('Upload gagal, coba lagi.')); }
+                            try { resolve(JSON.parse(xhr.responseText)); } catch (error) { reject(new Error(__t('Upload gagal, coba lagi.'))); }
                         } else {
                             reject(new Error(errorOf(xhr)));
                         }
@@ -988,7 +988,7 @@
                 uploadSubmit.disabled = false;
                 uploadSubmit.classList.remove('loading');
                 uploadSubmit.removeAttribute('aria-busy');
-                uploadSubmit.textContent = 'Upload';
+                uploadSubmit.textContent = __t('Upload');
                 uploadModal.querySelectorAll('[data-close]').forEach(function (close) { close.disabled = false; });
             };
 
@@ -997,12 +997,12 @@
             uploadForm.addEventListener('submit', function (event) {
                 event.preventDefault();
                 if (!selection.items.length && !selection.folders.length) {
-                    showUploadError('Pilih minimal satu file atau folder.');
+                    showUploadError(__t('Pilih minimal satu file atau folder.'));
                     return;
                 }
                 var tooBig = selection.items.filter(function (item) { return item.file.size > maxBytes; });
                 if (tooBig.length) {
-                    showUploadError('Ukuran tiap file maksimal ' + (maxBytes / 1048576) + ' MB: ' + tooBig.map(function (item) { return item.file.name; }).join(', '));
+                    showUploadError(__t('Ukuran tiap file maksimal :mb MB:', { mb: maxBytes / 1048576 }) + ' ' + tooBig.map(function (item) { return item.file.name; }).join(', '));
                     return;
                 }
 
@@ -1013,25 +1013,25 @@
                 var uploaded = 0;
                 var uploadedBytes = 0;
                 var foldersCreated = 0;
-                setLoading(uploadSubmit, 'Mengupload...');
+                setLoading(uploadSubmit, __t('Mengupload...'));
                 uploadModal.dataset.busy = '1';
 
                 var report = function (batchRatio, batch) {
                     if (!total) {
-                        showProgress('Membuat folder...');
+                        showProgress(__t('Membuat folder...'));
                         return;
                     }
                     var ratio = (uploadedBytes + batch.bytes * batchRatio) / totalBytes;
                     var message = batchRatio >= 1
-                        ? 'Menyimpan ' + Math.min(uploaded + batch.items.length, total) + ' dari ' + total + ' file...'
-                        : 'Mengupload ' + uploaded + ' dari ' + total + ' file... ' + Math.round(ratio * 100) + '%';
+                        ? __t('Menyimpan :done dari :total file...', { done: Math.min(uploaded + batch.items.length, total), total: total })
+                        : __t('Mengupload :done dari :total file...', { done: uploaded, total: total }) + ' ' + Math.round(ratio * 100) + '%';
                     showProgress(message, ratio);
-                    uploadSubmit.lastChild.textContent = 'Mengupload ' + Math.round(ratio * 100) + '%';
+                    uploadSubmit.lastChild.textContent = __t('Mengupload') + ' ' + Math.round(ratio * 100) + '%';
                 };
 
                 var send = function (index) {
                     if (index >= batches.length) {
-                        showProgress('Selesai! Memuat ulang halaman...', 1);
+                        showProgress(__t('Selesai! Memuat ulang halaman...'), 1);
                         window.location.reload();
                         return;
                     }
@@ -1061,7 +1061,7 @@
                             selection.items = selection.items.slice(uploaded);
                             renderFiles();
                         }
-                        showUploadError(error.message + (uploaded ? ' (' + uploaded + ' file sebelumnya sudah tersimpan.)' : ''));
+                        showUploadError(error.message + (uploaded ? ' ' + __t('(:count file sebelumnya sudah tersimpan.)', { count: uploaded }) : ''));
                     });
                 };
                 send(0);
@@ -1227,7 +1227,7 @@
                     .map(function (card) { return Number(card.dataset.documentId); });
                 var tujuan = target.dataset.dropName || target.textContent.trim();
                 clearDropTargets();
-                showBusy('Memindahkan ' + ids.length + ' file ke ' + tujuan + '...');
+                showBusy(__t('Memindahkan :count file ke :tujuan...', { count: ids.length, tujuan: tujuan }));
 
                 fetch(moveUrl, {
                     method: 'PATCH',
@@ -1239,13 +1239,13 @@
                     body: JSON.stringify({ documents: ids, folder_id: target.dataset.dropFolder || null }),
                 }).then(function (response) {
                     if (response.ok) {
-                        showBusy('Selesai! Memuat ulang halaman...');
+                        showBusy(__t('Selesai! Memuat ulang halaman...'));
                         window.location.reload();
                         return;
                     }
                     return response.json().catch(function () { return {}; }).then(function (body) {
                         var errors = body.errors ? Object.values(body.errors) : [];
-                        throw new Error(response.status === 419 ? 'Sesi habis, muat ulang halaman.' : (errors.length ? errors[0][0] : (body.message || 'Gagal memindahkan file.')));
+                        throw new Error(response.status === 419 ? __t('Sesi habis, muat ulang halaman.') : (errors.length ? errors[0][0] : (body.message || __t('Gagal memindahkan file.'))));
                     });
                 }).catch(function (error) {
                     hideBusy();
@@ -1286,7 +1286,7 @@
             folderForm.elements._method.value = id ? 'PUT' : 'POST';
             folderForm.elements._modal.value = id ? 'folder-edit:' + id : 'folder-create';
             folderForm.elements.parent_id.disabled = !!id;
-            document.getElementById('folder-modal-title').textContent = id ? 'Edit Folder' : 'Folder Baru';
+            document.getElementById('folder-modal-title').textContent = id ? __t('Edit Folder') : __t('Folder Baru');
             folderForm.elements.nama.value = (record && record.nama) || '';
             // Departemen dipilih di folder paling atas saja (folder baru di halaman utama, atau edit folder paling atas).
             var root = id ? !!(record && record.root) : !insideFolder;
@@ -1348,15 +1348,15 @@
         }
         document.querySelectorAll('[data-delete]').forEach(function (button) {
             button.addEventListener('click', function () {
-                openDelete(routes.destroy.replace('__ID__', button.dataset.delete), 'Hapus Dokumen',
-                    'Hapus <strong>' + escapeHtml(button.dataset.name) + '</strong>? File akan dihapus permanen.');
+                openDelete(routes.destroy.replace('__ID__', button.dataset.delete), __t('Hapus Dokumen'),
+                    __t('Hapus :nama? File akan dihapus permanen.', { nama: '<strong>' + escapeHtml(button.dataset.name) + '</strong>' }));
             });
         });
         document.querySelectorAll('[data-delete-folder]').forEach(function (button) {
             button.addEventListener('click', function () {
-                openDelete(routes.folderDestroy.replace('__ID__', button.dataset.deleteFolder), 'Hapus Folder',
-                    'Hapus folder <strong>' + escapeHtml(button.dataset.name) + '</strong> (' + escapeHtml(button.dataset.isi) + ')?'
-                    + '<br><span class="muted small">Semua subfolder & file di dalamnya ikut terhapus permanen.</span>');
+                openDelete(routes.folderDestroy.replace('__ID__', button.dataset.deleteFolder), __t('Hapus Folder'),
+                    __t('Hapus folder :nama?', { nama: '<strong>' + escapeHtml(button.dataset.name) + '</strong> (' + escapeHtml(button.dataset.isi) + ')' })
+                    + '<br><span class="muted small">' + __t('Semua subfolder & file di dalamnya ikut terhapus permanen.') + '</span>');
             });
         });
 

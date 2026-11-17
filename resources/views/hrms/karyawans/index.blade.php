@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Karyawan')
+@section('title', __('Karyawan'))
 
 @section('styles')
     .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
@@ -29,31 +29,31 @@
 @section('content')
 <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
     <div>
-        <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">Karyawan</h1>
+        <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">{{ __('Karyawan') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            {{ $statusCounts->sum() }} karyawan
+            {{ __(':count karyawan', ['count' => $statusCounts->sum()]) }}
             @if ($lockedDepartments->isNotEmpty())
-                di departemen
+                {{ __('di departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
             @else
-                terdaftar
+                {{ __('terdaftar') }}
             @endif
         </p>
     </div>
     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         @can('import', \App\Modules\Hrms\Models\Karyawan::class)
-            <button type="button" class="btn btn-ghost" data-open="import-modal">Import Excel</button>
+            <button type="button" class="btn btn-ghost" data-open="import-modal">{{ __('Import Excel') }}</button>
         @endcan
         @can('create', \App\Modules\Hrms\Models\Karyawan::class)
-            <button type="button" class="btn" data-create>+ Tambah Karyawan</button>
+            <button type="button" class="btn" data-create>{{ __('+ Tambah Karyawan') }}</button>
         @endcan
     </div>
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen, jadi belum ada karyawan yang bisa ditampilkan. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen, jadi belum ada karyawan yang bisa ditampilkan. Hubungi Super Admin.') }}</div>
 @endif
 
 @error('file')
@@ -62,39 +62,39 @@
 
 @if ($result = session('import_result'))
     <div class="card import-result">
-        <div class="card-title" style="margin-bottom: 12px;">Hasil import</div>
+        <div class="card-title" style="margin-bottom: 12px;">{{ __('Hasil import') }}</div>
         <div class="result-stats">
-            <div><b>{{ $result['created'] }}</b><span class="muted small">baru</span></div>
-            <div><b>{{ $result['updated'] }}</b><span class="muted small">diperbarui</span></div>
-            <div><b>{{ $result['unchanged'] }}</b><span class="muted small">tidak berubah</span></div>
-            <div><b style="{{ count($result['failed']) ? 'color: var(--danger);' : '' }}">{{ count($result['failed']) }}</b><span class="muted small">gagal</span></div>
-            <div><b style="{{ count($result['warnings']) ? 'color: #8a5a00;' : '' }}">{{ count($result['warnings']) }}</b><span class="muted small">perlu dicek</span></div>
+            <div><b>{{ $result['created'] }}</b><span class="muted small">{{ __('baru') }}</span></div>
+            <div><b>{{ $result['updated'] }}</b><span class="muted small">{{ __('diperbarui') }}</span></div>
+            <div><b>{{ $result['unchanged'] }}</b><span class="muted small">{{ __('tidak berubah') }}</span></div>
+            <div><b style="{{ count($result['failed']) ? 'color: var(--danger);' : '' }}">{{ count($result['failed']) }}</b><span class="muted small">{{ __('gagal') }}</span></div>
+            <div><b style="{{ count($result['warnings']) ? 'color: #8a5a00;' : '' }}">{{ count($result['warnings']) }}</b><span class="muted small">{{ __('perlu dicek') }}</span></div>
         </div>
         @if (! empty($result['unknown_departments']))
             <div class="alert" style="background: #fff4d6; color: #8a5a00; margin: 14px 0 0;">
-                Departemen belum terdaftar, karyawannya diimport tanpa departemen:
+                {{ __('Departemen belum terdaftar, karyawannya diimport tanpa departemen:') }}
                 @foreach ($result['unknown_departments'] as $name => $total)
-                    <strong>{{ $name }}</strong> ({{ $total }} karyawan){{ $loop->last ? '.' : ',' }}
+                    <strong>{{ $name }}</strong> ({{ __(':count karyawan', ['count' => $total]) }}){{ $loop->last ? '.' : ',' }}
                 @endforeach
-                Tambahkan di menu <a href="{{ route('hrms.departments.index') }}" style="text-decoration: underline;">Departemen</a>, lalu import ulang file yang sama.
+                {{ __('Tambahkan di menu') }} <a href="{{ route('hrms.departments.index') }}" style="text-decoration: underline;">{{ __('Departemen') }}</a>{{ __(', lalu import ulang file yang sama.') }}
             </div>
         @endif
         @if (count($result['failed']))
             <details open>
-                <summary style="color: var(--danger);">Baris yang gagal diimport ({{ count($result['failed']) }})</summary>
+                <summary style="color: var(--danger);">{{ __('Baris yang gagal diimport') }} ({{ count($result['failed']) }})</summary>
                 <ul>
                     @foreach ($result['failed'] as $failure)
-                        <li>Baris {{ $failure['row'] }}@if ($failure['nik']) · NIK {{ $failure['nik'] }}@endif @if ($failure['nama']) · {{ $failure['nama'] }}@endif: {{ implode(' ', $failure['errors']) }}</li>
+                        <li>{{ __('Baris') }} {{ $failure['row'] }}@if ($failure['nik']) · NIK {{ $failure['nik'] }}@endif @if ($failure['nama']) · {{ $failure['nama'] }}@endif: {{ implode(' ', $failure['errors']) }}</li>
                     @endforeach
                 </ul>
             </details>
         @endif
         @if (count($result['warnings']))
             <details>
-                <summary style="color: #8a5a00;">Data yang perlu dicek ({{ count($result['warnings']) }})</summary>
+                <summary style="color: #8a5a00;">{{ __('Data yang perlu dicek') }} ({{ count($result['warnings']) }})</summary>
                 <ul>
                     @foreach ($result['warnings'] as $warning)
-                        <li>Baris {{ $warning['row'] }}: {{ $warning['message'] }}</li>
+                        <li>{{ __('Baris') }} {{ $warning['row'] }}: {{ $warning['message'] }}</li>
                     @endforeach
                 </ul>
             </details>
@@ -104,11 +104,11 @@
 
 <div class="status-chips">
     <a href="{{ route('hrms.karyawans.index', array_filter(['q' => $search, 'jabatan' => $jabatan, 'department' => $department, 'group' => $group])) }}" @class(['chip', 'active' => $status === ''])>
-        Semua <b>{{ $statusCounts->sum() }}</b>
+        {{ __('Semua') }} <b>{{ $statusCounts->sum() }}</b>
     </a>
     @foreach (\App\Modules\Hrms\Models\Karyawan::STATUS as $option)
         <a href="{{ route('hrms.karyawans.index', array_filter(['q' => $search, 'jabatan' => $jabatan, 'department' => $department, 'group' => $group, 'status' => $option])) }}" @class(['chip', 'active' => $status === $option])>
-            {{ $option }} <b>{{ $statusCounts[$option] ?? 0 }}</b>
+            {{ __($option) }} <b>{{ $statusCounts[$option] ?? 0 }}</b>
         </a>
     @endforeach
 </div>
@@ -117,34 +117,34 @@
     @if ($status !== '')
         <input type="hidden" name="status" value="{{ $status }}">
     @endif
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari NIK atau nama...">
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari NIK atau nama...') }}">
     @if ($canFilterDepartment)
     <select name="department" onchange="this.form.submit()">
-        <option value="">Semua departemen</option>
+        <option value="">{{ __('Semua departemen') }}</option>
         @foreach ($departments as $option)
             <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
         @endforeach
         @if ($isAdmin)
-            <option value="none" @selected($department === 'none')>Tanpa departemen ({{ $withoutDepartment }})</option>
+            <option value="none" @selected($department === 'none')>{{ __('Tanpa departemen') }} ({{ $withoutDepartment }})</option>
         @endif
     </select>
     @endif
     <select name="group" onchange="this.form.submit()" style="min-width: 130px;">
-        <option value="">Semua group</option>
+        <option value="">{{ __('Semua group') }}</option>
         @foreach ($groupOptions as $option)
-            <option value="{{ $option }}" @selected($group === $option)>Group {{ $option }}</option>
+            <option value="{{ $option }}" @selected($group === $option)>{{ __('Group') }} {{ $option }}</option>
         @endforeach
-        <option value="none" @selected($group === 'none')>Tanpa group</option>
+        <option value="none" @selected($group === 'none')>{{ __('Tanpa group') }}</option>
     </select>
     <select name="jabatan" onchange="this.form.submit()">
-        <option value="">Semua jabatan</option>
+        <option value="">{{ __('Semua jabatan') }}</option>
         @foreach ($jabatanOptions as $option)
             <option value="{{ $option }}" @selected($jabatan === $option)>{{ $option }}</option>
         @endforeach
     </select>
-    <button type="submit" class="btn btn-ghost">Cari</button>
+    <button type="submit" class="btn btn-ghost">{{ __('Cari') }}</button>
     @if ($search !== '' || $status !== '' || $jabatan !== '' || $department !== '' || $group !== '')
-        <a href="{{ route('hrms.karyawans.index') }}" class="muted small">Reset filter</a>
+        <a href="{{ route('hrms.karyawans.index') }}" class="muted small">{{ __('Reset filter') }}</a>
     @endif
 </form>
 
@@ -154,18 +154,18 @@
             <thead>
                 <tr>
                     <th class="nowrap">NIK</th>
-                    <th>Nama</th>
-                    <th>Dept</th>
-                    <th>Group</th>
-                    <th class="nowrap">Jenis Kelamin</th>
-                    <th class="nowrap">Tempat Lahir</th>
-                    <th class="nowrap">Tgl Lahir</th>
-                    <th class="nowrap">Umur</th>
-                    <th>Jabatan</th>
-                    <th class="nowrap">Tanggal Masuk</th>
-                    <th>Status</th>
+                    <th>{{ __('Nama') }}</th>
+                    <th>{{ __('Dept') }}</th>
+                    <th>{{ __('Group') }}</th>
+                    <th class="nowrap">{{ __('Jenis Kelamin') }}</th>
+                    <th class="nowrap">{{ __('Tempat Lahir') }}</th>
+                    <th class="nowrap">{{ __('Tgl Lahir') }}</th>
+                    <th class="nowrap">{{ __('Umur') }}</th>
+                    <th>{{ __('Jabatan') }}</th>
+                    <th class="nowrap">{{ __('Tanggal Masuk') }}</th>
+                    <th>{{ __('Status') }}</th>
                     @can('create', \App\Modules\Hrms\Models\Karyawan::class)
-                        <th style="text-align: right;">Aksi</th>
+                        <th style="text-align: right;">{{ __('Aksi') }}</th>
                     @endcan
                 </tr>
             </thead>
@@ -182,13 +182,13 @@
                             @endif
                         </td>
                         <td class="nowrap">{{ $karyawan->group ?? '-' }}</td>
-                        <td class="nowrap">{{ $karyawan->jenis_kelamin }}</td>
+                        <td class="nowrap">{{ __($karyawan->jenis_kelamin) }}</td>
                         <td>{{ $karyawan->tempat_lahir ?? '-' }}</td>
                         <td class="nowrap">{{ $karyawan->tgl_lahir?->translatedFormat('d M Y') ?? '-' }}</td>
-                        <td class="nowrap">{{ $karyawan->umur !== null ? $karyawan->umur.' th' : '-' }}</td>
+                        <td class="nowrap">{{ $karyawan->umur !== null ? __(':umur th', ['umur' => $karyawan->umur]) : '-' }}</td>
                         <td>{{ $karyawan->jabatan ?? '-' }}</td>
                         <td class="nowrap">{{ $karyawan->tanggal_masuk?->translatedFormat('d M Y') ?? '-' }}</td>
-                        <td><span class="badge st-{{ str_replace(' ', '', $karyawan->status) }}">{{ $karyawan->status }}</span></td>
+                        <td><span class="badge st-{{ str_replace(' ', '', $karyawan->status) }}">{{ __($karyawan->status) }}</span></td>
                         @can('create', \App\Modules\Hrms\Models\Karyawan::class)
                             <td style="text-align: right; white-space: nowrap;">
                                 @can('update', $karyawan)
@@ -204,9 +204,9 @@
                                             'tanggal_masuk' => $karyawan->tanggal_masuk?->format('Y-m-d'),
                                             'status' => $karyawan->status,
                                             'group' => $karyawan->group,
-                                        ]) }}">Edit</button>
+                                        ]) }}">{{ __('Edit') }}</button>
                                 <button type="button" class="btn btn-danger btn-sm" data-delete="{{ $karyawan->id }}"
-                                        data-name="{{ $karyawan->nik }} - {{ $karyawan->nama }}">Hapus</button>
+                                        data-name="{{ $karyawan->nik }} - {{ $karyawan->nama }}">{{ __('Hapus') }}</button>
                                 @endcan
                             </td>
                         @endcan
@@ -215,11 +215,11 @@
                     <tr>
                         <td colspan="12" class="muted" style="text-align: center; padding: 32px;">
                             @if ($search !== '' || $status !== '' || $jabatan !== '' || $department !== '' || $group !== '')
-                                Karyawan tidak ditemukan.
+                                {{ __('Karyawan tidak ditemukan.') }}
                             @else
-                                Belum ada data karyawan.
+                                {{ __('Belum ada data karyawan.') }}
                                 @can('import', \App\Modules\Hrms\Models\Karyawan::class)
-                                    <div style="margin-top: 12px;"><button type="button" class="btn btn-sm" data-open="import-modal">Import dari Excel</button></div>
+                                    <div style="margin-top: 12px;"><button type="button" class="btn btn-sm" data-open="import-modal">{{ __('Import dari Excel') }}</button></div>
                                 @endcan
                             @endif
                         </td>
@@ -241,12 +241,12 @@
             <input type="hidden" name="_modal" value="create">
 
             <div class="modal-head">
-                <h2 id="karyawan-modal-title">Tambah Karyawan</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="karyawan-modal-title">{{ __('Tambah Karyawan') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 @if ($errors->hasAny(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group']))
-                    <div class="alert">Periksa kembali isian yang ditandai.</div>
+                    <div class="alert">{{ __('Periksa kembali isian yang ditandai.') }}</div>
                 @endif
                 <div class="grid-2">
                     <div>
@@ -255,16 +255,16 @@
                         @error('nik') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-nama">Nama</label>
+                        <label for="f-nama">{{ __('Nama') }}</label>
                         <input id="f-nama" type="text" name="nama" required maxlength="255">
                         @error('nama') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-department_id">Departemen</label>
+                        <label for="f-department_id">{{ __('Departemen') }}</label>
                         @if ($canFilterDepartment)
                             {{-- Admin HRMS: semua departemen. Admin Departemen multi-dept: hanya departemennya (dicek juga di server). --}}
                             <select id="f-department_id" name="department_id" @required(! $isAdmin)>
-                                <option value="">{{ $isAdmin ? 'Tanpa departemen' : '-- Pilih Departemen --' }}</option>
+                                <option value="">{{ $isAdmin ? __('Tanpa departemen') : __('-- Pilih Departemen --') }}</option>
                                 @foreach ($departments as $option)
                                     <option value="{{ $option->id }}">{{ $option->name }}</option>
                                 @endforeach
@@ -276,27 +276,27 @@
                         @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-jenis_kelamin">Jenis Kelamin</label>
+                        <label for="f-jenis_kelamin">{{ __('Jenis Kelamin') }}</label>
                         <select id="f-jenis_kelamin" name="jenis_kelamin" required>
-                            <option value="">Pilih...</option>
+                            <option value="">{{ __('Pilih...') }}</option>
                             @foreach (\App\Modules\Hrms\Models\Karyawan::JENIS_KELAMIN as $option)
-                                <option value="{{ $option }}">{{ $option }}</option>
+                                <option value="{{ $option }}">{{ __($option) }}</option>
                             @endforeach
                         </select>
                         @error('jenis_kelamin') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-tempat_lahir">Tempat Lahir</label>
+                        <label for="f-tempat_lahir">{{ __('Tempat Lahir') }}</label>
                         <input id="f-tempat_lahir" type="text" name="tempat_lahir" maxlength="255">
                         @error('tempat_lahir') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-tgl_lahir">Tgl Lahir</label>
+                        <label for="f-tgl_lahir">{{ __('Tgl Lahir') }}</label>
                         <input id="f-tgl_lahir" type="date" name="tgl_lahir">
                         @error('tgl_lahir') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-jabatan">Jabatan</label>
+                        <label for="f-jabatan">{{ __('Jabatan') }}</label>
                         <input id="f-jabatan" type="text" name="jabatan" list="jabatan-list" maxlength="255">
                         <datalist id="jabatan-list">
                             @foreach ($jabatanOptions as $option)
@@ -306,23 +306,23 @@
                         @error('jabatan') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-tanggal_masuk">Tanggal Masuk</label>
+                        <label for="f-tanggal_masuk">{{ __('Tanggal Masuk') }}</label>
                         <input id="f-tanggal_masuk" type="date" name="tanggal_masuk">
                         @error('tanggal_masuk') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-status">Status</label>
+                        <label for="f-status">{{ __('Status') }}</label>
                         <select id="f-status" name="status" required>
-                            <option value="">Pilih...</option>
+                            <option value="">{{ __('Pilih...') }}</option>
                             @foreach (\App\Modules\Hrms\Models\Karyawan::STATUS as $option)
-                                <option value="{{ $option }}">{{ $option }}</option>
+                                <option value="{{ $option }}">{{ __($option) }}</option>
                             @endforeach
                         </select>
                         @error('status') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-group">Group</label>
-                        <input id="f-group" type="text" name="group" list="group-list" maxlength="20" placeholder="Mis. A, B, NS" style="text-transform: uppercase;">
+                        <label for="f-group">{{ __('Group') }}</label>
+                        <input id="f-group" type="text" name="group" list="group-list" maxlength="20" placeholder="{{ __('Mis. A, B, NS') }}" style="text-transform: uppercase;">
                         <datalist id="group-list">
                             @foreach ($groupOptions as $option)
                                 <option value="{{ $option }}">
@@ -333,8 +333,8 @@
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -345,15 +345,15 @@
             @csrf
             @method('DELETE')
             <div class="modal-head">
-                <h2>Hapus Karyawan</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Hapus Karyawan') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
-                Yakin ingin menghapus karyawan <strong id="delete-name"></strong>? Tindakan ini tidak bisa dibatalkan.
+                {{ __('Yakin ingin menghapus karyawan') }} <strong id="delete-name"></strong>{{ __('? Tindakan ini tidak bisa dibatalkan.') }}
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" style="background: var(--danger);">{{ __('Hapus') }}</button>
             </div>
         </form>
     </dialog>
@@ -364,24 +364,23 @@
         <form method="POST" action="{{ route('hrms.karyawans.import') }}" enctype="multipart/form-data" id="import-form">
             @csrf
             <div class="modal-head">
-                <h2>Import Karyawan dari Excel</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Import Karyawan dari Excel') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="dropzone" id="dropzone">
                     <input type="file" name="file" id="import-file" accept=".xlsx" required>
-                    <div style="font-weight: 600;" id="dropzone-label">Klik atau tarik file .xlsx ke sini</div>
-                    <div class="muted small">Maksimal 10 MB</div>
+                    <div style="font-weight: 600;" id="dropzone-label">{{ __('Klik atau tarik file .xlsx ke sini') }}</div>
+                    <div class="muted small">{{ __('Maksimal 10 MB') }}</div>
                 </div>
                 <div class="muted small" style="margin-top: 14px; line-height: 1.6;">
-                    Kolom yang dibaca: <strong>{{ implode(', ', array_keys(\App\Modules\Hrms\Imports\KaryawanImport::COLUMNS)) }}</strong>.
-                    Kolom lain diabaikan. NIK yang sudah ada akan diperbarui, NIK baru akan ditambahkan.
-                    <br><a href="{{ route('hrms.karyawans.template') }}" data-turbo="false" style="color: var(--primary); font-weight: 600;">Unduh template Excel</a>
+                    {{ __('Kolom yang dibaca:') }} <strong>{{ implode(', ', array_keys(\App\Modules\Hrms\Imports\KaryawanImport::COLUMNS)) }}</strong>{{ __('. Kolom lain diabaikan. NIK yang sudah ada akan diperbarui, NIK baru akan ditambahkan.') }}
+                    <br><a href="{{ route('hrms.karyawans.template') }}" data-turbo="false" style="color: var(--primary); font-weight: 600;">{{ __('Unduh template Excel') }}</a>
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" id="import-submit">Import</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" id="import-submit">{{ __('Import') }}</button>
             </div>
         </form>
     </dialog>
@@ -404,7 +403,7 @@
             form.action = id ? updateUrl.replace('__ID__', id) : storeUrl;
             form.elements._method.value = id ? 'PUT' : 'POST';
             form.elements._modal.value = id ? 'edit:' + id : 'create';
-            document.getElementById('karyawan-modal-title').textContent = id ? 'Edit Karyawan' : 'Tambah Karyawan';
+            document.getElementById('karyawan-modal-title').textContent = id ? __t('Edit Karyawan') : __t('Tambah Karyawan');
             fields.forEach(function (name) {
                 if (form.elements[name]) form.elements[name].value = (record && record[name]) || '';
             });
@@ -445,12 +444,12 @@
             fileInput.addEventListener('change', function () {
                 var file = fileInput.files[0];
                 document.getElementById('dropzone').classList.toggle('has-file', !!file);
-                document.getElementById('dropzone-label').textContent = file ? file.name : 'Klik atau tarik file .xlsx ke sini';
+                document.getElementById('dropzone-label').textContent = file ? file.name : __t('Klik atau tarik file .xlsx ke sini');
             });
             document.getElementById('import-form').addEventListener('submit', function () {
                 var submit = document.getElementById('import-submit');
                 submit.disabled = true;
-                submit.textContent = 'Mengimport...';
+                submit.textContent = __t('Mengimport...');
             });
         }
 

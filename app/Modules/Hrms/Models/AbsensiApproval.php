@@ -60,7 +60,7 @@ class AbsensiApproval extends Model
 
     public function statusLabel(): string
     {
-        return self::STATUS[$this->status]['label'] ?? $this->status;
+        return __(self::STATUS[$this->status]['label'] ?? $this->status);
     }
 
     public function statusTone(): string

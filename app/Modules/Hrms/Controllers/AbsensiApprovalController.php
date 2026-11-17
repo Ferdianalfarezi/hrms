@@ -41,7 +41,7 @@ class AbsensiApprovalController extends Controller
             'status' => $status,
             'search' => $search,
             'statusCounts' => AbsensiApproval::selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
-            'kodes' => Absensi::KODE,
+            'kodes' => Absensi::kodeTampil(),
         ]);
     }
 
@@ -54,7 +54,7 @@ class AbsensiApprovalController extends Controller
         $data = $this->validateReview($request);
 
         if (! $approval->isPending()) {
-            return back()->withErrors(['approval' => 'Pengajuan ini sudah diputuskan sebelumnya.']);
+            return back()->withErrors(['approval' => __('Pengajuan ini sudah diputuskan sebelumnya.')]);
         }
 
         $absensi = $approval->absensi;
@@ -63,17 +63,17 @@ class AbsensiApprovalController extends Controller
         if (! $absensi && $approval->isDeletion()) {
             $this->decide($approval, AbsensiApproval::STATUS_APPROVED, $request, $data['catatan_review'] ?? null);
 
-            return back()->with('status', "Pengajuan {$approval->karyawan->nik} - {$approval->karyawan->nama} disetujui, data absensinya sudah tidak ada.");
+            return back()->with('status', __('Pengajuan :nik - :nama disetujui, data absensinya sudah tidak ada.', ['nik' => $approval->karyawan->nik, 'nama' => $approval->karyawan->nama]));
         }
 
         if (! $absensi) {
-            return back()->withErrors(['approval' => 'Data absensi yang diajukan sudah dihapus, pengajuan tidak bisa disetujui. Tolak pengajuan ini.']);
+            return back()->withErrors(['approval' => __('Data absensi yang diajukan sudah dihapus, pengajuan tidak bisa disetujui. Tolak pengajuan ini.')]);
         }
 
         $bentrok = ! $approval->isDeletion() && Absensi::where('karyawan_id', $absensi->karyawan_id)
             ->whereDate('tanggal', $approval->tanggal_baru->toDateString())->whereKeyNot($absensi->id)->exists();
         if ($bentrok) {
-            return back()->withErrors(['approval' => 'Karyawan ini sudah punya data absensi lain di tanggal yang diajukan.']);
+            return back()->withErrors(['approval' => __('Karyawan ini sudah punya data absensi lain di tanggal yang diajukan.')]);
         }
 
         DB::transaction(function () use ($approval, $absensi, $request, $data) {
@@ -92,7 +92,7 @@ class AbsensiApprovalController extends Controller
             $this->decide($approval, AbsensiApproval::STATUS_APPROVED, $request, $data['catatan_review'] ?? null);
         });
 
-        return back()->with('status', "Pengajuan {$approval->karyawan->nik} - {$approval->karyawan->nama} disetujui, absensi sudah diperbarui.");
+        return back()->with('status', __('Pengajuan :nik - :nama disetujui, absensi sudah diperbarui.', ['nik' => $approval->karyawan->nik, 'nama' => $approval->karyawan->nama]));
     }
 
     /**
@@ -104,12 +104,12 @@ class AbsensiApprovalController extends Controller
         $data = $this->validateReview($request);
 
         if (! $approval->isPending()) {
-            return back()->withErrors(['approval' => 'Pengajuan ini sudah diputuskan sebelumnya.']);
+            return back()->withErrors(['approval' => __('Pengajuan ini sudah diputuskan sebelumnya.')]);
         }
 
         $this->decide($approval, AbsensiApproval::STATUS_REJECTED, $request, $data['catatan_review'] ?? null);
 
-        return back()->with('status', "Pengajuan {$approval->karyawan->nik} - {$approval->karyawan->nama} tidak disetujui, absensi tetap seperti semula.");
+        return back()->with('status', __('Pengajuan :nik - :nama tidak disetujui, absensi tetap seperti semula.', ['nik' => $approval->karyawan->nik, 'nama' => $approval->karyawan->nama]));
     }
 
     /**
@@ -132,7 +132,7 @@ class AbsensiApprovalController extends Controller
         return $request->validate([
             'catatan_review' => ['nullable', 'string', 'max:255'],
         ], [
-            'catatan_review.max' => 'Catatan maksimal 255 karakter.',
+            'catatan_review.max' => __('Catatan maksimal 255 karakter.'),
         ]);
     }
 

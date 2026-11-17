@@ -2,9 +2,13 @@
 
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PortalController;
 use Illuminate\Support\Facades\Route;
+
+// Ganti bahasa tampilan (ID / JP); bisa dipakai sebelum maupun sesudah login.
+Route::get('/locale/{locale}', LocaleController::class)->name('locale.switch');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

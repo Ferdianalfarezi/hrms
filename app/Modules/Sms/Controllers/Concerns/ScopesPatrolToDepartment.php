@@ -37,7 +37,7 @@ trait ScopesPatrolToDepartment
         Gate::authorize('sms-patrol');
 
         abort_unless($user->isModuleAdmin('sms') || $user->managesDepartment('sms', $patrol->department_id), 403,
-            'Temuan ini milik departemen lain.');
+            __('Temuan ini milik departemen lain.'));
     }
 
     /**
@@ -47,7 +47,7 @@ trait ScopesPatrolToDepartment
     {
         Gate::authorize('sms-patrol');
 
-        abort_unless($user->isModuleAdmin('sms'), 403, 'Admin Departemen hanya bisa mengedit data, tidak bisa menambah atau menghapus.');
+        abort_unless($user->isModuleAdmin('sms'), 403, __('Admin Departemen hanya bisa mengedit data, tidak bisa menambah atau menghapus.'));
     }
 
     /**
@@ -61,14 +61,14 @@ trait ScopesPatrolToDepartment
         }
 
         $departmentIds = $user->managedDepartmentIds('sms');
-        abort_if($departmentIds === [], 403, 'Akun Anda belum dipilihkan departemen. Hubungi Super Admin.');
+        abort_if($departmentIds === [], 403, __('Akun Anda belum dipilihkan departemen. Hubungi Super Admin.'));
 
         if (count($departmentIds) === 1 || $chosen === null || $chosen === '') {
             return $departmentIds[0];
         }
 
         if (! in_array((int) $chosen, $departmentIds, true)) {
-            throw ValidationException::withMessages(['department_id' => 'Pilih salah satu departemen yang Anda kelola.']);
+            throw ValidationException::withMessages(['department_id' => __('Pilih salah satu departemen yang Anda kelola.')]);
         }
 
         return (int) $chosen;
@@ -157,7 +157,7 @@ trait ScopesPatrolToDepartment
     private function ensureCanClose(Request $request, ?Model $patrol, array $data): void
     {
         if ($patrol && $data['status'] === 'closed' && ! $request->hasFile('foto_perbaikan') && ! $patrol->foto_perbaikan) {
-            throw ValidationException::withMessages(['foto_perbaikan' => 'Upload foto perbaikan dulu sebelum status diubah menjadi Close.']);
+            throw ValidationException::withMessages(['foto_perbaikan' => __('Upload foto perbaikan dulu sebelum status diubah menjadi Close.')]);
         }
     }
 
@@ -188,16 +188,16 @@ trait ScopesPatrolToDepartment
     private function photoMessages(): array
     {
         return [
-            'required' => ':Attribute wajib diisi.',
-            'foto.required' => 'Foto temuan wajib diupload.',
-            'image' => ':Attribute harus berupa gambar.',
-            'mimes' => ':Attribute harus berformat JPG, PNG, atau WEBP.',
-            'foto.max' => 'Ukuran foto maksimal 10 MB.',
-            'foto_perbaikan.max' => 'Ukuran foto perbaikan maksimal 10 MB.',
-            'max' => ':Attribute maksimal :max karakter.',
-            'in' => ':Attribute tidak dikenal.',
-            'date_format' => 'Format :attribute tidak valid.',
-            'department_id.required' => 'Pilih departemen.',
+            'required' => __(':Attribute wajib diisi.'),
+            'foto.required' => __('Foto temuan wajib diupload.'),
+            'image' => __(':Attribute harus berupa gambar.'),
+            'mimes' => __(':Attribute harus berformat JPG, PNG, atau WEBP.'),
+            'foto.max' => __('Ukuran foto maksimal 10 MB.'),
+            'foto_perbaikan.max' => __('Ukuran foto perbaikan maksimal 10 MB.'),
+            'max' => __(':Attribute maksimal :max karakter.'),
+            'in' => __(':Attribute tidak dikenal.'),
+            'date_format' => __('Format :attribute tidak valid.'),
+            'department_id.required' => __('Pilih departemen.'),
         ];
     }
 
@@ -231,7 +231,7 @@ trait ScopesPatrolToDepartment
             $unknown = array_diff($names, $known, $this->splitNames((string) $current));
 
             if ($unknown !== []) {
-                $fail('Karyawan tidak ditemukan: '.implode(', ', $unknown).'.');
+                $fail(__('Karyawan tidak ditemukan: ').implode(', ', $unknown).'.');
             }
         }];
     }

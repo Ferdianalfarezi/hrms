@@ -1,0 +1,83 @@
+<?php
+
+/*
+| Pesan validasi bawaan Laravel dalam bahasa Jepang. Aturan yang tidak ada di sini
+| memakai bahasa cadangan (fallback_locale).
+*/
+
+return [
+    'accepted' => ':attributeを承認してください。',
+    'after' => ':attributeには:dateより後の日付を指定してください。',
+    'after_or_equal' => ':attributeには:date以降の日付を指定してください。',
+    'alpha' => ':attributeには英字のみ使用できます。',
+    'alpha_dash' => ':attributeには英数字・ハイフン・アンダースコアのみ使用できます。',
+    'alpha_num' => ':attributeには英数字のみ使用できます。',
+    'array' => ':attributeは配列にしてください。',
+    'before' => ':attributeには:dateより前の日付を指定してください。',
+    'before_or_equal' => ':attributeには:date以前の日付を指定してください。',
+    'between' => [
+        'array' => ':attributeは:min〜:max個にしてください。',
+        'file' => ':attributeは:min〜:max KBにしてください。',
+        'numeric' => ':attributeは:min〜:maxにしてください。',
+        'string' => ':attributeは:min〜:max文字にしてください。',
+    ],
+    'boolean' => ':attributeはtrueかfalseにしてください。',
+    'confirmed' => ':attributeが確認用と一致しません。',
+    'date' => ':attributeは正しい日付ではありません。',
+    'date_format' => ':attributeは:format形式にしてください。',
+    'different' => ':attributeと:otherは異なる値にしてください。',
+    'digits' => ':attributeは:digits桁にしてください。',
+    'digits_between' => ':attributeは:min〜:max桁にしてください。',
+    'email' => ':attributeは正しいメールアドレスにしてください。',
+    'exists' => '選択された:attributeは正しくありません。',
+    'extensions' => ':attributeは次の拡張子にしてください：:values。',
+    'file' => ':attributeはファイルにしてください。',
+    'filled' => ':attributeは必須です。',
+    'image' => ':attributeは画像にしてください。',
+    'in' => '選択された:attributeは正しくありません。',
+    'integer' => ':attributeは整数にしてください。',
+    'max' => [
+        'array' => ':attributeは:max個以下にしてください。',
+        'file' => ':attributeは:max KB以下にしてください。',
+        'numeric' => ':attributeは:max以下にしてください。',
+        'string' => ':attributeは:max文字以下にしてください。',
+    ],
+    'mimes' => ':attributeは次の形式にしてください：:values。',
+    'mimetypes' => ':attributeは次の形式にしてください：:values。',
+    'min' => [
+        'array' => ':attributeは:min個以上にしてください。',
+        'file' => ':attributeは:min KB以上にしてください。',
+        'numeric' => ':attributeは:min以上にしてください。',
+        'string' => ':attributeは:min文字以上にしてください。',
+    ],
+    'numeric' => ':attributeは数値にしてください。',
+    'regex' => ':attributeの形式が正しくありません。',
+    'required' => ':attributeは必須です。',
+    'required_if' => ':otherが:valueの場合、:attributeは必須です。',
+    'required_with' => ':valuesがある場合、:attributeは必須です。',
+    'same' => ':attributeと:otherが一致しません。',
+    'size' => [
+        'array' => ':attributeは:size個にしてください。',
+        'file' => ':attributeは:size KBにしてください。',
+        'numeric' => ':attributeは:sizeにしてください。',
+        'string' => ':attributeは:size文字にしてください。',
+    ],
+    'string' => ':attributeは文字列にしてください。',
+    'unique' => ':attributeはすでに使用されています。',
+    'uploaded' => ':attributeのアップロードに失敗しました。',
+
+    'attributes' => [
+        'nik' => 'NIK',
+        'name' => '氏名',
+        'nama' => '氏名',
+        'email' => 'メール',
+        'password' => 'PIN / パスワード',
+        'tanggal' => '日付',
+        'kode' => 'コード',
+        'keterangan' => '備考',
+        'file' => 'ファイル',
+        'foto' => '写真',
+        'foto_perbaikan' => '是正写真',
+        'department_id' => '部署',
+    ],
+];

@@ -67,7 +67,7 @@ class KecelakaanController extends Controller
         ]);
 
         return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
-            ->with('status', "Kecelakaan {$data['nama_korban']} berhasil ditambahkan.");
+            ->with('status', __('Kecelakaan :nama berhasil ditambahkan.', ['nama' => $data['nama_korban']]));
     }
 
     public function update(Request $request, Kecelakaan $kecelakaan): RedirectResponse
@@ -83,7 +83,7 @@ class KecelakaanController extends Controller
         ]);
 
         return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
-            ->with('status', "Kecelakaan {$kecelakaan->nama_korban} berhasil diperbarui.");
+            ->with('status', __('Kecelakaan :nama berhasil diperbarui.', ['nama' => $kecelakaan->nama_korban]));
     }
 
     public function destroy(Request $request, Kecelakaan $kecelakaan): RedirectResponse
@@ -92,7 +92,7 @@ class KecelakaanController extends Controller
         $kecelakaan->delete();
 
         return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
-            ->with('status', "Kecelakaan {$kecelakaan->nama_korban} berhasil dihapus.");
+            ->with('status', __('Kecelakaan :nama berhasil dihapus.', ['nama' => $kecelakaan->nama_korban]));
     }
 
     private function photoFolder(): string
@@ -116,12 +116,12 @@ class KecelakaanController extends Controller
             'department_id' => [$request->user()->isModuleAdmin('sms') ? 'required' : 'nullable', 'integer', 'exists:departments,id'],
             'deskripsi' => ['required', 'string', 'max:5000'],
         ], [
-            'required' => ':Attribute wajib diisi.',
-            'kategori.required_if' => 'Pilih kategori untuk Traffic Accident.',
-            'in' => ':Attribute tidak dikenal.',
-            'date_format' => 'Format :attribute tidak valid.',
-            'max' => ':Attribute maksimal :max karakter.',
-            'department_id.required' => 'Pilih departemen.',
+            'required' => __(':Attribute wajib diisi.'),
+            'kategori.required_if' => __('Pilih kategori untuk Traffic Accident.'),
+            'in' => __(':Attribute tidak dikenal.'),
+            'date_format' => __('Format :attribute tidak valid.'),
+            'max' => __(':Attribute maksimal :max karakter.'),
+            'department_id.required' => __('Pilih departemen.'),
         ], [
             'tipe' => 'tipe kecelakaan',
             'kategori' => 'kategori',

@@ -120,10 +120,11 @@ class User extends Authenticatable
         $application = $this->applications()->where('code', $code)->first();
 
         if (! $application) {
-            return $this->is_superadmin ? 'Super Admin' : null;
+            return $this->is_superadmin ? __('Super Admin') : null;
         }
 
-        $label = Role::find($application->pivot->role_id)?->name;
+        $roleName = Role::find($application->pivot->role_id)?->name;
+        $label = $roleName === null ? null : __($roleName);
         $departments = $this->managedDepartments()->wherePivot('application_id', $application->id)->orderBy('name')->pluck('name');
 
         return $departments->isNotEmpty() ? $label.' · '.$departments->implode(', ') : $label;

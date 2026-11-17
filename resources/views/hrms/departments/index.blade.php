@@ -1,20 +1,20 @@
 @extends('layouts.app')
 
-@section('title', 'Departemen')
+@section('title', __('Departemen'))
 
 @section('content')
 <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
     <div>
-        <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">Departemen</h1>
-        <p class="muted" style="margin: 2px 0 0;">{{ $departments->total() }} departemen terdaftar</p>
+        <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">{{ __('Departemen') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ __(':count departemen terdaftar', ['count' => $departments->total()]) }}</p>
     </div>
     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <form method="GET" style="display: flex; gap: 8px;">
-            <input type="search" name="q" value="{{ $search }}" placeholder="Cari departemen..." style="width: 240px; border-radius: 999px;">
-            <button type="submit" class="btn btn-ghost">Cari</button>
+            <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari departemen...') }}" style="width: 240px; border-radius: 999px;">
+            <button type="submit" class="btn btn-ghost">{{ __('Cari') }}</button>
         </form>
         @if ($canManage)
-            <button type="button" class="btn" data-create>+ Tambah Departemen</button>
+            <button type="button" class="btn" data-create>{{ __('+ Tambah Departemen') }}</button>
         @endif
     </div>
 </div>
@@ -24,11 +24,11 @@
         <table>
             <thead>
                 <tr>
-                    <th style="width: 72px;">No</th>
-                    <th>Nama Departemen</th>
-                    <th>Jumlah Karyawan</th>
+                    <th style="width: 72px;">{{ __('No') }}</th>
+                    <th>{{ __('Nama Departemen') }}</th>
+                    <th>{{ __('Jumlah Karyawan') }}</th>
                     @if ($canManage)
-                        <th style="text-align: right;">Aksi</th>
+                        <th style="text-align: right;">{{ __('Aksi') }}</th>
                     @endif
                 </tr>
             </thead>
@@ -38,25 +38,25 @@
                         <td class="muted">{{ $departments->firstItem() + $loop->index }}</td>
                         <td style="font-weight: 600;">{{ $department->name }}</td>
                         <td>
-                            <a href="{{ route('hrms.karyawans.index', ['department' => $department->id]) }}" class="muted">{{ $department->karyawans_count }} karyawan</a>
+                            <a href="{{ route('hrms.karyawans.index', ['department' => $department->id]) }}" class="muted">{{ __(':count karyawan', ['count' => $department->karyawans_count]) }}</a>
                         </td>
                         @if ($canManage)
                             <td style="text-align: right; white-space: nowrap;">
                                 <button type="button" class="btn btn-ghost btn-sm"
                                         data-edit="{{ $department->id }}" data-name="{{ $department->name }}"
-                                        data-url="{{ route('hrms.departments.update', $department) }}">Edit</button>
+                                        data-url="{{ route('hrms.departments.update', $department) }}">{{ __('Edit') }}</button>
                                 <button type="button" class="btn btn-danger btn-sm"
                                         data-delete data-name="{{ $department->name }}"
-                                        data-url="{{ route('hrms.departments.destroy', $department) }}">Hapus</button>
+                                        data-url="{{ route('hrms.departments.destroy', $department) }}">{{ __('Hapus') }}</button>
                             </td>
                         @endif
                     </tr>
                 @empty
                     <tr>
                         <td colspan="4" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $search !== '' ? 'Departemen tidak ditemukan.' : 'Belum ada departemen.' }}
+                            {{ $search !== '' ? __('Departemen tidak ditemukan.') : __('Belum ada departemen.') }}
                             @if ($canManage && $search === '')
-                                <div style="margin-top: 12px;"><button type="button" class="btn btn-sm" data-create>+ Tambah departemen pertama</button></div>
+                                <div style="margin-top: 12px;"><button type="button" class="btn btn-sm" data-create>{{ __('+ Tambah departemen pertama') }}</button></div>
                             @endif
                         </td>
                     </tr>
@@ -77,17 +77,17 @@
             <input type="hidden" name="_modal" value="create">
 
             <div class="modal-head">
-                <h2 id="department-modal-title">Tambah Departemen</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="department-modal-title">{{ __('Tambah Departemen') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
-                <label for="department-name">Nama Departemen</label>
-                <input id="department-name" type="text" name="name" placeholder="Contoh: Finance" required maxlength="255">
+                <label for="department-name">{{ __('Nama Departemen') }}</label>
+                <input id="department-name" type="text" name="name" placeholder="{{ __('Contoh: Finance') }}" required maxlength="255">
                 <div class="field-error" id="department-error" @if (! $errors->has('name')) hidden @endif>{{ $errors->first('name') }}</div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -98,15 +98,15 @@
             @csrf
             @method('DELETE')
             <div class="modal-head">
-                <h2>Hapus Departemen</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Hapus Departemen') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
-                Yakin ingin menghapus departemen <strong id="delete-name"></strong>? Tindakan ini tidak bisa dibatalkan.
+                {{ __('Yakin ingin menghapus departemen') }} <strong id="delete-name"></strong>{{ __('? Tindakan ini tidak bisa dibatalkan.') }}
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" style="background: var(--danger);">Hapus</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" style="background: var(--danger);">{{ __('Hapus') }}</button>
             </div>
         </form>
     </dialog>
@@ -128,7 +128,7 @@
             form.action = options.url;
             form.elements._method.value = mode === 'create' ? 'POST' : 'PUT';
             form.elements._modal.value = mode === 'create' ? 'create' : 'edit:' + options.id;
-            title.textContent = mode === 'create' ? 'Tambah Departemen' : 'Edit Departemen';
+            title.textContent = mode === 'create' ? __t('Tambah Departemen') : __t('Edit Departemen');
             nameInput.value = options.name || '';
             if (!options.keepError) error.hidden = true;
             modal.showModal();

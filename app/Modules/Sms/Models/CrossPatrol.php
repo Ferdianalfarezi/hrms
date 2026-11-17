@@ -55,17 +55,17 @@ class CrossPatrol extends Model
 
     public function resikoLabel(): string
     {
-        return self::RESIKO[$this->resiko]['label'] ?? (string) $this->resiko;
+        return __(self::RESIKO[$this->resiko]['label'] ?? (string) $this->resiko);
     }
 
     public function zonaLabel(): string
     {
-        return $this->zona ? 'Zona '.$this->zona : '-';
+        return $this->zona ? __('Zona').' '.$this->zona : '-';
     }
 
     public function kategoriLabel(): string
     {
-        return DailyPatrol::kategoriOptions()[$this->kategori] ?? $this->kategori;
+        return __(DailyPatrol::kategoriOptions()[$this->kategori] ?? $this->kategori);
     }
 
     /**

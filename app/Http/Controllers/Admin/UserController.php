@@ -60,7 +60,7 @@ class UserController extends Controller
             User::create($data['attributes'])->syncAccess($data['access']);
         });
 
-        return redirect()->route('admin.users.index')->with('status', "User {$data['attributes']['nik']} berhasil dibuat.");
+        return redirect()->route('admin.users.index')->with('status', __('User :nik berhasil dibuat.', ['nik' => $data['attributes']['nik']]));
     }
 
     public function edit(User $user): View
@@ -105,13 +105,13 @@ class UserController extends Controller
             Storage::disk('public')->delete($oldPhoto);
         }
 
-        return redirect()->route('admin.users.index')->with('status', "User {$user->nik} berhasil diperbarui.");
+        return redirect()->route('admin.users.index')->with('status', __('User :nik berhasil diperbarui.', ['nik' => $user->nik]));
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
         if ($user->is($request->user())) {
-            return back()->withErrors(['user' => 'Anda tidak bisa menghapus akun sendiri.']);
+            return back()->withErrors(['user' => __('Anda tidak bisa menghapus akun sendiri.')]);
         }
 
         $user->delete();
@@ -120,7 +120,7 @@ class UserController extends Controller
             Storage::disk('public')->delete($user->photo);
         }
 
-        return redirect()->route('admin.users.index')->with('status', "User {$user->nik} berhasil dihapus.");
+        return redirect()->route('admin.users.index')->with('status', __('User :nik berhasil dihapus.', ['nik' => $user->nik]));
     }
 
     private function applications()
@@ -150,7 +150,7 @@ class UserController extends Controller
         ], [], [
             'nik' => 'NIK',
             'name' => 'nama',
-            'password' => 'PIN / password',
+            'password' => __('PIN / password'),
             'photo' => 'foto',
         ]);
 
@@ -160,7 +160,7 @@ class UserController extends Controller
         $mismatch = $access->first(fn (int $roleId, $applicationId) => ! Role::whereKey($roleId)->where('application_id', $applicationId)->exists());
 
         if ($mismatch !== null) {
-            throw ValidationException::withMessages(['access' => 'Role tidak sesuai dengan modulnya.']);
+            throw ValidationException::withMessages(['access' => __('Role tidak sesuai dengan modulnya.')]);
         }
 
         // Role "Admin Departemen" wajib punya minimal satu departemen (boleh lebih); role lain tidak menyimpan departemen.
@@ -172,7 +172,7 @@ class UserController extends Controller
 
             $departmentIds = array_values(array_unique(array_map('intval', $validated['department'][$applicationId] ?? [])));
             if ($departmentIds === []) {
-                throw ValidationException::withMessages(["department.{$applicationId}" => 'Pilih minimal satu departemen untuk Admin Departemen.']);
+                throw ValidationException::withMessages(["department.{$applicationId}" => __('Pilih minimal satu departemen untuk Admin Departemen.')]);
             }
 
             return ['role_id' => $roleId, 'department_ids' => $departmentIds];

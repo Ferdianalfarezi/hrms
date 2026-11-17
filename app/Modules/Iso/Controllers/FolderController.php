@@ -42,7 +42,7 @@ class FolderController extends Controller
         ]);
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
-            ->with('status', "Folder {$folder->nama} berhasil dibuat.");
+            ->with('status', __('Folder :nama berhasil dibuat.', ['nama' => $folder->nama]));
     }
 
     /**
@@ -69,7 +69,7 @@ class FolderController extends Controller
         });
 
         return redirect()->route("iso.{$kategori}.index", $this->keptFilters($request))
-            ->with('status', "Folder {$folder->nama} berhasil diperbarui.");
+            ->with('status', __('Folder :nama berhasil diperbarui.', ['nama' => $folder->nama]));
     }
 
     /**
@@ -82,7 +82,7 @@ class FolderController extends Controller
         $ids = $folder->selfAndDescendantIds();
         // Admin Departemen tidak melihat dokumen nonaktif, jadi tidak boleh ikut menghapusnya tanpa sadar.
         abort_if(! $request->user()->isModuleAdmin('iso') && IsoDocument::whereIn('folder_id', $ids)->where('is_active', false)->exists(), 403,
-            'Folder ini berisi dokumen nonaktif. Hanya Admin ISO yang bisa menghapusnya.');
+            __('Folder ini berisi dokumen nonaktif. Hanya Admin ISO yang bisa menghapusnya.'));
         $paths = IsoDocument::whereIn('folder_id', $ids)->pluck('path')->all();
 
         DB::transaction(function () use ($ids) {
@@ -102,7 +102,7 @@ class FolderController extends Controller
         }
 
         return redirect()->route("iso.{$kategori}.index", array_filter($keep))
-            ->with('status', "Folder {$folder->nama} beserta isinya (".count($paths).' file) berhasil dihapus.');
+            ->with('status', __('Folder :nama beserta isinya (:count file) berhasil dihapus.', ['nama' => $folder->nama, 'count' => count($paths)]));
     }
 
     /**
@@ -123,9 +123,9 @@ class FolderController extends Controller
     private function messages(): array
     {
         return [
-            'nama.required' => 'Nama folder wajib diisi.',
-            'nama.max' => 'Nama folder maksimal 255 karakter.',
-            'department_id.exists' => 'Departemen tidak dikenal.',
+            'nama.required' => __('Nama folder wajib diisi.'),
+            'nama.max' => __('Nama folder maksimal 255 karakter.'),
+            'department_id.exists' => __('Departemen tidak dikenal.'),
         ];
     }
 }

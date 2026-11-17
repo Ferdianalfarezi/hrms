@@ -127,6 +127,16 @@ class Absensi extends Model
     /** Kode terlambat yang menitnya wajib diisi manual; DT< otomatis MENIT_PER_POTONGAN menit. */
     public const KODE_WAJIB_MENIT = ['DT>'];
 
+    /**
+     * KODE dengan label dalam bahasa tampilan yang sedang dipakai.
+     *
+     * @return array<string, array{label: string, tone: string, hadir: bool}>
+     */
+    public static function kodeTampil(): array
+    {
+        return array_map(fn (array $info) => [...$info, 'label' => __($info['label'])], self::KODE);
+    }
+
     public static function isTerlambat(?string $kode): bool
     {
         return in_array($kode, self::KODE_TERLAMBAT, true);

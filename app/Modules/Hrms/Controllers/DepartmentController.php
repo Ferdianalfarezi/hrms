@@ -60,7 +60,7 @@ class DepartmentController extends Controller
 
         if ($total = $department->karyawans()->count()) {
             return redirect()->route('hrms.departments.index')
-                ->with('error', "Departemen {$department->name} masih dipakai {$total} karyawan, pindahkan dulu karyawannya sebelum menghapus.");
+                ->with('error', __('Departemen :nama masih dipakai :total karyawan, pindahkan dulu karyawannya sebelum menghapus.', ['nama' => $department->name, 'total' => $total]));
         }
 
         $smsData = DailyPatrol::where('department_id', $department->id)->count()
@@ -68,7 +68,7 @@ class DepartmentController extends Controller
             + Kecelakaan::where('department_id', $department->id)->count();
         if ($smsData) {
             return redirect()->route('hrms.departments.index')
-                ->with('error', "Departemen {$department->name} masih dipakai {$smsData} data Daily/Cross Patrol & Kecelakaan (SMS), jadi tidak bisa dihapus.");
+                ->with('error', __('Departemen :nama masih dipakai :total data Daily/Cross Patrol & Kecelakaan (SMS), jadi tidak bisa dihapus.', ['nama' => $department->name, 'total' => $smsData]));
         }
 
         $department->delete();
@@ -84,9 +84,9 @@ class DepartmentController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($department)],
         ], [
-            'name.required' => 'Nama departemen wajib diisi.',
-            'name.max' => 'Nama departemen maksimal 255 karakter.',
-            'name.unique' => 'Departemen dengan nama ini sudah ada.',
+            'name.required' => __('Nama departemen wajib diisi.'),
+            'name.max' => __('Nama departemen maksimal 255 karakter.'),
+            'name.unique' => __('Departemen dengan nama ini sudah ada.'),
         ]);
     }
 }

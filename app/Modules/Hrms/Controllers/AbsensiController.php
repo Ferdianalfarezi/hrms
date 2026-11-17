@@ -115,7 +115,7 @@ class AbsensiController extends Controller
             'tanpaKeterangan' => KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $monthStart, $monthEnd),
             // Mesin absen bilang hadir: kode tidak hadir dari admin di sel ini ditampilkan hijau (kemungkinan salah input).
             'hadirMesin' => KomparasiAbsensi::selHadirDiMesin($karyawans, $monthStart, $monthEnd),
-            'kodes' => Absensi::KODE,
+            'kodes' => Absensi::kodeTampil(),
             'isAdmin' => $isAdmin,
             'canEdit' => $isAdmin || $lockedDepartments->isNotEmpty(),
             'lockedDepartments' => $lockedDepartments,
@@ -155,7 +155,7 @@ class AbsensiController extends Controller
             'search' => $search,
             'absensis' => $absensis,
             'karyawans' => $karyawans,
-            'kodes' => Absensi::KODE,
+            'kodes' => Absensi::kodeTampil(),
             'lockedDepartments' => $lockedDepartments,
             'missingDepartment' => $user->isDepartmentAdmin() && $lockedDepartments->isEmpty(),
             'canEdit' => $lockedDepartments->isNotEmpty(),
@@ -202,14 +202,14 @@ class AbsensiController extends Controller
             $total++;
         }
 
-        $skippedMessage = "{$skipped} hari sudah ada datanya, ubah lewat tombol Edit (perlu approval HRD).";
+        $skippedMessage = __(':count hari sudah ada datanya, ubah lewat tombol Edit (perlu approval HRD).', ['count' => $skipped]);
 
         if ($total === 0 && $skipped > 0) {
-            return back()->withInput()->withErrors(['tanggal' => "Tidak ada yang disimpan: {$skippedMessage}"]);
+            return back()->withInput()->withErrors(['tanggal' => __('Tidak ada yang disimpan: :alasan', ['alasan' => $skippedMessage])]);
         }
 
         return redirect()->route('hrms.absensi.index', ['tanggal' => $data['tanggal']])
-            ->with('status', "Absensi {$karyawan->nik} - {$karyawan->nama} disimpan ({$total} hari).".($skipped ? " {$skippedMessage}" : ''));
+            ->with('status', __('Absensi :nik - :nama disimpan (:total hari).', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama, 'total' => $total]).($skipped ? " {$skippedMessage}" : ''));
     }
 
     /**
@@ -228,7 +228,7 @@ class AbsensiController extends Controller
 
         $bentrok = Absensi::where('karyawan_id', $absensi->karyawan_id)->whereDate('tanggal', $data['tanggal'])->whereKeyNot($absensi->id)->exists();
         if ($bentrok) {
-            return back()->withInput()->withErrors(['tanggal' => 'Karyawan ini sudah punya data absensi di tanggal tersebut.']);
+            return back()->withInput()->withErrors(['tanggal' => __('Karyawan ini sudah punya data absensi di tanggal tersebut.')]);
         }
 
         $karyawan = $absensi->karyawan;
@@ -243,7 +243,7 @@ class AbsensiController extends Controller
             ])->save();
 
             return redirect()->route('hrms.absensi.index', ['tanggal' => $data['tanggal']])
-                ->with('status', "Absensi {$karyawan->nik} - {$karyawan->nama} diperbarui.");
+                ->with('status', __('Absensi :nik - :nama diperbarui.', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
         }
 
         $unchanged = $absensi->tanggal->toDateString() === $data['tanggal']
@@ -253,7 +253,7 @@ class AbsensiController extends Controller
             && ! $request->hasFile('evidence');
         if ($unchanged) {
             return redirect()->route('hrms.absensi.index', ['tanggal' => $data['tanggal']])
-                ->with('status', 'Tidak ada perubahan yang diajukan.');
+                ->with('status', __('Tidak ada perubahan yang diajukan.'));
         }
 
         $this->ajukanPerubahan($request, $absensi, [
@@ -265,7 +265,7 @@ class AbsensiController extends Controller
         ]);
 
         return redirect()->route('hrms.absensi.index', ['tanggal' => $absensi->tanggal->toDateString()])
-            ->with('status', "Perubahan absensi {$karyawan->nik} - {$karyawan->nama} diajukan, menunggu approval HRD.");
+            ->with('status', __('Perubahan absensi :nik - :nama diajukan, menunggu approval HRD.', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
     }
 
     /**
@@ -287,14 +287,14 @@ class AbsensiController extends Controller
             $absensi->delete();
 
             return redirect()->route('hrms.absensi.index', ['tanggal' => $tanggal])
-                ->with('status', "Absensi {$karyawan->nik} - {$karyawan->nama} dihapus (dianggap masuk).");
+                ->with('status', __('Absensi :nik - :nama dihapus (dianggap masuk).', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
         }
 
         $data = $request->validateWithBag('hapus', [
             'alasan' => ['required', 'string', 'max:1000'],
         ], [
-            'alasan.required' => 'Alasan penghapusan wajib diisi.',
-            'alasan.max' => 'Alasan maksimal 1000 karakter.',
+            'alasan.required' => __('Alasan penghapusan wajib diisi.'),
+            'alasan.max' => __('Alasan maksimal 1000 karakter.'),
         ]);
 
         $this->ajukanPerubahan($request, $absensi, [
@@ -306,7 +306,7 @@ class AbsensiController extends Controller
         ]);
 
         return redirect()->route('hrms.absensi.index', ['tanggal' => $tanggal])
-            ->with('status', "Penghapusan absensi {$karyawan->nik} - {$karyawan->nama} diajukan, menunggu approval HRD.");
+            ->with('status', __('Penghapusan absensi :nik - :nama diajukan, menunggu approval HRD.', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
     }
 
     /**
@@ -316,8 +316,8 @@ class AbsensiController extends Controller
     private function pesanMenungguApproval(bool $isAdmin): string
     {
         return $isAdmin
-            ? 'Absensi ini masih punya pengajuan yang menunggu approval. Setujui atau tolak dulu di menu Approval Absensi.'
-            : 'Absensi ini masih punya pengajuan perubahan yang menunggu approval HRD.';
+            ? __('Absensi ini masih punya pengajuan yang menunggu approval. Setujui atau tolak dulu di menu Approval Absensi.')
+            : __('Absensi ini masih punya pengajuan perubahan yang menunggu approval HRD.');
     }
 
     /**
@@ -360,7 +360,7 @@ class AbsensiController extends Controller
             // Admin Departemen hanya mengisi hari kerja (Senin - Jumat).
             'tanggal' => ['required', 'date_format:Y-m-d', function (string $attribute, mixed $value, Closure $fail) {
                 if ($this->parseDate((string) $value)?->isWeekend()) {
-                    $fail('Absensi hanya bisa diinput untuk hari Senin - Jumat.');
+                    $fail(__('Absensi hanya bisa diinput untuk hari Senin - Jumat.'));
                 }
             }],
             'kode' => ['required', Rule::in(array_keys(Absensi::KODE))],
@@ -372,19 +372,19 @@ class AbsensiController extends Controller
                 'evidence' => [Rule::requiredIf(fn () => Absensi::isSakit($request->input('kode'))), 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
             ] : []),
         ], [
-            'karyawan_id.required' => 'Pilih karyawan.',
-            'tanggal.required' => 'Tanggal wajib diisi.',
-            'kode.required' => 'Pilih kode absensi.',
-            'kode.in' => 'Kode absensi tidak dikenal.',
-            'sampai.after_or_equal' => 'Tanggal "sampai" tidak boleh sebelum tanggal mulai.',
-            'sampai.before_or_equal' => 'Rentang maksimal 31 hari.',
-            'keterangan.max' => 'Keterangan maksimal 255 karakter.',
-            'keterangan.required' => 'Keterangan wajib diisi kalau alasan "Lain-lain".',
-            'alasan.required' => 'Alasan perubahan wajib diisi.',
-            'alasan.max' => 'Alasan maksimal 1000 karakter.',
-            'evidence.required' => 'Perubahan ke kode sakit wajib melampirkan surat dokter.',
-            'evidence.mimes' => 'Evidence harus berupa gambar (JPG/PNG) atau PDF.',
-            'evidence.max' => 'Ukuran evidence maksimal 5 MB.',
+            'karyawan_id.required' => __('Pilih karyawan.'),
+            'tanggal.required' => __('Tanggal wajib diisi.'),
+            'kode.required' => __('Pilih kode absensi.'),
+            'kode.in' => __('Kode absensi tidak dikenal.'),
+            'sampai.after_or_equal' => __('Tanggal "sampai" tidak boleh sebelum tanggal mulai.'),
+            'sampai.before_or_equal' => __('Rentang maksimal 31 hari.'),
+            'keterangan.max' => __('Keterangan maksimal 255 karakter.'),
+            'keterangan.required' => __('Keterangan wajib diisi kalau alasan "Lain-lain".'),
+            'alasan.required' => __('Alasan perubahan wajib diisi.'),
+            'alasan.max' => __('Alasan maksimal 1000 karakter.'),
+            'evidence.required' => __('Perubahan ke kode sakit wajib melampirkan surat dokter.'),
+            'evidence.mimes' => __('Evidence harus berupa gambar (JPG/PNG) atau PDF.'),
+            'evidence.max' => __('Ukuran evidence maksimal 5 MB.'),
             ...$this->menitMessages(),
         ]);
 
@@ -414,10 +414,10 @@ class AbsensiController extends Controller
     private function menitMessages(): array
     {
         return [
-            'menit_terlambat.required' => 'Isi berapa menit karyawan datang terlambat.',
-            'menit_terlambat.integer' => 'Menit terlambat harus berupa angka.',
-            'menit_terlambat.min' => 'Menit terlambat minimal 1 menit.',
-            'menit_terlambat.max' => 'Menit terlambat maksimal 720 menit.',
+            'menit_terlambat.required' => __('Isi berapa menit karyawan datang terlambat.'),
+            'menit_terlambat.integer' => __('Menit terlambat harus berupa angka.'),
+            'menit_terlambat.min' => __('Menit terlambat minimal 1 menit.'),
+            'menit_terlambat.max' => __('Menit terlambat maksimal 720 menit.'),
         ];
     }
 
@@ -435,9 +435,9 @@ class AbsensiController extends Controller
             'pilihan_alasan' => ['nullable', 'string', 'max:255'],
             'keterangan' => [Rule::requiredIf(fn () => $request->input('pilihan_alasan') === Absensi::ALASAN_LAIN), 'nullable', 'string', 'max:255'],
         ], [
-            'kode.in' => 'Kode absensi tidak dikenal.',
-            'keterangan.max' => 'Keterangan maksimal 255 karakter.',
-            'keterangan.required' => 'Keterangan wajib diisi kalau alasan "Lain-lain".',
+            'kode.in' => __('Kode absensi tidak dikenal.'),
+            'keterangan.max' => __('Keterangan maksimal 255 karakter.'),
+            'keterangan.required' => __('Keterangan wajib diisi kalau alasan "Lain-lain".'),
             ...$this->menitMessages(),
         ]);
 
@@ -448,13 +448,13 @@ class AbsensiController extends Controller
 
         // Sama seperti tabel CRUD: Admin Departemen hanya mengisi hari kerja (Senin - Jumat).
         if (! $isAdmin && $this->parseDate($data['tanggal'])?->isWeekend()) {
-            return response()->json(['message' => 'Absensi hanya bisa diinput untuk hari Senin - Jumat.'], 422);
+            return response()->json(['message' => __('Absensi hanya bisa diinput untuk hari Senin - Jumat.')], 422);
         }
 
         $existing = Absensi::where('karyawan_id', $karyawan->id)->whereDate('tanggal', $data['tanggal'])->first();
 
         if ($existing && ! $isAdmin) {
-            return response()->json(['message' => 'Data absensi ini sudah ada. Ubah lewat menu Absensi > Daftar (perlu approval HRD).'], 422);
+            return response()->json(['message' => __('Data absensi ini sudah ada. Ubah lewat menu Absensi > Daftar (perlu approval HRD).')], 422);
         }
 
         if ($existing?->pendingApproval()->exists()) {

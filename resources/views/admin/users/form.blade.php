@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $user->exists ? 'Edit User' : 'Tambah User')
+@section('title', $user->exists ? __('Edit User') : __('Tambah User'))
 
 @section('styles')
     /* Pilihan departemen Admin Departemen: chip checkbox, bisa pilih banyak. */
@@ -23,9 +23,9 @@
 @php($isSelf = $user->exists && $user->is(auth()->user()))
 
 <div style="margin-bottom: 20px;">
-    <a href="{{ route('admin.users.index') }}" class="muted small">&larr; Kembali ke daftar user</a>
+    <a href="{{ route('admin.users.index') }}" class="muted small">{{ __('← Kembali ke daftar user') }}</a>
     <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em; margin-top: 4px;">
-        {{ $user->exists ? "Edit {$user->name}" : 'Tambah User' }}
+        {{ $user->exists ? __('Edit :nama', ['nama' => $user->name]) : __('Tambah User') }}
     </h1>
 </div>
 
@@ -39,27 +39,27 @@
     <div class="form-layout">
         {{-- Foto profil --}}
         <div class="card photo-card">
-            <div class="section-title">Foto Profil</div>
+            <div class="section-title">{{ __('Foto Profil') }}</div>
             <img id="photo-preview" src="{{ $user->photo_url }}" data-default="{{ asset('images/default-avatar.svg') }}"
-                 alt="Foto profil" class="avatar photo-preview">
+                 alt="{{ __('Foto profil') }}" class="avatar photo-preview">
 
             <span class="btn btn-ghost btn-sm file-btn">
-                Pilih foto
+                {{ __('Pilih foto') }}
                 <input type="file" name="photo" id="photo" accept="image/jpeg,image/png,image/webp">
             </span>
-            <p class="muted small" style="margin: 10px 0 0;">JPG, PNG, atau WEBP, maks. 2 MB.<br>Tanpa foto akan memakai avatar default.</p>
+            <p class="muted small" style="margin: 10px 0 0;">{{ __('JPG, PNG, atau WEBP, maks. 2 MB.') }}<br>{{ __('Tanpa foto akan memakai avatar default.') }}</p>
             @error('photo') <div class="field-error">{{ $message }}</div> @enderror
 
             @if ($user->photo)
                 <label class="check" style="justify-content: center; margin-top: 12px; font-size: 12px;">
-                    <input type="checkbox" name="remove_photo" value="1" id="remove-photo"> Hapus foto
+                    <input type="checkbox" name="remove_photo" value="1" id="remove-photo"> {{ __('Hapus foto') }}
                 </label>
             @endif
         </div>
 
         <div style="display: grid; gap: 16px;">
             <div class="card">
-                <div class="section-title" style="margin-bottom: 16px;">Data Akun</div>
+                <div class="section-title" style="margin-bottom: 16px;">{{ __('Data Akun') }}</div>
                 <div class="grid-form">
                     <div>
                         <label for="nik">NIK</label>
@@ -67,23 +67,23 @@
                         @error('nik') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="name">Nama</label>
+                        <label for="name">{{ __('Nama') }}</label>
                         <input id="name" type="text" name="name" value="{{ old('name', $user->name) }}" required>
                         @error('name') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="email">Email <span class="muted">(opsional)</span></label>
+                        <label for="email">{{ __('Email') }} <span class="muted">{{ __('(opsional)') }}</span></label>
                         <input id="email" type="email" name="email" value="{{ old('email', $user->email) }}">
                         @error('email') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div class="spacer"></div>
                     <div>
-                        <label for="password">PIN / Password @if ($user->exists)<span class="muted">(kosongkan jika tidak diganti)</span>@endif</label>
+                        <label for="password">PIN / Password @if ($user->exists)<span class="muted">{{ __('(kosongkan jika tidak diganti)') }}</span>@endif</label>
                         <input id="password" type="password" name="password" autocomplete="new-password" @required(! $user->exists)>
                         @error('password') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="password_confirmation">Ulangi PIN / Password</label>
+                        <label for="password_confirmation">{{ __('Ulangi PIN / Password') }}</label>
                         <input id="password_confirmation" type="password" name="password_confirmation" autocomplete="new-password">
                     </div>
                 </div>
@@ -92,24 +92,23 @@
                     <label class="check">
                         <input type="hidden" name="is_active" value="0">
                         <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $user->is_active)) @disabled($isSelf)>
-                        Akun aktif
+                        {{ __('Akun aktif') }}
                     </label>
                     <label class="check">
                         <input type="hidden" name="is_superadmin" value="0">
                         <input type="checkbox" name="is_superadmin" value="1" @checked(old('is_superadmin', $user->is_superadmin)) @disabled($isSelf)>
-                        Super Admin <span class="muted">(semua modul &amp; kelola user)</span>
+                        {{ __('Super Admin') }} <span class="muted">{{ __('(semua modul & kelola user)') }}</span>
                     </label>
                 </div>
                 @if ($isSelf)
-                    <p class="muted small" style="margin: 8px 0 0;">Status aktif dan Super Admin akun Anda sendiri tidak bisa diubah.</p>
+                    <p class="muted small" style="margin: 8px 0 0;">{{ __('Status aktif dan Super Admin akun Anda sendiri tidak bisa diubah.') }}</p>
                 @endif
             </div>
 
             <div class="card">
-                <div class="section-title">Hak Akses Modul</div>
+                <div class="section-title">{{ __('Hak Akses Modul') }}</div>
                 <p class="muted" style="margin: 0 0 16px;">
-                    Pilih role untuk setiap modul. Pilih "Tidak ada akses" untuk menutup modul tersebut.
-                    Super Admin otomatis bisa membuka semua modul.
+                    {{ __('Pilih role untuk setiap modul. Pilih "Tidak ada akses" untuk menutup modul tersebut. Super Admin otomatis bisa membuka semua modul.') }}
                 </p>
                 @error('access') <div class="alert">{{ $message }}</div> @enderror
 
@@ -118,14 +117,14 @@
                         <div>
                             <label for="access-{{ $application->id }}">
                                 {{ $application->name }}
-                                @unless ($application->is_active)<span class="badge badge-off">modul nonaktif</span>@endunless
+                                @unless ($application->is_active)<span class="badge badge-off">{{ __('modul nonaktif') }}</span>@endunless
                             </label>
                             <select id="access-{{ $application->id }}" name="access[{{ $application->id }}]" data-role-select="{{ $application->id }}">
-                                <option value="">Tidak ada akses</option>
+                                <option value="">{{ __('Tidak ada akses') }}</option>
                                 @foreach ($application->roles as $role)
                                     <option value="{{ $role->id }}" data-code="{{ $role->code }}"
                                             @selected((string) old("access.{$application->id}", $currentAccess[$application->id] ?? '') === (string) $role->id)>
-                                        {{ $role->name }}
+                                        {{ __($role->name) }}
                                     </option>
                                 @endforeach
                             </select>
@@ -134,7 +133,7 @@
                                 {{-- Muncul hanya saat role "Admin Departemen" dipilih. Bisa pilih lebih dari satu departemen. --}}
                                 @php($checkedDepartments = array_map('strval', (array) old("department.{$application->id}", $currentDepartments[$application->id] ?? [])))
                                 <div data-department-for="{{ $application->id }}" style="margin-top: 10px;">
-                                    <label>Departemen yang dikelola <span class="muted small">(bisa lebih dari satu)</span></label>
+                                    <label>{{ __('Departemen yang dikelola') }} <span class="muted small">{{ __('(bisa lebih dari satu)') }}</span></label>
                                     <div class="dept-checks">
                                         @foreach ($departments as $department)
                                             <label class="dept-check">
@@ -153,8 +152,8 @@
             </div>
 
             <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                <a href="{{ route('admin.users.index') }}" class="btn btn-ghost">Batal</a>
-                <button type="submit" class="btn">Simpan</button>
+                <a href="{{ route('admin.users.index') }}" class="btn btn-ghost">{{ __('Batal') }}</a>
+                <button type="submit" class="btn">{{ __('Simpan') }}</button>
             </div>
         </div>
     </div>

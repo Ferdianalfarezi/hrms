@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureModuleAccess;
 use App\Http\Middleware\EnsureSuperadmin;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'superadmin' => EnsureSuperadmin::class,
         ]);
 
+        // Bahasa tampilan (ID / JP) dipilih dari navbar dan disimpan di cookie.
+        $middleware->web(append: [SetLocale::class]);
+
         $middleware->redirectUsersTo(fn () => route('portal'));
 
         // Pilihan tampilan Kartu / List menu ISO ditulis langsung oleh JavaScript, jadi tidak dienkripsi.
@@ -37,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            $message = 'Sesi Anda telah berakhir. Silakan login kembali.';
+            $message = __('Sesi Anda telah berakhir. Silakan login kembali.');
 
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json(['message' => $message, 'redirect' => route('login')], 419);

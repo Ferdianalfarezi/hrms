@@ -84,12 +84,12 @@ class DashboardController extends Controller
                 'tipe' => $tipe,
                 'label' => $info['label'],
                 'days' => $since['days'],
-                'value' => $since['days'] !== null ? number_format($since['days'], 0, ',', '.').' hari' : '–',
+                'value' => $since['days'] !== null ? __(':count hari', ['count' => number_format($since['days'], 0, ',', '.')]) : '–',
                 'note' => $last
-                    ? 'Terakhir '.$last->waktu->translatedFormat('d F Y')
+                    ? __('Terakhir :tanggal', ['tanggal' => $last->waktu->translatedFormat('d F Y')])
                         .(filled($last->nama_korban) ? ' · '.$last->nama_korban : '')
                         .($last->department ? ' · '.$last->department->name : '')
-                    : 'Belum ada '.$info['label'].' yang tercatat.',
+                    : __('Belum ada :jenis yang tercatat.', ['jenis' => __($info['label'])]),
             ];
         })->values()->all();
     }

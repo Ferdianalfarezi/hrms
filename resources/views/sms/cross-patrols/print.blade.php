@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Print Cross Patrol</title>
+    <title>{{ __('Print Cross Patrol') }}</title>
     <style>
         /* Satu lembar A4 portrait berisi maksimal 25 kotak (5 x 5). Ukuran pakai mm supaya hasil cetak pas. */
         @page { size: A4 portrait; margin: 0; }
@@ -65,16 +65,16 @@
                         @if ($photoUrl)
                             <img src="{{ $photoUrl }}" alt="">
                         @else
-                            <div class="no-photo">Tidak ada foto</div>
+                            <div class="no-photo">{{ __('Tidak ada foto') }}</div>
                         @endif
                     </div>
                     <div class="finding"><span>{{ $closed ? $patrol->rekomendasi : $patrol->finding }}</span></div>
                     <div class="row">
-                        <div class="label">DUE DATE PERBAIKAN</div>
+                        <div class="label">{{ __('DUE DATE PERBAIKAN') }}</div>
                         <div class="date">{{ $patrol->target->format('d.m.Y') }}</div>
                     </div>
                     <div class="row">
-                        <div class="label">STATUS</div>
+                        <div class="label">{{ __('STATUS') }}</div>
                         <div @class(['opt', 'on' => ! $patrol->isClosed()])>OPEN</div>
                         <div @class(['opt', 'on' => $patrol->isClosed()])>CLOSE</div>
                     </div>
@@ -82,7 +82,7 @@
             @endforeach
         </div>
     @empty
-        <div class="empty">Tidak ada temuan untuk dicetak.</div>
+        <div class="empty">{{ __('Tidak ada temuan untuk dicetak.') }}</div>
     @endforelse
 
     <script>

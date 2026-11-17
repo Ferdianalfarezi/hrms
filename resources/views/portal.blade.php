@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Pilih Sistem')
+@section('title', __('Pilih Sistem'))
 
 @section('styles')
     .app-grid { display: grid; grid-template-columns: repeat(auto-fill, 168px); gap: 16px; }
@@ -38,16 +38,16 @@
 <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
     <img src="{{ auth()->user()->photo_url }}" alt="" class="avatar" style="width: 64px; height: 64px; border: 3px solid #fff;">
     <div>
-        <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">Halo, {{ auth()->user()->first_name }}</h1>
-        <p class="muted" style="margin: 2px 0 0;">NIK {{ auth()->user()->nik }} · Pilih sistem yang ingin dibuka.</p>
+        <h1 style="font-size: clamp(26px, 4vw, 40px); font-weight: 500; letter-spacing: -.03em;">{{ __('Halo, :nama', ['nama' => auth()->user()->first_name]) }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">NIK {{ auth()->user()->nik }} · {{ __('Pilih sistem yang ingin dibuka.') }}</p>
     </div>
 </div>
 
-<div class="section-label" style="margin-top: 0;">Aplikasi</div>
+<div class="section-label" style="margin-top: 0;">{{ __('Aplikasi') }}</div>
 <div class="app-grid">
     @forelse ($applications as $application)
         @php [$warna, $svg] = $ikon[strtolower($application->code)] ?? $ikonLain; @endphp
-        <a href="{{ $application->homeUrl() }}" class="app-tile" title="{{ $application->description }}">
+        <a href="{{ $application->homeUrl() }}" class="app-tile" title="{{ __($application->description) }}">
             <span class="app-ico {{ $warna }}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{!! $svg !!}</svg>
             </span>
@@ -55,19 +55,19 @@
             <span class="app-role">{{ auth()->user()->roleLabel($application->code) }}</span>
         </a>
     @empty
-        <div class="card muted">Anda belum memiliki akses ke modul manapun.</div>
+        <div class="card muted">{{ __('Anda belum memiliki akses ke modul manapun.') }}</div>
     @endforelse
 </div>
 
 @if (auth()->user()->is_superadmin)
-    <div class="section-label">Administrasi</div>
+    <div class="section-label">{{ __('Administrasi') }}</div>
     <div class="app-grid">
-        <a href="{{ route('admin.users.index') }}" class="app-tile" title="Tambah user, reset PIN, atur akses HRMS / SMS.">
+        <a href="{{ route('admin.users.index') }}" class="app-tile" title="{{ __('Tambah user, reset PIN, atur akses HRMS / SMS.') }}">
             <span class="app-ico purple">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </span>
-            <span class="app-name">Kelola User</span>
-            <span class="app-role">Akses &amp; PIN</span>
+            <span class="app-name">{{ __('Kelola User') }}</span>
+            <span class="app-role">{{ __('Akses & PIN') }}</span>
         </a>
     </div>
 @endif

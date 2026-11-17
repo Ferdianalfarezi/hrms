@@ -46,7 +46,7 @@ class RecipientController extends Controller
         $data = $this->validated($request);
         $recipient = IsoRecipient::create([...$data, 'created_by' => $request->user()->id, 'updated_by' => $request->user()->id]);
 
-        return redirect()->route('iso.emails.index')->with('status', "Email {$recipient->email} berhasil ditambahkan.");
+        return redirect()->route('iso.emails.index')->with('status', __('Email :email berhasil ditambahkan.', ['email' => $recipient->email]));
     }
 
     public function update(Request $request, IsoRecipient $recipient): RedirectResponse
@@ -56,7 +56,7 @@ class RecipientController extends Controller
         $recipient->update([...$this->validated($request, $recipient), 'updated_by' => $request->user()->id]);
 
         return redirect()->route('iso.emails.index', array_filter(['q' => $request->input('keep.q')]))
-            ->with('status', "Email {$recipient->email} berhasil diperbarui.");
+            ->with('status', __('Email :email berhasil diperbarui.', ['email' => $recipient->email]));
     }
 
     public function destroy(IsoRecipient $recipient): RedirectResponse
@@ -65,7 +65,7 @@ class RecipientController extends Controller
 
         $recipient->delete();
 
-        return redirect()->route('iso.emails.index')->with('status', "Email {$recipient->email} berhasil dihapus.");
+        return redirect()->route('iso.emails.index')->with('status', __('Email :email berhasil dihapus.', ['email' => $recipient->email]));
     }
 
     /**
@@ -93,12 +93,12 @@ class RecipientController extends Controller
             'nama' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('iso_recipients', 'email')->ignore($recipient)],
         ], [
-            'nama.required' => 'Nama penerima wajib diisi.',
-            'nama.max' => 'Nama maksimal 255 karakter.',
-            'email.required' => 'Email wajib diisi.',
-            'email.email' => 'Format email tidak valid.',
-            'email.max' => 'Email maksimal 255 karakter.',
-            'email.unique' => 'Email ini sudah terdaftar.',
+            'nama.required' => __('Nama penerima wajib diisi.'),
+            'nama.max' => __('Nama maksimal 255 karakter.'),
+            'email.required' => __('Email wajib diisi.'),
+            'email.email' => __('Format email tidak valid.'),
+            'email.max' => __('Email maksimal 255 karakter.'),
+            'email.unique' => __('Email ini sudah terdaftar.'),
         ]);
 
         return ['nama' => Str::squish($data['nama']), 'email' => $data['email']];

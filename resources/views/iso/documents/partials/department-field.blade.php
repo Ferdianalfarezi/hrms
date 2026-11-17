@@ -1,9 +1,9 @@
 {{-- Pilihan departemen di form ISO. Di dalam folder, departemen selalu ikut folder (tidak bisa dipilih). --}}
 @if ($inFolder)
-    <div class="locked-dept">{{ $inFolder->department?->name ?? 'Umum' }} <span class="muted small">(ikut folder)</span></div>
+    <div class="locked-dept">{{ $inFolder->department?->name ?? __('Umum') }} <span class="muted small">{{ __('(ikut folder)') }}</span></div>
 @elseif ($isAdmin)
     <select id="{{ $id }}" name="department_id">
-        <option value="">Umum (semua departemen)</option>
+        <option value="">{{ __('Umum (semua departemen)') }}</option>
         @foreach ($departments as $option)
             <option value="{{ $option->id }}" @selected(old('department_id') == $option->id)>{{ $option->name }}</option>
         @endforeach

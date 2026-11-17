@@ -28,15 +28,14 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ], [], [
             'nik' => 'NIK',
-            'password' => 'PIN / Password',
+            'password' => __('PIN / Password'),
         ]);
 
         $throttleKey = Str::lower($credentials['nik']).'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_ATTEMPTS)) {
             throw ValidationException::withMessages([
-                'nik' => 'Terlalu banyak percobaan login. Coba lagi dalam '
-                    .RateLimiter::availableIn($throttleKey).' detik.',
+                'nik' => __('Terlalu banyak percobaan login. Coba lagi dalam :detik detik.', ['detik' => RateLimiter::availableIn($throttleKey)]),
             ]);
         }
 
@@ -44,7 +43,7 @@ class LoginController extends Controller
             RateLimiter::hit($throttleKey);
 
             throw ValidationException::withMessages([
-                'nik' => 'NIK atau PIN/password salah, atau akun tidak aktif.',
+                'nik' => __('NIK atau PIN/password salah, atau akun tidak aktif.'),
             ]);
         }
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Daily Patrol')
+@section('title', __('Daily Patrol'))
 
 @section('styles')
     @include('sms.partials.patrol-styles')
@@ -15,11 +15,11 @@
 
 <div class="dp-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Daily Patrol</h1>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Daily Patrol') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            Temuan patroli K3 harian
+            {{ __('Temuan patroli K3 harian') }}
             @if ($lockedDepartments->isNotEmpty())
-                · departemen
+                {{ __('· departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
@@ -27,33 +27,33 @@
         </p>
     </div>
     @if ($canManage)
-        <button type="button" class="btn" data-create>+ Tambah Temuan</button>
+        <button type="button" class="btn" data-create>{{ __('+ Tambah Temuan') }}</button>
     @endif
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 
 <form method="GET" class="filters">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari finding / potensi bahaya / PIC / PIC patrol...">
-    <select name="status" onchange="this.form.requestSubmit()" aria-label="Status">
-        <option value="">Semua status</option>
-        <option value="open" @selected($status === 'open')>Open</option>
-        <option value="closed" @selected($status === 'closed')>Close</option>
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari finding / potensi bahaya / PIC / PIC patrol...') }}">
+    <select name="status" onchange="this.form.requestSubmit()" aria-label="{{ __('Status') }}">
+        <option value="">{{ __('Semua status') }}</option>
+        <option value="open" @selected($status === 'open')>{{ __('Open') }}</option>
+        <option value="closed" @selected($status === 'closed')>{{ __('Close') }}</option>
     </select>
     @if ($canFilterDepartment)
-        <select name="department" onchange="this.form.requestSubmit()" aria-label="Area">
-            <option value="">Semua area</option>
+        <select name="department" onchange="this.form.requestSubmit()" aria-label="{{ __('Area') }}">
+            <option value="">{{ __('Semua area') }}</option>
             @foreach ($departments as $option)
                 <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
             @endforeach
         </select>
     @endif
     <div class="summary">
-        <span class="chip">Total <b>{{ $patrols->total() }}</b></span>
-        <span class="chip chip-open">Open <b>{{ $statusCounts['open'] }}</b></span>
-        <span class="chip chip-closed">Close <b>{{ $statusCounts['closed'] }}</b></span>
+        <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
+        <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
+        <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
     </div>
 </form>
 
@@ -62,13 +62,13 @@
         <table class="patrol">
             <thead>
                 <tr>
-                    <th>No</th>
-                    <th>Tanggal</th>
-                    <th>Foto</th>
-                    <th>Finding</th>
-                    <th>Resiko</th>
-                    <th>Target</th>
-                    <th>Status</th>
+                    <th>{{ __('No') }}</th>
+                    <th>{{ __('Tanggal') }}</th>
+                    <th>{{ __('Foto') }}</th>
+                    <th>{{ __('Finding') }}</th>
+                    <th>{{ __('Resiko') }}</th>
+                    <th>{{ __('Target') }}</th>
+                    <th>{{ __('Status') }}</th>
                     <th></th>
                 </tr>
             </thead>
@@ -78,13 +78,13 @@
                         <td class="muted">{{ $patrols->firstItem() + $loop->index }}</td>
                         <td class="nowrap">{{ $patrol->tanggal->format('d M Y') }}</td>
                         <td>
-                            <button type="button" class="thumb" data-photo="{{ $patrol->foto_url }}" title="Lihat foto temuan">
-                                <img src="{{ $patrol->foto_url }}" alt="Foto temuan" loading="lazy">
+                            <button type="button" class="thumb" data-photo="{{ $patrol->foto_url }}" title="{{ __('Lihat foto temuan') }}">
+                                <img src="{{ $patrol->foto_url }}" alt="{{ __('Foto temuan') }}" loading="lazy">
                             </button>
                         </td>
                         <td class="c-finding" style="max-width: 360px;">
                             {{ $patrol->finding }}
-                            <span class="sub">{{ $patrol->department?->name ?? '-' }} · Plant {{ $patrol->plant }}</span>
+                            <span class="sub">{{ $patrol->department?->name ?? '-' }} · {{ __('Plant') }} {{ $patrol->plant }}</span>
                         </td>
                         <td>
                             <span class="risk risk-{{ $resikoTone[$patrol->resiko] ?? 'orange' }}">{{ $patrol->resikoLabel() }}</span>
@@ -92,12 +92,12 @@
                         <td class="nowrap">{{ $patrol->target->format('d M Y') }}</td>
                         <td>
                             @if ($patrol->isClosed())
-                                <span class="status-pill status-closed" title="Ditutup {{ $patrol->closed_at?->format('d/m/Y H:i') }}">Close</span>
+                                <span class="status-pill status-closed" title="Ditutup {{ $patrol->closed_at?->format('d/m/Y H:i') }}">{{ __('Close') }}</span>
                                 @if ($patrol->closer)
-                                    <span class="closed-by">oleh <b>{{ $patrol->closer->name }}</b></span>
+                                    <span class="closed-by">{{ __('oleh') }} <b>{{ $patrol->closer->name }}</b></span>
                                 @endif
                             @else
-                                <span class="status-pill status-open">Open</span>
+                                <span class="status-pill status-open">{{ __('Open') }}</span>
                             @endif
                         </td>
                         <td style="text-align: right;">
@@ -134,7 +134,7 @@
                 @empty
                     <tr>
                         <td colspan="8" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $search !== '' || $status !== '' || $department !== '' ? 'Data tidak ditemukan.' : 'Belum ada temuan Daily Patrol.' }}
+                            {{ $search !== '' || $status !== '' || $department !== '' ? __('Data tidak ditemukan.') : __('Belum ada temuan Daily Patrol.') }}
                         </td>
                     </tr>
                 @endforelse
@@ -158,33 +158,33 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2 id="patrol-modal-title">Tambah Temuan</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="patrol-modal-title">{{ __('Tambah Temuan') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 @unless ($canManage)
-                    <div class="locked-note">Admin Departemen hanya bisa mengisi bagian <b>Perbaikan</b>. Data temuan lainnya diisi oleh Admin SMS.</div>
+                    <div class="locked-note">{{ __('Admin Departemen hanya bisa mengisi bagian') }} <b>{{ __('Perbaikan') }}</b>{{ __('. Data temuan lainnya diisi oleh Admin SMS.') }}</div>
                 @endunless
                 {{-- Admin Departemen: semua field temuan dikunci (abu-abu), hanya kotak Perbaikan yang bisa diisi. --}}
                 <fieldset class="patrol-main" @disabled(! $canManage)>
                 <div class="grid-2">
                     <div>
-                        <label for="f-tanggal">Tanggal</label>
+                        <label for="f-tanggal">{{ __('Tanggal') }}</label>
                         <input id="f-tanggal" type="date" name="tanggal" required>
                         @error('tanggal') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-target">Target</label>
+                        <label for="f-target">{{ __('Target') }}</label>
                         <input id="f-target" type="date" name="target" required>
                         @error('target') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-department_id">Area</label>
+                        <label for="f-department_id">{{ __('Area') }}</label>
                         @if ($canFilterDepartment)
                             <select id="f-department_id" name="department_id" required>
-                                <option value="">-- Pilih Area --</option>
+                                <option value="">{{ __('-- Pilih Area --') }}</option>
                                 @foreach ($departments as $option)
                                     <option value="{{ $option->id }}">{{ $option->name }}</option>
                                 @endforeach
@@ -195,18 +195,18 @@
                         @error('department_id') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-plant">Plant</label>
-                        <input id="f-plant" type="text" name="plant" maxlength="50" placeholder="Mis. 1" required>
+                        <label for="f-plant">{{ __('Plant') }}</label>
+                        <input id="f-plant" type="text" name="plant" maxlength="50" placeholder="{{ __('Mis. 1') }}" required>
                         @error('plant') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                 </div>
                 <div>
-                    <label for="f-finding">Finding</label>
-                    <textarea id="f-finding" name="finding" maxlength="2000" rows="2" placeholder="Mis. Tutup samping mesh troley tidak di tutup" required></textarea>
+                    <label for="f-finding">{{ __('Finding') }}</label>
+                    <textarea id="f-finding" name="finding" maxlength="2000" rows="2" placeholder="{{ __('Mis. Tutup samping mesh troley tidak di tutup') }}" required></textarea>
                     @error('finding') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-foto">Foto temuan <span class="muted" data-edit-only>(kosongkan kalau tidak diganti)</span></label>
+                    <label for="f-foto">{{ __('Foto temuan') }} <span class="muted" data-edit-only>{{ __('(kosongkan kalau tidak diganti)') }}</span></label>
                     <div class="photo-field">
                         <img class="photo-preview" id="preview-foto" alt="" hidden>
                         <input id="f-foto" type="file" name="foto" accept="image/*" data-photo-input data-preview="preview-foto">
@@ -214,34 +214,34 @@
                     @error('foto') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-potensi_bahaya">Potensi Bahaya</label>
-                    <textarea id="f-potensi_bahaya" name="potensi_bahaya" maxlength="2000" rows="2" placeholder="Mis. Tergores part" required></textarea>
+                    <label for="f-potensi_bahaya">{{ __('Potensi Bahaya') }}</label>
+                    <textarea id="f-potensi_bahaya" name="potensi_bahaya" maxlength="2000" rows="2" placeholder="{{ __('Mis. Tergores part') }}" required></textarea>
                     @error('potensi_bahaya') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-rekomendasi">Rekomendasi</label>
-                    <textarea id="f-rekomendasi" name="rekomendasi" maxlength="2000" rows="2" placeholder="Mis. Tutup cover samping troley" required></textarea>
+                    <label for="f-rekomendasi">{{ __('Rekomendasi') }}</label>
+                    <textarea id="f-rekomendasi" name="rekomendasi" maxlength="2000" rows="2" placeholder="{{ __('Mis. Tutup cover samping troley') }}" required></textarea>
                     @error('rekomendasi') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-resiko">Resiko</label>
+                        <label for="f-resiko">{{ __('Resiko') }}</label>
                         <select id="f-resiko" name="resiko" required>
-                            <option value="">-- Pilih --</option>
+                            <option value="">{{ __('-- Pilih --') }}</option>
                             @foreach ($resikos as $kode => $info)
-                                <option value="{{ $kode }}">{{ $info['label'] }}</option>
+                                <option value="{{ $kode }}">{{ __($info['label']) }}</option>
                             @endforeach
                         </select>
                         @error('resiko') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-kategori">Kategori</label>
+                        <label for="f-kategori">{{ __('Kategori') }}</label>
                         <select id="f-kategori" name="kategori" required>
-                            <option value="">-- Pilih Kategori --</option>
+                            <option value="">{{ __('-- Pilih Kategori --') }}</option>
                             @foreach ($kategoris as $group => $options)
-                                <optgroup label="── {{ $group }} ──">
+                                <optgroup label="── {{ __($group) }} ──">
                                     @foreach ($options as $kode => $label)
-                                        <option value="{{ $kode }}">{{ $label }}</option>
+                                        <option value="{{ $kode }}">{{ __($label) }}</option>
                                     @endforeach
                                 </optgroup>
                             @endforeach
@@ -258,8 +258,8 @@
                 @include('sms.partials.patrol-fix-fields')
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" id="patrol-submit">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" id="patrol-submit">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>

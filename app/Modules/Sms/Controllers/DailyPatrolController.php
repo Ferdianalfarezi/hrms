@@ -75,7 +75,7 @@ class DailyPatrolController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->route('sms.daily-patrols.index')->with('status', "Temuan tanggal {$patrol->tanggal->format('d/m/Y')} berhasil ditambahkan (status Open).");
+        return redirect()->route('sms.daily-patrols.index')->with('status', __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]));
     }
 
     public function update(Request $request, DailyPatrol $dailyPatrol): RedirectResponse
@@ -92,7 +92,7 @@ class DailyPatrolController extends Controller
         $this->deletePhotos($oldFiles);
 
         return redirect()->route('sms.daily-patrols.index', $this->keptFilters($request))
-            ->with('status', 'Temuan berhasil diperbarui'.($dailyPatrol->isClosed() ? ' (status Close).' : '.'));
+            ->with('status', __('Temuan berhasil diperbarui').($dailyPatrol->isClosed() ? __(' (status Close).') : '.'));
     }
 
     public function destroy(Request $request, DailyPatrol $dailyPatrol): RedirectResponse
@@ -102,7 +102,7 @@ class DailyPatrolController extends Controller
         $dailyPatrol->delete();
         $this->deletePhotos([$dailyPatrol->foto, $dailyPatrol->foto_perbaikan]);
 
-        return redirect()->route('sms.daily-patrols.index')->with('status', 'Temuan berhasil dihapus.');
+        return redirect()->route('sms.daily-patrols.index')->with('status', __('Temuan berhasil dihapus.'));
     }
 
     private function photoFolder(): string
@@ -140,7 +140,7 @@ class DailyPatrolController extends Controller
                 'foto_perbaikan' => $this->photoRules(false),
                 'status' => ['required', Rule::in([DailyPatrol::STATUS_OPEN, DailyPatrol::STATUS_CLOSED])],
             ]),
-        ], [...$this->photoMessages(), 'department_id.required' => 'Pilih area.'], [
+        ], [...$this->photoMessages(), 'department_id.required' => __('Pilih area.')], [
             'tanggal' => 'tanggal',
             'finding' => 'finding',
             'foto' => 'foto',
@@ -152,7 +152,7 @@ class DailyPatrolController extends Controller
             'kategori' => 'kategori',
             'target' => 'target',
             'pic' => 'PIC',
-            'pic_patrol' => 'PIC patrol',
+            'pic_patrol' => __('PIC patrol'),
             'foto_perbaikan' => 'foto perbaikan',
             'status' => 'status',
         ]);

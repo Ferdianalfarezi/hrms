@@ -126,7 +126,7 @@ class PenilaianTahunanController extends Controller
 
         $tahun = $this->tahun($request);
         $formKey = FormPenilaian::formForJabatan($karyawan->jabatan);
-        abort_if($formKey === null, 404, 'Jabatan ini tidak memiliki form penilaian.');
+        abort_if($formKey === null, 404, __('Jabatan ini tidak memiliki form penilaian.'));
 
         $penilaian = $this->penilaianFor($karyawan, $tahun);
         $form = FormPenilaian::form($penilaian->form);
@@ -203,9 +203,9 @@ class PenilaianTahunanController extends Controller
             'hasil' => ['nullable', Rule::in(PenilaianTahunan::HASIL)],
             'catatan_review' => ['nullable', 'string', 'max:255'],
         ], [
-            'skor.*.*.in' => 'Nilai butir harus A, B, C, D, atau E.',
-            'catatan.max' => 'Catatan maksimal 2000 karakter.',
-            'catatan_review.max' => 'Catatan approval maksimal 255 karakter.',
+            'skor.*.*.in' => __('Nilai butir harus A, B, C, D, atau E.'),
+            'catatan.max' => __('Catatan maksimal 2000 karakter.'),
+            'catatan_review.max' => __('Catatan approval maksimal 255 karakter.'),
         ]);
 
         $aksi = $data['aksi'];
@@ -213,7 +213,7 @@ class PenilaianTahunanController extends Controller
         $performance = FormPenilaian::hitungPerformance($penilaian->form, $skor);
 
         if (in_array($aksi, ['kirim', 'setuju'], true) && ! $performance['lengkap']) {
-            throw ValidationException::withMessages(['skor' => 'Semua butir penilaian (poin II s/d VI) wajib diisi sebelum '.($aksi === 'kirim' ? 'dikirim.' : 'disetujui.')]);
+            throw ValidationException::withMessages(['skor' => $aksi === 'kirim' ? __('Semua butir penilaian (poin II s/d VI) wajib diisi sebelum dikirim.') : __('Semua butir penilaian (poin II s/d VI) wajib diisi sebelum disetujui.')]);
         }
 
         // Nilai absen dikunci saat dikirim; approver hanya mengubah nilai performance.
@@ -262,14 +262,14 @@ class PenilaianTahunanController extends Controller
 
         $nama = "{$karyawan->nik} - {$karyawan->nama}";
         $diteruskan = $penilaian->status === PenilaianTahunan::STATUS_DISETUJUI
-            ? 'dan selesai.'
-            : 'diteruskan ke '.JenjangPenilaian::label($penilaian->posisi_level).'.';
+            ? __('dan selesai.')
+            : __('diteruskan ke :tahap.', ['tahap' => JenjangPenilaian::label($penilaian->posisi_level)]);
 
         return redirect()->route('hrms.penilaian.show', [$karyawan, 'tahun' => $tahun])->with('status', match ($aksi) {
-            'draft' => "Penilaian {$nama} disimpan sebagai draft.",
-            'simpan' => "Perubahan penilaian {$nama} disimpan.",
-            'kirim' => "Penilaian {$nama} dikirim {$diteruskan}",
-            default => "Penilaian {$nama} disetujui {$diteruskan}",
+            'draft' => __('Penilaian :nama disimpan sebagai draft.', ['nama' => $nama]),
+            'simpan' => __('Perubahan penilaian :nama disimpan.', ['nama' => $nama]),
+            'kirim' => __('Penilaian :nama dikirim :lanjut', ['nama' => $nama, 'lanjut' => $diteruskan]),
+            default => __('Penilaian :nama disetujui :lanjut', ['nama' => $nama, 'lanjut' => $diteruskan]),
         });
     }
 

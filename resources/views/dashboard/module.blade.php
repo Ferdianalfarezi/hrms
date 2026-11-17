@@ -189,13 +189,13 @@
 
 <section class="dash-head">
     <div style="flex: 1; min-width: 280px;">
-        <div class="module-tag">{{ $application->name }} · {{ $subtitle ?? $application->description }}</div>
-        <h1 class="welcome">Selamat datang, {{ $viewer->first_name }}</h1>
+        <div class="module-tag">{{ $application->name }} · {{ $subtitle ?? __($application->description) }}</div>
+        <h1 class="welcome">{{ __('Selamat datang, :nama', ['nama' => $viewer->first_name]) }}</h1>
         @if ($pills || $pillOutlines)
         <div class="pillbars">
             @foreach ($pills as $item)
                 <div class="pillbar" style="flex: {{ max($item['percent'], 14) }}; --j: {{ $loop->index }};">
-                    <span>{{ $item['label'] }}</span>
+                    <span>{{ __($item['label']) }}</span>
                     <div class="pill pill-{{ $loop->index % 3 }}" data-count>{{ number_format($item['count'], 0, ',', '.') }}</div>
                 </div>
             @endforeach
@@ -203,7 +203,7 @@
                 <div class="pillbar hatch" style="flex: 10; --j: {{ count($pills) }};"><span>&nbsp;</span><div class="pill pill-hatch"></div></div>
                 @foreach ($pillOutlines as $item)
                     <div class="pillbar" style="flex: 14; --j: {{ count($pills) + 1 + $loop->index }};">
-                        <span>{{ $item['label'] }}</span>
+                        <span>{{ __($item['label']) }}</span>
                         <div class="pill pill-outline" data-count>{{ number_format($item['count'], 0, ',', '.') }}</div>
                     </div>
                 @endforeach
@@ -218,7 +218,7 @@
             <div class="bigstat" style="--j: {{ $loop->index }};">
                 <div>
                     <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{!! $icons[$stat['icon']] ?? $icons['users'] !!}</svg></div>
-                    <div class="lbl">{{ $stat['label'] }}</div>
+                    <div class="lbl">{{ __($stat['label']) }}</div>
                 </div>
                 @if (is_numeric($stat['value']))
                     <div class="num" data-count>{{ number_format($stat['value'], 0, ',', '.') }}</div>
@@ -249,14 +249,14 @@
     {{-- Grafik batang --}}
     <div class="card a-progress" style="--i: 1;">
         <div class="card-head">
-            <h2 class="card-title">{{ $growth['title'] }}</h2>
+            <h2 class="card-title">{{ __($growth['title']) }}</h2>
             @if ($growth['link'] ?? null)
-                <a href="{{ $growth['link'] }}" class="mini-btn" title="Lihat detail">
+                <a href="{{ $growth['link'] }}" class="mini-btn" title="{{ __('Lihat detail') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
                 </a>
             @endif
         </div>
-        <div class="big-metric"><b data-count>{{ $growth['total'] }}</b><span class="muted small">{!! nl2br(e($growth['caption'])) !!}</span></div>
+        <div class="big-metric"><b data-count>{{ $growth['total'] }}</b><span class="muted small">{!! nl2br(e(__($growth['caption']))) !!}</span></div>
         @php($maxBar = max(collect($growth['bars'])->max('count'), 1))
         <div class="bars">
             @foreach ($growth['bars'] as $bar)
@@ -266,8 +266,8 @@
                     @endif
                     <div @class(['bar', 'zero' => $bar['count'] === 0, 'today' => $bar['highlight']])
                          style="height: {{ $bar['count'] ? max(round($bar['count'] / $maxBar * 100), 12) : 10 }}%;"
-                         title="{{ $bar['label'] }}: {{ $bar['count'] }}"></div>
-                    <small>{{ $bar['label'] }}</small>
+                         title="{{ __($bar['label']) }}: {{ $bar['count'] }}"></div>
+                    <small>{{ __($bar['label']) }}</small>
                 </div>
             @endforeach
         </div>
@@ -280,7 +280,7 @@
     @else
     {{-- Jam kerja --}}
     <div class="card a-clock" style="--i: 2;">
-        <div class="card-head"><h2 class="card-title">Jam Kerja</h2><span class="badge">{{ $workStart }}–{{ $workEnd }}</span></div>
+        <div class="card-head"><h2 class="card-title">{{ __('Jam Kerja') }}</h2><span class="badge">{{ $workStart }}–{{ $workEnd }}</span></div>
         <div class="clock">
             <svg viewBox="0 0 170 170">
                 <circle cx="85" cy="85" r="72" fill="none" stroke="var(--soft)" stroke-width="12" stroke-dasharray="2 6"/>
@@ -305,7 +305,7 @@
         <div @class(['card', 'comp-scroll' => $composition['scroll'] ?? false]) style="--i: 3;">
             <div class="status-top">
                 <div style="min-width: 0;">
-                    <h2 class="card-title">{{ $composition['title'] }}</h2>
+                    <h2 class="card-title">{{ __($composition['title']) }}</h2>
                     @if ($composition['subtitle'] ?? null)
                         <div class="muted small" style="margin-top: 2px;">{{ $composition['subtitle'] }}</div>
                     @endif
@@ -318,7 +318,7 @@
             @if ($composition['bar'] ?? true)
                 <div class="stackbar">
                     @foreach ($segments as $segment)
-                        <span class="tone-{{ $segment['tone'] }}" style="flex: {{ $segment['count'] }}; --j: {{ $loop->index }};" title="{{ $segment['label'] }}: {{ $segment['count'] }}"></span>
+                        <span class="tone-{{ $segment['tone'] }}" style="flex: {{ $segment['count'] }}; --j: {{ $loop->index }};" title="{{ __($segment['label']) }}: {{ $segment['count'] }}"></span>
                     @endforeach
                 </div>
             @endif
@@ -327,13 +327,13 @@
                 @foreach ($segments as $segment)
                     <div class="legend-row" style="--j: {{ min($loop->index, 10) }};" @if ($segment['title'] ?? null) title="{{ $segment['title'] }}" @endif>
                         <i class="dot tone-{{ $segment['tone'] }}"></i>
-                        <span class="legend-label">{{ $segment['label'] }}</span>
+                        <span class="legend-label">{{ __($segment['label']) }}</span>
                         <span class="legend-value">{{ $segment['text'] ?? number_format($segment['count'], 0, ',', '.').' '.$composition['unit'] }}</span>
                     </div>
                 @endforeach
             </div>
             @if ($composition['note'])
-                <div class="muted small" style="margin-top: 12px;">{{ $composition['note'] }}</div>
+                <div class="muted small" style="margin-top: 12px;">{{ __($composition['note']) }}</div>
             @endif
         </div>
         @endif
@@ -345,7 +345,7 @@
         {{-- Daftar orang --}}
         <div class="card team-card" style="--i: 4;">
             <div class="card-head">
-                <h2 class="card-title">{{ $people['title'] }}</h2>
+                <h2 class="card-title">{{ __($people['title']) }}</h2>
                 <b>{{ $people['counter'] }}</b>
             </div>
             <div class="team-list">
@@ -365,7 +365,7 @@
                     @endif
                 </a>
             @empty
-                <div class="muted small">{{ $people['empty'] }}</div>
+                <div class="muted small">{{ __($people['empty']) }}</div>
             @endforelse
             </div>
         </div>
@@ -379,29 +379,29 @@
     {{-- Informasi akun --}}
     <div class="card a-info" style="padding-top: 6px; padding-bottom: 6px; --i: 5;">
         <details class="acc" open>
-            <summary>Data Diri</summary>
+            <summary>{{ __('Data Diri') }}</summary>
             <div class="acc-body">
                 <div class="kv"><span>NIK</span><span>{{ $viewer->nik }}</span></div>
-                <div class="kv"><span>Nama</span><span>{{ $viewer->name }}</span></div>
-                <div class="kv"><span>Email</span><span>{{ $viewer->email ?? '-' }}</span></div>
+                <div class="kv"><span>{{ __('Nama') }}</span><span>{{ $viewer->name }}</span></div>
+                <div class="kv"><span>{{ __('Email') }}</span><span>{{ $viewer->email ?? '-' }}</span></div>
             </div>
         </details>
         <details class="acc">
-            <summary>Hak Akses</summary>
+            <summary>{{ __('Hak Akses') }}</summary>
             <div class="acc-body">
                 @forelse ($myApplications as $app)
                     <div class="kv"><span>{{ $app->name }}</span><span class="badge">{{ $viewer->roleLabel($app->code) }}</span></div>
                 @empty
-                    <span class="muted">Belum ada akses modul.</span>
+                    <span class="muted">{{ __('Belum ada akses modul.') }}</span>
                 @endforelse
             </div>
         </details>
         <details class="acc">
-            <summary>Status Akun</summary>
+            <summary>{{ __('Status Akun') }}</summary>
             <div class="acc-body">
-                <div class="kv"><span>Status</span><span>{{ $viewer->is_active ? 'Aktif' : 'Nonaktif' }}</span></div>
-                <div class="kv"><span>Super Admin</span><span>{{ $viewer->is_superadmin ? 'Ya' : 'Tidak' }}</span></div>
-                <div class="kv"><span>Terdaftar</span><span>{{ $viewer->created_at?->translatedFormat('d M Y') }}</span></div>
+                <div class="kv"><span>{{ __('Status') }}</span><span>{{ $viewer->is_active ? __('Aktif') : __('Nonaktif') }}</span></div>
+                <div class="kv"><span>{{ __('Super Admin') }}</span><span>{{ $viewer->is_superadmin ? __('Ya') : __('Tidak') }}</span></div>
+                <div class="kv"><span>{{ __('Terdaftar') }}</span><span>{{ $viewer->created_at?->translatedFormat('d M Y') }}</span></div>
             </div>
         </details>
     </div>
@@ -410,7 +410,7 @@
     <div class="card a-calendar" style="--i: 6;">
         <div class="cal-head">
             <h2 class="card-title">{{ $calendar['label'] }}</h2>
-            <span class="badge">Minggu ini</span>
+            <span class="badge">{{ __('Minggu ini') }}</span>
         </div>
         <div class="cal-days">
             @foreach ($calendar['days'] as $day)
@@ -419,7 +419,7 @@
         </div>
         <div class="cal-events">
             @if (collect($calendar['days'])->sum(fn ($day) => count($day['events'])) === 0)
-                <div class="cal-empty">{{ $calendar['empty'] }}</div>
+                <div class="cal-empty">{{ __($calendar['empty']) }}</div>
             @else
                 @foreach ($calendar['days'] as $day)
                     <div class="cal-col">
@@ -432,13 +432,13 @@
                             </div>
                         @endforeach
                         @if (count($day['events']) > 3)
-                            <span class="muted small" title="{{ collect(array_slice($day['events'], 3))->pluck('title')->join(', ') }}">+{{ count($day['events']) - 3 }} lagi</span>
+                            <span class="muted small" title="{{ collect(array_slice($day['events'], 3))->pluck('title')->join(', ') }}">{{ __('+:count lagi', ['count' => count($day['events']) - 3]) }}</span>
                         @endif
                     </div>
                 @endforeach
             @endif
         </div>
-        <div class="muted small" style="margin-top: 10px;">{{ $calendar['caption'] }}</div>
+        <div class="muted small" style="margin-top: 10px;">{{ __($calendar['caption']) }}</div>
     </div>
     @endif
 </section>
@@ -463,10 +463,10 @@
             document.getElementById('clock-time').textContent =
                 String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
             document.getElementById('clock-date').textContent =
-                now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' });
+                now.toLocaleDateString(@json(__('id-ID')), { weekday: 'long', day: 'numeric', month: 'short' });
             document.getElementById('clock-status').textContent = minutes < start
-                ? 'Jam kerja belum dimulai'
-                : minutes >= end ? 'Jam kerja selesai' : 'Sisa ' + Math.floor((end - minutes) / 60) + ' jam ' + ((end - minutes) % 60) + ' menit';
+                ? __t('Jam kerja belum dimulai')
+                : minutes >= end ? __t('Jam kerja selesai') : __t('Sisa :jam jam :menit menit', { jam: Math.floor((end - minutes) / 60), menit: (end - minutes) % 60 });
             ring.style.strokeDashoffset = circumference * (1 - progress);
         }
 
@@ -491,7 +491,7 @@
 
             var prefix = match[1], suffix = match[3], grouped = match[2].indexOf('.') !== -1;
             var target = +match[2].replace(/\./g, '');
-            var format = function (n) { return prefix + (grouped ? n.toLocaleString('id-ID') : n) + suffix; };
+            var format = function (n) { return prefix + (grouped ? n.toLocaleString(@json(__('id-ID'))) : n) + suffix; };
             var duration = 1400, startedAt = null;
 
             el.textContent = format(0);

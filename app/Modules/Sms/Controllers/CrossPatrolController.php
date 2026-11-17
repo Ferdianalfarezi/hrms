@@ -113,7 +113,7 @@ class CrossPatrolController extends Controller
         ]);
 
         return redirect()->route('sms.cross-patrols.index', $this->keptFilters($request))
-            ->with('status', "Temuan tanggal {$patrol->tanggal->format('d/m/Y')} berhasil ditambahkan (status Open).");
+            ->with('status', __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]));
     }
 
     public function update(Request $request, CrossPatrol $crossPatrol): RedirectResponse
@@ -130,7 +130,7 @@ class CrossPatrolController extends Controller
         $this->deletePhotos($oldFiles);
 
         return redirect()->route('sms.cross-patrols.index', $this->keptFilters($request))
-            ->with('status', 'Temuan berhasil diperbarui'.($crossPatrol->isClosed() ? ' (status Close).' : '.'));
+            ->with('status', __('Temuan berhasil diperbarui').($crossPatrol->isClosed() ? __(' (status Close).') : '.'));
     }
 
     public function destroy(Request $request, CrossPatrol $crossPatrol): RedirectResponse
@@ -140,7 +140,7 @@ class CrossPatrolController extends Controller
         $crossPatrol->delete();
         $this->deletePhotos([$crossPatrol->foto, $crossPatrol->foto_perbaikan]);
 
-        return redirect()->route('sms.cross-patrols.index', $this->keptFilters($request))->with('status', 'Temuan berhasil dihapus.');
+        return redirect()->route('sms.cross-patrols.index', $this->keptFilters($request))->with('status', __('Temuan berhasil dihapus.'));
     }
 
     /**

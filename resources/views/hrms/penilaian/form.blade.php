@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Penilaian '.$karyawan->nama)
+@section('title', __('Penilaian').' '.$karyawan->nama)
 
 @section('styles')
     .pn-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -64,12 +64,12 @@
 
 <div class="pn-head">
     <div>
-        <a href="{{ route('hrms.penilaian.index', ['tahun' => $tahun]) }}" class="muted small">&lsaquo; Kembali ke daftar</a>
-        <h1 style="font-size: clamp(22px, 3vw, 32px); font-weight: 500; letter-spacing: -.03em;">{{ $form['label'] }} · {{ $tahun }}</h1>
+        <a href="{{ route('hrms.penilaian.index', ['tahun' => $tahun]) }}" class="muted small">&lsaquo; {{ __('Kembali ke daftar') }}</a>
+        <h1 style="font-size: clamp(22px, 3vw, 32px); font-weight: 500; letter-spacing: -.03em;">{{ __($form['label']) }} · {{ $tahun }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
             {{ $form['dokumen'] }}
             @if ($penilaian->exists)
-                · <span class="st st-{{ $penilaian->status }}">{{ PenilaianTahunan::STATUS[$penilaian->status] }}</span>
+                · <span class="st st-{{ $penilaian->status }}">{{ __(PenilaianTahunan::STATUS[$penilaian->status]) }}</span>
             @endif
         </p>
     </div>
@@ -80,7 +80,7 @@
 @endif
 
 @if ($penilaian->tahapan === [])
-    <div class="alert">Belum ada akun penilai (jenjang di atas {{ $karyawan->jabatan }}) di departemen {{ $karyawan->department?->name ?? '-' }}. Hubungi Admin HRMS.</div>
+    <div class="alert">{{ __('Belum ada akun penilai (jenjang di atas :jabatan) di departemen :departemen. Hubungi Admin HRMS.', ['jabatan' => $karyawan->jabatan, 'departemen' => $karyawan->department?->name ?? '-']) }}</div>
 @endif
 
 <div class="pn-grid">
@@ -88,11 +88,11 @@
         <div class="card">
             <dl class="info" style="margin: 0;">
                 <div><dt>NIK</dt><dd>{{ $karyawan->nik }}</dd></div>
-                <div><dt>Nama</dt><dd>{{ $karyawan->nama }}</dd></div>
-                <div><dt>Jabatan</dt><dd>{{ $penilaian->jabatan ?? $karyawan->jabatan }}</dd></div>
-                <div><dt>Bagian</dt><dd>{{ $karyawan->department?->name ?? '-' }}</dd></div>
-                <div><dt>Periode</dt><dd>Jan - Des {{ $tahun }}</dd></div>
-                <div><dt>Status</dt><dd>{{ $karyawan->status ?? '-' }}</dd></div>
+                <div><dt>{{ __('Nama') }}</dt><dd>{{ $karyawan->nama }}</dd></div>
+                <div><dt>{{ __('Jabatan') }}</dt><dd>{{ $penilaian->jabatan ?? $karyawan->jabatan }}</dd></div>
+                <div><dt>{{ __('Bagian') }}</dt><dd>{{ $karyawan->department?->name ?? '-' }}</dd></div>
+                <div><dt>{{ __('Periode') }}</dt><dd>{{ __('Jan - Des :tahun', ['tahun' => $tahun]) }}</dd></div>
+                <div><dt>{{ __('Status') }}</dt><dd>{{ $karyawan->status ?? '-' }}</dd></div>
             </dl>
         </div>
 
@@ -101,20 +101,20 @@
             <input type="hidden" name="tahun" value="{{ $tahun }}">
 
             <div class="card sec">
-                <h2>I. Absen <span class="muted small" style="font-weight: 400;">(otomatis dari data absensi)</span></h2>
+                <h2>{{ __('I. Absen') }} <span class="muted small" style="font-weight: 400;">{{ __('(otomatis dari data absensi)') }}</span></h2>
                 <div class="table-wrap">
                     <table>
                         <thead>
                             <tr>
-                                <th>Kategori Absen</th>
-                                <th class="num">Banyaknya</th>
-                                <th class="num">Poin</th>
+                                <th>{{ __('Kategori Absen') }}</th>
+                                <th class="num">{{ __('Banyaknya') }}</th>
+                                <th class="num">{{ __('Poin') }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (FormPenilaian::KONVERSI_ABSEN as $kategori => $konversi)
                                 <tr>
-                                    <td>{{ $konversi['label'] }}</td>
+                                    <td>{{ __($konversi['label']) }}</td>
                                     <td class="num">{{ $absen['rincian'][$kategori]['jumlah'] ?? 0 }}x</td>
                                     <td class="num">{{ $absen['rincian'][$kategori]['poin'] ?? 5 }}</td>
                                 </tr>
@@ -122,25 +122,25 @@
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="2">Total poin (maks {{ FormPenilaian::MAKS_ABSEN }}) · bobot {{ $form['bobot_absen'] }}%</td>
+                                <td colspan="2">{{ __('Total poin (maks :maks) · bobot :bobot%', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</td>
                                 <td class="num">{{ $absen['total_poin'] }} → {{ $angka($absen['nilai']) }}</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
-                <p class="muted small" style="margin: 8px 0 0;">Nilai = (total poin / {{ FormPenilaian::MAKS_ABSEN }}) x {{ $form['bobot_absen'] }}.</p>
+                <p class="muted small" style="margin: 8px 0 0;">{{ __('Nilai = (total poin / :maks) x :bobot.', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</p>
             </div>
 
             @foreach ($form['butir'] as $kategori => $butirs)
                 <div class="card sec" data-kategori="{{ $kategori }}" data-maks="{{ count($butirs) * 5 }}">
-                    <h2>{{ FormPenilaian::KATEGORI[$kategori] }}</h2>
-                    <p class="sub">Nilai max {{ count($butirs) * 5 }} · bobot {{ $form['bobot_kategori'] }}%</p>
+                    <h2>{{ __(FormPenilaian::KATEGORI[$kategori]) }}</h2>
+                    <p class="sub">{{ __('Nilai max :maks · bobot :bobot%', ['maks' => count($butirs) * 5, 'bobot' => $form['bobot_kategori']]) }}</p>
                     <div class="table-wrap">
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width: 32px;">No</th>
-                                    <th>Faktor penilaian</th>
+                                    <th style="width: 32px;">{{ __('No') }}</th>
+                                    <th>{{ __('Faktor penilaian') }}</th>
                                     @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
                                         <th class="c">
                                             <span class="h-huruf">{{ $huruf }}</span>
@@ -154,7 +154,7 @@
                                     @php($terpilih = $skor[$kategori][$index] ?? null)
                                     <tr class="{{ $terpilih ? '' : 'kosong' }}">
                                         <td class="muted">{{ $index + 1 }}</td>
-                                        <td class="butir">{{ $butir }}</td>
+                                        <td class="butir">{{ __($butir) }}</td>
                                         @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
                                             <td class="c">
                                                 <label class="pick" title="{{ $huruf }} = {{ $nilai }}">
@@ -169,8 +169,8 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="2">Total nilai <span data-total>{{ $performance['kategori'][$kategori]['total'] }}</span> / {{ count($butirs) * 5 }}</td>
-                                    <td colspan="5" class="num">Nilai <span data-nilai-kategori>{{ $angka($performance['kategori'][$kategori]['nilai']) }}</span></td>
+                                    <td colspan="2">{{ __('Total nilai') }} <span data-total>{{ $performance['kategori'][$kategori]['total'] }}</span> / {{ count($butirs) * 5 }}</td>
+                                    <td colspan="5" class="num">{{ __('Nilai') }} <span data-nilai-kategori>{{ $angka($performance['kategori'][$kategori]['nilai']) }}</span></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -179,24 +179,24 @@
             @endforeach
 
             <div class="card sec">
-                <h2>Catatan Atasan</h2>
-                <textarea name="catatan" rows="3" maxlength="2000" @disabled($readonly) placeholder="Catatan untuk karyawan / HRD (opsional)">{{ old('catatan', $penilaian->catatan) }}</textarea>
+                <h2>{{ __('Catatan Atasan') }}</h2>
+                <textarea name="catatan" rows="3" maxlength="2000" @disabled($readonly) placeholder="{{ __('Catatan untuk karyawan / HRD (opsional)') }}">{{ old('catatan', $penilaian->catatan) }}</textarea>
                 <div style="margin-top: 12px; max-width: 320px;">
-                    <label for="hasil">Hasil penilaian <span class="muted" style="font-weight: 400;">(untuk karyawan kontrak)</span></label>
+                    <label for="hasil">{{ __('Hasil penilaian') }} <span class="muted" style="font-weight: 400;">{{ __('(untuk karyawan kontrak)') }}</span></label>
                     <select name="hasil" id="hasil" @disabled($readonly)>
                         <option value="">-</option>
                         @foreach (PenilaianTahunan::HASIL as $option)
-                            <option value="{{ $option }}" @selected(old('hasil', $penilaian->hasil) === $option)>{{ $option }}</option>
+                            <option value="{{ $option }}" @selected(old('hasil', $penilaian->hasil) === $option)>{{ __($option) }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 @if ($canFill)
                     <div class="actions" style="margin-top: 16px;">
-                        <button type="submit" name="aksi" value="draft" class="btn btn-ghost">Simpan draft</button>
+                        <button type="submit" name="aksi" value="draft" class="btn btn-ghost">{{ __('Simpan draft') }}</button>
                         <button type="submit" name="aksi" value="kirim" class="btn" data-lengkap
-                            data-confirm="Kirim penilaian {{ $karyawan->nama }}{{ count($penilaian->tahapan) > 1 ? ' ke '.JenjangPenilaian::label($penilaian->tahapan[1]).' untuk approval' : '' }}? Setelah dikirim, isian hanya bisa diubah oleh approver.">
-                            Kirim{{ count($penilaian->tahapan) > 1 ? ' untuk approval' : '' }}
+                            data-confirm="{{ count($penilaian->tahapan) > 1 ? __('Kirim penilaian :nama ke :tahap untuk approval? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama, 'tahap' => JenjangPenilaian::label($penilaian->tahapan[1])]) : __('Kirim penilaian :nama? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama]) }}">
+                            {{ count($penilaian->tahapan) > 1 ? __('Kirim untuk approval') : __('Kirim') }}
                         </button>
                     </div>
                 @endif
@@ -205,17 +205,17 @@
             @if ($canApprove)
                 <div class="card sec">
                     @php($levelSaya = JenjangPenilaian::userLevel(auth()->user()))
-                    <h2>Approval {{ JenjangPenilaian::label($penilaian->posisi_level) }}</h2>
+                    <h2>{{ __('Approval') }} {{ JenjangPenilaian::label($penilaian->posisi_level) }}</h2>
                     @if ($levelSaya !== $penilaian->posisi_level)
-                        <p class="sub" style="color: #92400e;">Anda menyetujui sebagai <b>{{ JenjangPenilaian::label($levelSaya) }}</b> (override tahap {{ JenjangPenilaian::label($penilaian->posisi_level) }}).</p>
+                        <p class="sub" style="color: #92400e;">{{ __('Anda menyetujui sebagai') }} <b>{{ JenjangPenilaian::label($levelSaya) }}</b> ({{ __('override tahap :tahap', ['tahap' => JenjangPenilaian::label($penilaian->posisi_level)]) }}).</p>
                     @endif
-                    <p class="sub">Kalau tidak setuju dengan nilainya, ubah langsung di atas lalu setujui. Perubahan tercatat di riwayat.</p>
-                    <label for="catatan_review">Catatan approval</label>
-                    <textarea id="catatan_review" name="catatan_review" rows="2" maxlength="255" placeholder="Opsional, mis. alasan nilai diubah">{{ old('catatan_review') }}</textarea>
+                    <p class="sub">{{ __('Kalau tidak setuju dengan nilainya, ubah langsung di atas lalu setujui. Perubahan tercatat di riwayat.') }}</p>
+                    <label for="catatan_review">{{ __('Catatan approval') }}</label>
+                    <textarea id="catatan_review" name="catatan_review" rows="2" maxlength="255" placeholder="{{ __('Opsional, mis. alasan nilai diubah') }}">{{ old('catatan_review') }}</textarea>
                     <div class="actions" style="margin-top: 12px;">
-                        <button type="submit" name="aksi" value="simpan" class="btn btn-ghost">Simpan perubahan</button>
+                        <button type="submit" name="aksi" value="simpan" class="btn btn-ghost">{{ __('Simpan perubahan') }}</button>
                         <button type="submit" name="aksi" value="setuju" class="btn btn-success" data-lengkap
-                            data-confirm="Setujui penilaian {{ $karyawan->nama }}{{ isset($penilaian->tahapan[$penilaian->tahap + 1]) ? ' dan teruskan ke '.JenjangPenilaian::label($penilaian->tahapan[$penilaian->tahap + 1]) : '' }}?">Simpan & Setujui</button>
+                            data-confirm="{{ isset($penilaian->tahapan[$penilaian->tahap + 1]) ? __('Setujui penilaian :nama dan teruskan ke :tahap?', ['nama' => $karyawan->nama, 'tahap' => JenjangPenilaian::label($penilaian->tahapan[$penilaian->tahap + 1])]) : __('Setujui penilaian :nama?', ['nama' => $karyawan->nama]) }}">{{ __('Simpan & Setujui') }}</button>
                     </div>
                 </div>
             @endif
@@ -224,11 +224,11 @@
 
     <div class="side">
         <div class="card">
-            <h2 style="font-size: 15px; margin-bottom: 12px;">Nilai Akhir</h2>
+            <h2 style="font-size: 15px; margin-bottom: 12px;">{{ __('Nilai Akhir') }}</h2>
             <div class="score">
-                <span>Nilai absen</span><b>{{ $angka($absen['nilai']) }}</b>
-                <span>Performance</span><b id="nilai-performance">{{ $angka($performance['nilai']) }}</b>
-                <span style="align-self: center;">Total</span>
+                <span>{{ __('Nilai absen') }}</span><b>{{ $angka($absen['nilai']) }}</b>
+                <span>{{ __('Performance') }}</span><b id="nilai-performance">{{ $angka($performance['nilai']) }}</b>
+                <span style="align-self: center;">{{ __('Total') }}</span>
                 <span style="display: flex; align-items: center; gap: 10px;">
                     <span class="big" id="nilai-akhir">{{ $angka($absen['nilai'] + $performance['nilai']) }}</span>
                     <span class="grade" id="huruf">{{ FormPenilaian::huruf($absen['nilai'] + $performance['nilai']) }}</span>
@@ -239,20 +239,20 @@
 
         @if ($penilaian->tahapan !== [])
             <div class="card">
-                <h2 style="font-size: 15px; margin-bottom: 12px;">Penilai</h2>
+                <h2 style="font-size: 15px; margin-bottom: 12px;">{{ __('Penilai') }}</h2>
                 <div class="penilai" style="grid-template-columns: repeat({{ count($penilaiPerTahap) }}, 1fr);">
                     @foreach (array_reverse($penilaiPerTahap) as $tahap)
                         <div class="{{ $tahap['aktif'] ? 'aktif' : '' }}">
                             <div class="ttd">
                                 @if ($tahap['log'])
-                                    <span class="ok">✓ {{ $tahap['log']->aksi === PenilaianTahunanLog::AKSI_KIRIM ? 'Dinilai' : 'Disetujui' }}</span>
+                                    <span class="ok">✓ {{ $tahap['log']->aksi === PenilaianTahunanLog::AKSI_KIRIM ? __('Dinilai') : __('Disetujui') }}</span>
                                     <span>{{ $tahap['log']->user?->name ?? '-' }}</span>
                                     <span class="muted small">{{ $tahap['log']->created_at->translatedFormat('d M Y') }}</span>
                                     @if ($tahap['override'])
-                                        <span class="muted small" style="font-style: italic;">override {{ $tahap['override'] }}</span>
+                                        <span class="muted small" style="font-style: italic;">{{ __('override :nama', ['nama' => $tahap['override']]) }}</span>
                                     @endif
                                 @elseif ($tahap['aktif'])
-                                    <span class="wait">Menunggu</span>
+                                    <span class="wait">{{ __('Menunggu') }}</span>
                                 @else
                                     <span class="muted">-</span>
                                 @endif
@@ -266,11 +266,11 @@
 
         @if ($penilaian->exists && $penilaian->logs->isNotEmpty())
             <div class="card">
-                <h2 style="font-size: 15px; margin-bottom: 12px;">Riwayat</h2>
+                <h2 style="font-size: 15px; margin-bottom: 12px;">{{ __('Riwayat') }}</h2>
                 <div class="log">
                     @foreach ($penilaian->logs->reverse() as $log)
                         <div>
-                            <b>{{ PenilaianTahunanLog::AKSI[$log->aksi] ?? $log->aksi }}</b> · {{ $log->user?->name ?? '-' }}
+                            <b>{{ __(PenilaianTahunanLog::AKSI[$log->aksi] ?? $log->aksi) }}</b> · {{ $log->user?->name ?? '-' }}
                             <span class="muted">({{ JenjangPenilaian::label($log->level) }})</span>
                             <div class="when">{{ $log->created_at->translatedFormat('d M Y H:i') }}</div>
                             @if ($log->catatan)
@@ -312,7 +312,7 @@
                 if (kosong.length) {
                     event.preventDefault();
                     kosong[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    window.alert('Masih ada ' + kosong.length + ' butir penilaian yang belum diisi (ditandai warna oranye). Semua butir wajib diisi.');
+                    window.alert(__t('Masih ada :count butir penilaian yang belum diisi (ditandai warna oranye). Semua butir wajib diisi.', { count: kosong.length }));
                     return;
                 }
             }

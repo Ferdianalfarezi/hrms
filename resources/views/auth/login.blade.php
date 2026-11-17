@@ -1,6 +1,6 @@
 @extends('layouts.base')
 
-@section('title', 'Login')
+@section('title', __('Login'))
 
 @section('body')
     @include('auth._card')

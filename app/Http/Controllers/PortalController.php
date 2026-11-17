@@ -29,7 +29,7 @@ class PortalController extends Controller
             $request->session()->regenerateToken();
 
             return redirect()->route('login')->withErrors([
-                'nik' => 'Akun Anda belum memiliki akses ke sistem manapun. Hubungi admin.',
+                'nik' => __('Akun Anda belum memiliki akses ke sistem manapun. Hubungi admin.'),
             ]);
         }
 

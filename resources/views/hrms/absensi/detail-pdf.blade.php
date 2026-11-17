@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Detail Absensi {{ $tanggal->format('d-m-Y') }}</title>
+    <title>{{ __('Detail Absensi') }} {{ $tanggal->format('d-m-Y') }}</title>
     <style>
         @page { size: A4 portrait; margin: 10mm 9mm; }
         * { box-sizing: border-box; }
@@ -57,25 +57,25 @@
 </head>
 <body>
 <div class="toolbar">
-    <button type="button" onclick="window.print()">Unduh / Simpan PDF</button>
-    <button type="button" class="ghost" onclick="window.close()">Tutup</button>
+    <button type="button" onclick="window.print()">{{ __('Unduh / Simpan PDF') }}</button>
+    <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
 </div>
 
 <div class="sheet">
-    <h1>LAPORAN ABSENSI HARIAN</h1>
+    <h1>{{ __('LAPORAN ABSENSI HARIAN') }}</h1>
     <p class="sub">
         {{ $tanggal->translatedFormat('l, d F Y') }}
-        · {{ $grupPagi ? "Rotasi: grup {$grupPagi} pagi, grup ".\App\Modules\Hrms\Models\ShiftRotasi::lawan($grupPagi).' malam, NS 07.00 - 16.00' : 'Jadwal rotasi grup A/B belum diatur' }}
+        · {{ $grupPagi ? __('Rotasi: grup :pagi pagi, grup :malam malam, NS 07.00 - 16.00', ['pagi' => $grupPagi, 'malam' => \App\Modules\Hrms\Models\ShiftRotasi::lawan($grupPagi)]) : __('Jadwal rotasi grup A/B belum diatur') }}
         @unless ($hitungCuti) · cuti tidak dihitung @endunless
     </p>
 
     @foreach ($sections as $section)
         <div class="sec">
             <div class="sec-title">
-                <b>{{ $section['tanggal']->translatedFormat('l') }} : {{ $section['tanggal']->translatedFormat('d F Y') }} ({{ $section['judul'] }})</b>
+                <b>{{ $section['tanggal']->translatedFormat('l') }} : {{ $section['tanggal']->translatedFormat('d F Y') }} ({{ __($section['judul']) }})</b>
                 <span>
-                    {{ $section['keterangan'] }} · grup {{ $section['grups'] ? implode(', ', $section['grups']) : '-' }}
-                    · MP {{ $section['headcount'] }} · Tidak hadir {{ $section['rows']->count() }}
+                    {{ __($section['keterangan']) }} · {{ __('grup') }} {{ $section['grups'] ? implode(', ', $section['grups']) : '-' }}
+                    · MP {{ $section['headcount'] }} · {{ __('Tidak hadir') }} {{ $section['rows']->count() }}
                     @if ($section['persen'] !== null) · {{ number_format($section['persen'], 1, ',', '.') }}% @endif
                 </span>
             </div>
@@ -89,15 +89,15 @@
                 </colgroup>
                 <thead>
                     <tr>
-                        <th rowspan="2">No</th>
+                        <th rowspan="2">{{ __('No') }}</th>
                         <th rowspan="2">NIK</th>
-                        <th rowspan="2">Nama</th>
-                        <th rowspan="2">Group</th>
+                        <th rowspan="2">{{ __('Nama') }}</th>
+                        <th rowspan="2">{{ __('Group') }}</th>
                         <th rowspan="2">Shift</th>
-                        <th colspan="{{ count($kategoris) }}">Kategori Absensi</th>
-                        <th rowspan="2">Keterangan</th>
-                        <th rowspan="2">Durasi Libur</th>
-                        <th rowspan="2">Status MP</th>
+                        <th colspan="{{ count($kategoris) }}">{{ __('Kategori Absensi') }}</th>
+                        <th rowspan="2">{{ __('Keterangan') }}</th>
+                        <th rowspan="2">{{ __('Durasi Libur') }}</th>
+                        <th rowspan="2">{{ __('Status MP') }}</th>
                     </tr>
                     <tr>
                         @foreach ($kategoris as $kategori)
@@ -118,18 +118,18 @@
                                 <td class="kat">{{ $row['kategori'] === $kategori ? 1 : '' }}</td>
                             @endforeach
                             <td class="l">{{ $row['keterangan'] ?: ($kodes[$row['kode']]['label'] ?? $row['kode']) }}</td>
-                            <td>{{ $row['durasi'] }} Hari</td>
+                            <td>{{ __(':count Hari', ['count' => $row['durasi']]) }}</td>
                             <td>{{ $statusMp($karyawan->status) }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="{{ 8 + count($kategoris) }}" class="empty">
-                            {{ $section['grups'] ? 'Semua karyawan hadir.' : 'Grup shift belum diketahui.' }}
+                            {{ $section['grups'] ? __('Semua karyawan hadir.') : __('Grup shift belum diketahui.') }}
                         </td></tr>
                     @endforelse
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5">Total</td>
+                        <td colspan="5">{{ __('Total') }}</td>
                         @foreach ($kategoris as $kategori)
                             <td>{{ $section['totals'][$kategori] }}</td>
                         @endforeach

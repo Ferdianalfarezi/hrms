@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Potongan Absen')
+@section('title', __('Potongan Absen'))
 
 @section('styles')
     .pt-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -36,11 +36,11 @@
 
 <div class="pt-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Potongan Absen</h1>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Potongan Absen') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            Durasi datang terlambat · {{ $bulan->translatedFormat('F Y') }}
+            {{ __('Durasi datang terlambat') }} · {{ $bulan->translatedFormat('F Y') }}
             @if ($lockedDepartments->isNotEmpty())
-                · departemen
+                {{ __('· departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
@@ -48,35 +48,35 @@
         </p>
     </div>
     <div class="summary">
-        <span class="chip">{{ $rows->where('jumlah', '>', 0)->count() }} karyawan terlambat</span>
-        <span class="chip">{{ $rows->sum('jumlah') }}x DT · {{ $rows->sum('blok') }}x kelipatan 30 mnt</span>
-        <span class="chip total">Total dihitung <b>{{ $durasi($rows->sum('blok') * $menitPerBlok) }}</b></span>
+        <span class="chip">{{ __(':count karyawan terlambat', ['count' => $rows->where('jumlah', '>', 0)->count()]) }}</span>
+        <span class="chip">{{ $rows->sum('jumlah') }}x DT · {{ __(':countx kelipatan 30 mnt', ['count' => $rows->sum('blok')]) }}</span>
+        <span class="chip total">{{ __('Total dihitung') }} <b>{{ $durasi($rows->sum('blok') * $menitPerBlok) }}</b></span>
     </div>
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 
 <form method="GET" class="filters">
     <span class="month-nav">
-        <a href="{{ route('hrms.absensi.potongan', [...$keep, 'bulan' => $bulan->copy()->subMonthNoOverflow()->format('Y-m')]) }}" title="Bulan sebelumnya">&lsaquo;</a>
-        <a href="{{ route('hrms.absensi.potongan', $keep) }}">Bulan ini</a>
-        <a href="{{ route('hrms.absensi.potongan', [...$keep, 'bulan' => $bulan->copy()->addMonthNoOverflow()->format('Y-m')]) }}" title="Bulan berikutnya">&rsaquo;</a>
+        <a href="{{ route('hrms.absensi.potongan', [...$keep, 'bulan' => $bulan->copy()->subMonthNoOverflow()->format('Y-m')]) }}" title="{{ __('Bulan sebelumnya') }}">&lsaquo;</a>
+        <a href="{{ route('hrms.absensi.potongan', $keep) }}">{{ __('Bulan ini') }}</a>
+        <a href="{{ route('hrms.absensi.potongan', [...$keep, 'bulan' => $bulan->copy()->addMonthNoOverflow()->format('Y-m')]) }}" title="{{ __('Bulan berikutnya') }}">&rsaquo;</a>
     </span>
-    <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="Bulan">
+    <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Bulan') }}">
     @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()">
-            <option value="">Semua departemen</option>
+            <option value="">{{ __('Semua departemen') }}</option>
             @foreach ($departments as $option)
                 <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
             @endforeach
-            <option value="none" @selected($department === 'none')>Tanpa departemen</option>
+            <option value="none" @selected($department === 'none')>{{ __('Tanpa departemen') }}</option>
         </select>
     @endif
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari NIK / nama...">
-    <label class="check"><input type="checkbox" name="semua" value="1" @checked($showAll) onchange="this.form.requestSubmit()"> Tampilkan semua karyawan</label>
-    <button type="submit" class="btn btn-ghost">Cari</button>
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari NIK / nama...') }}">
+    <label class="check"><input type="checkbox" name="semua" value="1" @checked($showAll) onchange="this.form.requestSubmit()"> {{ __('Tampilkan semua karyawan') }}</label>
+    <button type="submit" class="btn btn-ghost">{{ __('Cari') }}</button>
 </form>
 
 <div class="card" style="padding: 8px 12px;">
@@ -84,14 +84,14 @@
         <table>
             <thead>
                 <tr>
-                    <th>No</th>
+                    <th>{{ __('No') }}</th>
                     <th class="nowrap">NIK</th>
-                    <th>Nama</th>
-                    <th>Dept</th>
-                    <th class="num">Jumlah DT</th>
-                    <th class="num">Total Menit</th>
-                    <th class="num" title="Kelipatan 30 menit, dibulatkan ke atas per kejadian">Kelipatan 30 mnt</th>
-                    <th class="num" title="Kelipatan 30 menit x 30, mis. telat 1 menit = 30 menit, 31 menit = 1 jam">Durasi Dihitung</th>
+                    <th>{{ __('Nama') }}</th>
+                    <th>{{ __('Dept') }}</th>
+                    <th class="num">{{ __('Jumlah DT') }}</th>
+                    <th class="num">{{ __('Total Menit') }}</th>
+                    <th class="num" title="{{ __('Kelipatan 30 menit, dibulatkan ke atas per kejadian') }}">{{ __('Kelipatan 30 mnt') }}</th>
+                    <th class="num" title="{{ __('Kelipatan 30 menit x 30, mis. telat 1 menit = 30 menit, 31 menit = 1 jam') }}">{{ __('Durasi Dihitung') }}</th>
                     <th></th>
                 </tr>
             </thead>
@@ -104,10 +104,10 @@
                         <td>
                             <span style="font-weight: 600;">{{ $karyawan->nama }}</span>
                             @if ($row['belumDiisi'])
-                                <span class="badge badge-warn" title="DT tanpa menit belum ikut dihitung">{{ $row['belumDiisi'] }} DT belum diisi menit</span>
+                                <span class="badge badge-warn" title="{{ __('DT tanpa menit belum ikut dihitung') }}">{{ __(':count DT belum diisi menit', ['count' => $row['belumDiisi']]) }}</span>
                             @endif
                             @if ($row['pending'])
-                                <span class="badge badge-warn" title="Ada pengajuan perubahan yang menunggu approval HRD">{{ $row['pending'] }} menunggu approval</span>
+                                <span class="badge badge-warn" title="{{ __('Ada pengajuan perubahan yang menunggu approval HRD') }}">{{ __(':count menunggu approval', ['count' => $row['pending']]) }}</span>
                             @endif
                         </td>
                         <td>{{ $karyawan->department?->name ?? '-' }}</td>
@@ -117,7 +117,7 @@
                         <td class="num money">{{ $durasi($row['blok'] * $menitPerBlok) }}</td>
                         <td style="text-align: right;">
                             @if ($row['jumlah'])
-                                <button type="button" class="btn btn-ghost btn-sm" data-detail="{{ $karyawan->id }}">Detail</button>
+                                <button type="button" class="btn btn-ghost btn-sm" data-detail="{{ $karyawan->id }}">{{ __('Detail') }}</button>
                                 <template id="detail-{{ $karyawan->id }}">
                                     <p class="muted small" style="margin: 0 0 12px;">
                                         {{ $karyawan->nik }} - {{ $karyawan->nama }} · {{ $karyawan->department?->name ?? '-' }}
@@ -126,11 +126,11 @@
                                         <table>
                                             <thead>
                                                 <tr>
-                                                    <th>Tanggal</th>
-                                                    <th>Kode</th>
-                                                    <th class="num">Menit</th>
-                                                    <th class="num">Kelipatan</th>
-                                                    <th>Keterangan</th>
+                                                    <th>{{ __('Tanggal') }}</th>
+                                                    <th>{{ __('Kode') }}</th>
+                                                    <th class="num">{{ __('Menit') }}</th>
+                                                    <th class="num">{{ __('Kelipatan') }}</th>
+                                                    <th>{{ __('Keterangan') }}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -143,10 +143,10 @@
                                                         <td class="small">
                                                             {{ $item['keterangan'] ?: '-' }}
                                                             @if ($item['menit'] === null)
-                                                                <span class="badge badge-warn">menit belum diisi</span>
+                                                                <span class="badge badge-warn">{{ __('menit belum diisi') }}</span>
                                                             @endif
                                                             @if ($item['pending'])
-                                                                <span class="badge badge-warn">menunggu approval</span>
+                                                                <span class="badge badge-warn">{{ __('menunggu approval') }}</span>
                                                             @endif
                                                         </td>
                                                     </tr>
@@ -154,7 +154,7 @@
                                             </tbody>
                                             <tfoot>
                                                 <tr>
-                                                    <td colspan="2">Total</td>
+                                                    <td colspan="2">{{ __('Total') }}</td>
                                                     <td class="num">{{ $row['menit'] }}</td>
                                                     <td class="num">{{ $row['blok'] }}</td>
                                                     <td class="money">{{ $durasi($row['blok'] * $menitPerBlok) }}</td>
@@ -169,7 +169,7 @@
                 @empty
                     <tr>
                         <td colspan="9" class="muted" style="text-align: center; padding: 32px;">
-                            Tidak ada karyawan yang datang terlambat di {{ $bulan->translatedFormat('F Y') }}.
+                            {{ __('Tidak ada karyawan yang datang terlambat di :bulan.', ['bulan' => $bulan->translatedFormat('F Y')]) }}
                         </td>
                     </tr>
                 @endforelse
@@ -177,7 +177,7 @@
             @if ($rows->isNotEmpty())
                 <tfoot>
                     <tr>
-                        <td colspan="4">Total</td>
+                        <td colspan="4">{{ __('Total') }}</td>
                         <td class="num">{{ $rows->sum('jumlah') }}</td>
                         <td class="num">{{ number_format($rows->sum('menit'), 0, ',', '.') }}</td>
                         <td class="num">{{ $rows->sum('blok') }}</td>
@@ -190,17 +190,17 @@
     </div>
 </div>
 <p class="muted small" style="margin-top: 12px;">
-    Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. telat 1 - 30 menit = 1x (30 menit), 31 - 60 menit = 2x (1 jam). DT&lt; yang diinput manual otomatis 30 menit. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:00).
+    {{ __('Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. telat 1 - 30 menit = 1x (30 menit), 31 - 60 menit = 2x (1 jam). DT< yang diinput manual otomatis 30 menit. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:00).') }}
 </p>
 
 <dialog class="modal wide" id="detail-modal">
     <div class="modal-head">
-        <h2>Detail Keterlambatan</h2>
-        <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+        <h2>{{ __('Detail Keterlambatan') }}</h2>
+        <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
     </div>
     <div class="modal-body" id="detail-body"></div>
     <div class="modal-foot">
-        <button type="button" class="btn btn-ghost" data-close>Tutup</button>
+        <button type="button" class="btn btn-ghost" data-close>{{ __('Tutup') }}</button>
     </div>
 </dialog>
 @endsection

@@ -32,7 +32,7 @@ trait HandlesIsoAccess
     private function authorizeKategoriManage(Request $request, string $kategori): void
     {
         abort_unless(IsoDocument::canManageKategori($request->user(), $kategori), 403,
-            'Anda hanya bisa melihat dokumen di menu '.IsoDocument::KATEGORI[$kategori].'.');
+            __('Anda hanya bisa melihat dokumen di menu ').IsoDocument::KATEGORI[$kategori].'.');
     }
 
     /**
@@ -45,10 +45,10 @@ trait HandlesIsoAccess
         $kategori = $this->kategori($request);
         $user = $request->user();
         abort_unless($item->kategori === $kategori, 404);
-        abort_unless($item::query()->visibleTo($user)->whereKey($item->getKey())->exists(), 403, 'Data ini milik departemen lain.');
+        abort_unless($item::query()->visibleTo($user)->whereKey($item->getKey())->exists(), 403, __('Data ini milik departemen lain.'));
 
         if ($manage) {
-            abort_unless($item->isManageableBy($user), 403, 'Data umum hanya bisa diubah oleh Admin ISO.');
+            abort_unless($item->isManageableBy($user), 403, __('Data umum hanya bisa diubah oleh Admin ISO.'));
         }
 
         return $kategori;
@@ -66,10 +66,10 @@ trait HandlesIsoAccess
 
         $folder = IsoFolder::query()->visibleTo($request->user())->where('kategori', $kategori)->find((int) $folderId);
         if (! $folder) {
-            throw ValidationException::withMessages(['folder_id' => 'Folder tidak ditemukan.']);
+            throw ValidationException::withMessages(['folder_id' => __('Folder tidak ditemukan.')]);
         }
 
-        abort_unless($folder->isManageableBy($request->user()), 403, 'Folder umum hanya bisa diisi oleh Admin ISO.');
+        abort_unless($folder->isManageableBy($request->user()), 403, __('Folder umum hanya bisa diisi oleh Admin ISO.'));
 
         return $folder;
     }
@@ -93,14 +93,14 @@ trait HandlesIsoAccess
         }
 
         $departmentIds = $user->managedDepartmentIds('iso');
-        abort_if($departmentIds === [], 403, 'Akun Anda belum dipilihkan departemen. Hubungi Super Admin.');
+        abort_if($departmentIds === [], 403, __('Akun Anda belum dipilihkan departemen. Hubungi Super Admin.'));
 
         if ($chosen === null || $chosen === '') {
             return $departmentIds[0];
         }
 
         if (! in_array((int) $chosen, $departmentIds, true)) {
-            throw ValidationException::withMessages(['department_id' => 'Pilih salah satu departemen yang Anda kelola.']);
+            throw ValidationException::withMessages(['department_id' => __('Pilih salah satu departemen yang Anda kelola.')]);
         }
 
         return (int) $chosen;

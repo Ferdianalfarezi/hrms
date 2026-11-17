@@ -4,12 +4,12 @@
     JS-nya ada di sms.partials.karyawan-picker-script.
 --}}
 <div>
-    <label for="f-{{ $name }}">{{ $label }}</label>
+    <label for="f-{{ $name }}">{{ __($label) }}</label>
     <div class="kp" data-karyawan-picker>
         <input type="hidden" name="{{ $name }}">
         <div class="kp-box">
             <span class="kp-chips"></span>
-            <input id="f-{{ $name }}" type="text" class="kp-search" placeholder="{{ $placeholder ?? 'Cari nama / NIK karyawan...' }}"
+            <input id="f-{{ $name }}" type="text" class="kp-search" placeholder="{{ __($placeholder ?? 'Cari nama / NIK karyawan...') }}"
                 autocomplete="off" role="combobox" aria-expanded="false" required>
         </div>
         <div class="kp-list" role="listbox" hidden></div>

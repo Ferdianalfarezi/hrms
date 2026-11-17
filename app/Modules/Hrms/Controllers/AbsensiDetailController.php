@@ -35,7 +35,7 @@ class AbsensiDetailController extends Controller
         return view('hrms.absensi.detail', [
             'tanggal' => $tanggal,
             'kategoris' => array_keys(Absensi::KATEGORI),
-            'kodes' => Absensi::KODE,
+            'kodes' => Absensi::kodeTampil(),
             'grupOptions' => ShiftRotasi::GRUP,
             'hitungCuti' => $request->boolean('cuti', true),
             ...LaporanAbsensiShift::build($tanggal, $request->boolean('cuti', true)),
@@ -54,7 +54,7 @@ class AbsensiDetailController extends Controller
         return view('hrms.absensi.detail-pdf', [
             'tanggal' => $tanggal,
             'kategoris' => array_keys(Absensi::KATEGORI),
-            'kodes' => Absensi::KODE,
+            'kodes' => Absensi::kodeTampil(),
             'hitungCuti' => $request->boolean('cuti', true),
             ...LaporanAbsensiShift::build($tanggal, $request->boolean('cuti', true)),
         ]);
@@ -163,8 +163,8 @@ class AbsensiDetailController extends Controller
             'tanggal_mulai' => ['required', 'date_format:Y-m-d'],
             'grup_pagi' => ['required', Rule::in(ShiftRotasi::GRUP)],
         ], [
-            'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
-            'grup_pagi.in' => 'Grup pagi harus A atau B.',
+            'tanggal_mulai.required' => __('Tanggal mulai wajib diisi.'),
+            'grup_pagi.in' => __('Grup pagi harus A atau B.'),
         ]);
 
         ShiftRotasi::updateOrCreate(
@@ -174,7 +174,7 @@ class AbsensiDetailController extends Controller
 
         return redirect()
             ->route('hrms.absensi.detail', ['tanggal' => $request->input('tanggal')])
-            ->with('status', 'Jadwal rotasi shift disimpan.');
+            ->with('status', __('Jadwal rotasi shift disimpan.'));
     }
 
     private function parseDate(string $value): ?Carbon

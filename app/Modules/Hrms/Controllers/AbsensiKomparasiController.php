@@ -40,9 +40,9 @@ class AbsensiKomparasiController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'extensions:xls,xlsx', 'max:10240'],
         ], [
-            'file.required' => 'Pilih file Attendance Report terlebih dahulu.',
-            'file.extensions' => 'File harus berformat .xls atau .xlsx.',
-            'file.max' => 'Ukuran file maksimal 10 MB.',
+            'file.required' => __('Pilih file Attendance Report terlebih dahulu.'),
+            'file.extensions' => __('File harus berformat .xls atau .xlsx.'),
+            'file.max' => __('Ukuran file maksimal 10 MB.'),
         ]);
 
         $file = $request->file('file');
@@ -58,11 +58,10 @@ class AbsensiKomparasiController extends Controller
 
         return redirect()
             ->route('hrms.absensi.komparasi', ['tanggal' => $hariKerja->toDateString()])
-            ->with('status', "Data mesin absen hari kerja {$hariKerja->format('d/m/Y')} berhasil diupload: "
-                ."{$result['hadir']} karyawan hadir, {$result['total']} karyawan tidak absen"
-                .($result['dilewati'] > 0 ? ", {$result['dilewati']} Employee Code dilewati karena tidak ada di data karyawan." : '.')
-                .($result['terlambat'] > 0 ? " {$result['terlambat']} karyawan datang terlambat dicatat ke Potongan Absen." : '')
-                .($diberitahu > 0 ? " Notifikasi dikirim ke {$diberitahu} Admin Departemen." : '')
+            ->with('status', __('Data mesin absen hari kerja :tanggal berhasil diupload: :hadir karyawan hadir, :total karyawan tidak absen', ['tanggal' => $hariKerja->format('d/m/Y'), 'hadir' => $result['hadir'], 'total' => $result['total']])
+                .($result['dilewati'] > 0 ? __(', :count Employee Code dilewati karena tidak ada di data karyawan.', ['count' => $result['dilewati']]) : '.')
+                .($result['terlambat'] > 0 ? ' '.__(':count karyawan datang terlambat dicatat ke Potongan Absen.', ['count' => $result['terlambat']]) : '')
+                .($diberitahu > 0 ? ' '.__('Notifikasi dikirim ke :count Admin Departemen.', ['count' => $diberitahu]) : '')
                 .($result['peringatan'] ? " {$result['peringatan']}" : ''));
     }
 

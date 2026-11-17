@@ -13,7 +13,7 @@ class EnsureModuleAccess
      */
     public function handle(Request $request, Closure $next, string $module): Response
     {
-        abort_unless($request->user()?->canAccessApplication($module), 403, 'Anda tidak punya akses ke modul ini.');
+        abort_unless($request->user()?->canAccessApplication($module), 403, __('Anda tidak punya akses ke modul ini.'));
 
         return $next($request);
     }

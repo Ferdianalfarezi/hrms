@@ -130,7 +130,7 @@ class PenilaianTahunanTest extends TestCase
         $this->actingAs($this->section)->post($url, $setuju)->assertForbidden();
         $this->actingAs($this->leader)->get(route('hrms.penilaian.show', [$this->operator, 'tahun' => 2026]))
             ->assertOk()
-            ->assertSee('Simpan & Setujui', false);
+            ->assertSee('Simpan & Setujui');
         $this->actingAs($this->leader)->post($url, $setuju)->assertRedirect();
         $this->assertSame('section', $penilaian->fresh()->posisi_level);
         $this->actingAs($this->section)->post($url, $setuju)->assertRedirect();

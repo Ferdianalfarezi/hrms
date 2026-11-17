@@ -62,7 +62,7 @@ class ModuleDashboard
                     ['label' => 'Aktif', 'count' => $activeUsers, 'tone' => 'primary'],
                     ['label' => 'Nonaktif', 'count' => $totalUsers - $activeUsers, 'tone' => 'navy'],
                 ],
-                'note' => $usersWithoutAccess > 0 ? "{$usersWithoutAccess} user belum punya akses modul." : 'Semua user sudah punya akses modul.',
+                'note' => $usersWithoutAccess > 0 ? __(':count user belum punya akses modul.', ['count' => $usersWithoutAccess]) : __('Semua user sudah punya akses modul.'),
             ],
             'people' => $canSeeTeam
                 ? [
@@ -88,7 +88,7 @@ class ModuleDashboard
                     'empty' => 'Belum ada akses modul.',
                 ],
             'calendar' => self::week(
-                $weekUsers->map(fn (User $user) => ['date' => $user->created_at, 'name' => $user->first_name, 'title' => "Akun baru: {$user->name}", 'photo' => $user->photo_url]),
+                $weekUsers->map(fn (User $user) => ['date' => $user->created_at, 'name' => $user->first_name, 'title' => __('Akun baru: :nama', ['nama' => $user->name]), 'photo' => $user->photo_url]),
                 caption: 'Akun karyawan yang dibuat minggu ini.',
                 empty: 'Belum ada aktivitas minggu ini.',
             ),

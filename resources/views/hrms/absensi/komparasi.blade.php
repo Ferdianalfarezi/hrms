@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Komparasi Mesin Absen')
+@section('title', __('Komparasi Mesin Absen'))
 
 @section('styles')
     .kmp-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -45,11 +45,11 @@
 @section('content')
 <div class="kmp-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Komparasi Mesin Absen</h1>
-        <p class="muted" style="margin: 2px 0 0;">Hari kerja {{ $tanggal->translatedFormat('l, d F Y') }} · shift malam {{ $tanggal->copy()->subDay()->translatedFormat('d M') }} & shift pagi {{ $tanggal->translatedFormat('d M') }}</p>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Komparasi Mesin Absen') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Hari kerja :tanggal · shift malam :malam & shift pagi :pagi', ['tanggal' => $tanggal->translatedFormat('l, d F Y'), 'malam' => $tanggal->copy()->subDay()->translatedFormat('d M'), 'pagi' => $tanggal->translatedFormat('d M')]) }}</p>
     </div>
     <form method="GET">
-        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal hari kerja">
+        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal hari kerja') }}">
     </form>
 </div>
 
@@ -58,21 +58,21 @@
         <span class="up-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg></span>
         <div>
             <div class="up-title">
-                Upload Attendance Report
-                <span @class(['up-state', 'done' => $uploaded])>{{ $uploaded ? 'Sudah diupload' : 'Belum diupload' }}</span>
+                {{ __('Upload Attendance Report') }}
+                <span @class(['up-state', 'done' => $uploaded])>{{ $uploaded ? __('Sudah diupload') : __('Belum diupload') }}</span>
             </div>
-            <div class="up-desc">Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00) dan hari ini. Laporan untuk tanggal terakhir di file. Time In lewat 07:00 (pagi) / 20:00 (malam) otomatis dicatat DT.</div>
+            <div class="up-desc">{{ __('Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00) dan hari ini. Laporan untuk tanggal terakhir di file. Time In lewat 07:00 (pagi) / 20:00 (malam) otomatis dicatat DT.') }}</div>
         </div>
     </div>
 
     <form method="POST" action="{{ route('hrms.absensi.komparasi.store') }}" enctype="multipart/form-data" id="kmp-upload">
         @csrf
-        <label class="dz" id="kmp-dz" title="Klik atau tarik file .xlsx / .xls ke sini (maks. 10 MB)">
-            <input type="file" name="file" accept=".xls,.xlsx" required aria-label="File Attendance Report" id="kmp-file">
+        <label class="dz" id="kmp-dz" title="{{ __('Klik atau tarik file .xlsx / .xls ke sini (maks. 10 MB)') }}">
+            <input type="file" name="file" accept=".xls,.xlsx" required aria-label="{{ __('File Attendance Report') }}" id="kmp-file">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-            <span class="dz-label" id="kmp-dz-label">Pilih / tarik file .xlsx</span>
+            <span class="dz-label" id="kmp-dz-label">{{ __('Pilih / tarik file .xlsx') }}</span>
         </label>
-        <button type="submit" class="btn" id="kmp-submit" disabled>Upload</button>
+        <button type="submit" class="btn" id="kmp-submit" disabled>{{ __('Upload') }}</button>
     </form>
     @error('file') <div class="field-error">{{ $message }}</div> @enderror
 </div>
@@ -89,7 +89,7 @@
             var file = input.files[0];
             zone.classList.toggle('has-file', !!file);
             submit.disabled = !file;
-            label.textContent = file ? file.name : 'Pilih / tarik file .xlsx';
+            label.textContent = file ? file.name : __t('Pilih / tarik file .xlsx');
         }
 
         input.addEventListener('change', render);
@@ -101,7 +101,7 @@
         });
         document.getElementById('kmp-upload').addEventListener('submit', function () {
             submit.disabled = true;
-            submit.textContent = 'Mengupload...';
+            submit.textContent = __t('Mengupload...');
         });
         render();
     })();
@@ -110,11 +110,11 @@
 <section class="card kmp-section">
     <div class="kmp-title">
         <h2>Belum ada keterangan ({{ $belum->count() }})</h2>
-        <span class="muted small">Tidak absen di mesin dan Admin Departemen belum mengisi kode absensi.</span>
+        <span class="muted small">{{ __('Tidak absen di mesin dan Admin Departemen belum mengisi kode absensi.') }}</span>
     </div>
     <div class="table-wrap">
         <table class="kmp">
-            <thead><tr><th>No</th><th>NIK</th><th>Nama</th><th>Departemen</th><th>Group</th><th>Tanggal laporan</th></tr></thead>
+            <thead><tr><th>{{ __('No') }}</th><th>NIK</th><th>{{ __('Nama') }}</th><th>{{ __('Departemen') }}</th><th>{{ __('Group') }}</th><th>{{ __('Tanggal laporan') }}</th></tr></thead>
             <tbody>
                 @forelse ($belum as $row)
                     <tr>
@@ -126,7 +126,7 @@
                         <td>{{ $row['tanggalLaporan']->translatedFormat('d M Y') }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="empty">{{ $uploaded ? 'Semua karyawan yang tidak absen sudah diberi keterangan.' : 'Belum ada data mesin untuk tanggal ini.' }}</td></tr>
+                    <tr><td colspan="6" class="empty">{{ $uploaded ? __('Semua karyawan yang tidak absen sudah diberi keterangan.') : __('Belum ada data mesin untuk tanggal ini.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

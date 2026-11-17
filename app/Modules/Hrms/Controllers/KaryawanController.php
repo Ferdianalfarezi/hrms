@@ -79,7 +79,7 @@ class KaryawanController extends Controller
 
         $karyawan = Karyawan::create($this->validated($request));
 
-        return redirect()->back()->with('status', "Karyawan {$karyawan->nik} - {$karyawan->nama} berhasil ditambahkan.");
+        return redirect()->back()->with('status', __('Karyawan :nik - :nama berhasil ditambahkan.', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
     }
 
     public function update(Request $request, Karyawan $karyawan): RedirectResponse
@@ -88,7 +88,7 @@ class KaryawanController extends Controller
 
         $karyawan->update($this->validated($request, $karyawan));
 
-        return redirect()->back()->with('status', "Karyawan {$karyawan->nik} - {$karyawan->nama} berhasil diperbarui.");
+        return redirect()->back()->with('status', __('Karyawan :nik - :nama berhasil diperbarui.', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
     }
 
     public function destroy(Karyawan $karyawan): RedirectResponse
@@ -97,7 +97,7 @@ class KaryawanController extends Controller
 
         $karyawan->delete();
 
-        return redirect()->back()->with('status', "Karyawan {$karyawan->nik} - {$karyawan->nama} berhasil dihapus.");
+        return redirect()->back()->with('status', __('Karyawan :nik - :nama berhasil dihapus.', ['nik' => $karyawan->nik, 'nama' => $karyawan->nama]));
     }
 
     public function import(Request $request, KaryawanImport $importer): RedirectResponse
@@ -107,9 +107,9 @@ class KaryawanController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx', 'max:10240'],
         ], [
-            'file.required' => 'Pilih file Excel terlebih dahulu.',
-            'file.mimes' => 'File harus berformat .xlsx.',
-            'file.max' => 'Ukuran file maksimal 10 MB.',
+            'file.required' => __('Pilih file Excel terlebih dahulu.'),
+            'file.mimes' => __('File harus berformat .xlsx.'),
+            'file.max' => __('Ukuran file maksimal 10 MB.'),
         ]);
 
         try {
@@ -164,18 +164,18 @@ class KaryawanController extends Controller
             'status' => ['required', Rule::in(Karyawan::STATUS)],
             'group' => ['nullable', 'string', 'max:20'],
         ], [
-            'nik.required' => 'NIK wajib diisi.',
-            'nik.regex' => 'NIK hanya boleh berisi angka.',
-            'nik.unique' => 'NIK ini sudah dipakai karyawan lain.',
-            'nama.required' => 'Nama wajib diisi.',
-            'department_id.exists' => 'Departemen tidak ditemukan.',
-            'jenis_kelamin.required' => 'Pilih jenis kelamin.',
-            'jenis_kelamin.in' => 'Jenis kelamin tidak valid.',
-            'tgl_lahir.date' => 'Tanggal lahir tidak valid.',
-            'tanggal_masuk.date' => 'Tanggal masuk tidak valid.',
-            'status.required' => 'Pilih status karyawan.',
-            'status.in' => 'Status tidak valid.',
-            'max' => 'Isian terlalu panjang (maks. :max karakter).',
+            'nik.required' => __('NIK wajib diisi.'),
+            'nik.regex' => __('NIK hanya boleh berisi angka.'),
+            'nik.unique' => __('NIK ini sudah dipakai karyawan lain.'),
+            'nama.required' => __('Nama wajib diisi.'),
+            'department_id.exists' => __('Departemen tidak ditemukan.'),
+            'jenis_kelamin.required' => __('Pilih jenis kelamin.'),
+            'jenis_kelamin.in' => __('Jenis kelamin tidak valid.'),
+            'tgl_lahir.date' => __('Tanggal lahir tidak valid.'),
+            'tanggal_masuk.date' => __('Tanggal masuk tidak valid.'),
+            'status.required' => __('Pilih status karyawan.'),
+            'status.in' => __('Status tidak valid.'),
+            'max' => __('Isian terlalu panjang (maks. :max karakter).'),
         ]);
 
         $data['group'] = isset($data['group']) ? Str::upper(trim($data['group'])) : null;
@@ -201,7 +201,7 @@ class KaryawanController extends Controller
         }
 
         if ($chosen === null || ! in_array((int) $chosen, $departmentIds, true)) {
-            throw ValidationException::withMessages(['department_id' => 'Pilih salah satu departemen yang Anda kelola.']);
+            throw ValidationException::withMessages(['department_id' => __('Pilih salah satu departemen yang Anda kelola.')]);
         }
 
         return (int) $chosen;

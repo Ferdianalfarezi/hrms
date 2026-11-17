@@ -121,10 +121,10 @@
             event.preventDefault();
             var submit = document.getElementById('patrol-submit');
             submit.disabled = true;
-            submit.textContent = 'Menyiapkan foto...';
+            submit.textContent = __t('Menyiapkan foto...');
             Promise.all(pending).then(function () {
                 submit.disabled = false;
-                submit.textContent = 'Simpan';
+                submit.textContent = __t('Simpan');
                 form.requestSubmit();
             });
         });
@@ -135,7 +135,7 @@
             form.action = editing ? updateUrl.replace('__ID__', id) : storeUrl;
             form.elements._method.value = editing ? 'PUT' : 'POST';
             form.elements._modal.value = editing ? 'edit:' + id : 'create';
-            document.getElementById('patrol-modal-title').textContent = editing ? 'Edit Temuan' : 'Tambah Temuan';
+            document.getElementById('patrol-modal-title').textContent = editing ? __t('Edit Temuan') : __t('Tambah Temuan');
 
             fields.forEach(function (name) {
                 var el = form.elements[name];

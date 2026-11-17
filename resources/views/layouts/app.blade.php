@@ -9,7 +9,7 @@
 
         {{-- Menu modul sebaris dengan brand. --}}
         @if (count($moduleTabs) > 1)
-            <nav class="subtabs" aria-label="Menu modul">
+            <nav class="subtabs" aria-label="{{ __('Menu modul') }}">
                 @foreach ($moduleTabs as $tab)
                     @if ($tab['children'])
                         {{-- Dropdown terbuka saat kursor di atas tab (atau tab difokus/ditekan di layar sentuh). --}}
@@ -44,7 +44,7 @@
             </nav>
         @endif
 
-        <nav class="tabs" aria-label="Menu utama">
+        <nav class="tabs" aria-label="{{ __('Menu utama') }}">
             <div class="tabs-inner">
                 <span class="tab-pill" aria-hidden="true"></span>
                 @foreach ($navTabs as $tab)
@@ -54,14 +54,15 @@
         </nav>
 
         <div class="top-actions">
+            @include('partials.locale-switch')
             @if (auth()->user()->is_superadmin)
-                <a href="{{ route('admin.users.create') }}" class="icon-btn" title="Tambah user">
+                <a href="{{ route('admin.users.create') }}" class="icon-btn" title="{{ __('Tambah user') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
                 </a>
             @endif
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="icon-btn" title="Keluar">
+                <button type="submit" class="icon-btn" title="{{ __('Keluar') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
                 </button>
             </form>

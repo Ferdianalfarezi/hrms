@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Absensi')
+@section('title', __('Detail Absensi'))
 
 @section('styles')
     .det-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -69,58 +69,58 @@
     $prev = $tanggal->copy()->subDay()->toDateString();
     $next = $tanggal->copy()->addDay()->toDateString();
     $keepCuti = $hitungCuti ? [] : ['cuti' => 0];
-    $statusMp = fn (string $status) => str_starts_with($status, 'PKWT') ? 'Kontrak' : $status;
+    $statusMp = fn (string $status) => __(str_starts_with($status, 'PKWT') ? 'Kontrak' : $status);
 @endphp
 
 <div class="det-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Detail Absensi Harian</h1>
-        <p class="muted" style="margin: 2px 0 0;">Laporan {{ $tanggal->translatedFormat('l, d F Y') }} · shift malam {{ $sections[0]['tanggal']->translatedFormat('d M') }} & shift pagi {{ $tanggal->translatedFormat('d M') }}</p>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Detail Absensi Harian') }}</h1>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Laporan :tanggal · shift malam :malam & shift pagi :pagi', ['tanggal' => $tanggal->translatedFormat('l, d F Y'), 'malam' => $sections[0]['tanggal']->translatedFormat('d M'), 'pagi' => $tanggal->translatedFormat('d M')]) }}</p>
     </div>
     <form method="GET" class="det-toolbar">
         <span class="day-nav">
-            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $prev, ...$keepCuti]) }}" title="Hari sebelumnya">&lsaquo;</a>
-            <a href="{{ route('hrms.absensi.detail', $keepCuti) }}">Hari ini</a>
-            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $next, ...$keepCuti]) }}" title="Hari berikutnya">&rsaquo;</a>
+            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $prev, ...$keepCuti]) }}" title="{{ __('Hari sebelumnya') }}">&lsaquo;</a>
+            <a href="{{ route('hrms.absensi.detail', $keepCuti) }}">{{ __('Hari ini') }}</a>
+            <a href="{{ route('hrms.absensi.detail', ['tanggal' => $next, ...$keepCuti]) }}" title="{{ __('Hari berikutnya') }}">&rsaquo;</a>
         </span>
-        <a href="{{ route('hrms.absensi.detail', ['tanggal' => $tanggal->toDateString(), ...($hitungCuti ? ['cuti' => 0] : [])]) }}" @class(['cuti-toggle', 'on' => $hitungCuti]) role="switch" aria-checked="{{ $hitungCuti ? 'true' : 'false' }}" title="{{ $hitungCuti ? 'Klik supaya cuti tidak dihitung ke persentase' : 'Klik supaya cuti ikut dihitung ke persentase' }}">
-            <span class="switch"></span> Hitung cuti
+        <a href="{{ route('hrms.absensi.detail', ['tanggal' => $tanggal->toDateString(), ...($hitungCuti ? ['cuti' => 0] : [])]) }}" @class(['cuti-toggle', 'on' => $hitungCuti]) role="switch" aria-checked="{{ $hitungCuti ? 'true' : 'false' }}" title="{{ $hitungCuti ? __('Klik supaya cuti tidak dihitung ke persentase') : __('Klik supaya cuti ikut dihitung ke persentase') }}">
+            <span class="switch"></span> {{ __('Hitung cuti') }}
         </a>
         @unless ($hitungCuti)
             <input type="hidden" name="cuti" value="0">
         @endunless
-        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal laporan">
-        <a href="{{ route('hrms.absensi.detail.export', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" data-turbo="false">Export Excel</a>
-        <a href="{{ route('hrms.absensi.detail.pdf', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">Unduh PDF</a>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
+        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal laporan') }}">
+        <a href="{{ route('hrms.absensi.detail.export', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" data-turbo="false">{{ __('Export Excel') }}</a>
+        <a href="{{ route('hrms.absensi.detail.pdf', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">{{ __('Unduh PDF') }}</a>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">{{ __('Cetak') }}</button>
     </form>
 </div>
 
 <div @class(['card', 'rotasi', 'warn' => ! $grupPagi])>
     <div class="rotasi-info">
         @if ($grupPagi)
-            <span>Rotasi pada {{ $tanggal->translatedFormat('d M Y') }}:</span>
-            <span class="badge">Grup {{ $grupPagi }} · pagi</span>
-            <span class="badge">Grup {{ \App\Modules\Hrms\Models\ShiftRotasi::lawan($grupPagi) }} · malam</span>
-            <span class="badge badge-off">NS · 07.00 - 16.00</span>
-            <span class="muted small">Acuan terakhir: mulai {{ $rotasiTerakhir->tanggal_mulai->translatedFormat('d M Y') }} grup {{ $rotasiTerakhir->grup_pagi }} pagi, bertukar tiap minggu.</span>
+            <span>{{ __('Rotasi pada :tanggal:', ['tanggal' => $tanggal->translatedFormat('d M Y')]) }}</span>
+            <span class="badge">{{ __('Grup :grup · pagi', ['grup' => $grupPagi]) }}</span>
+            <span class="badge">{{ __('Grup :grup · malam', ['grup' => \App\Modules\Hrms\Models\ShiftRotasi::lawan($grupPagi)]) }}</span>
+            <span class="badge badge-off">{{ __('NS · 07.00 - 16.00') }}</span>
+            <span class="muted small">{{ __('Acuan terakhir: mulai :tanggal grup :grup pagi, bertukar tiap minggu.', ['tanggal' => $rotasiTerakhir->tanggal_mulai->translatedFormat('d M Y'), 'grup' => $rotasiTerakhir->grup_pagi]) }}</span>
         @else
-            <strong>Jadwal rotasi grup A/B belum diatur.</strong>
-            <span class="muted">Isi tanggal mulai dan grup yang masuk pagi supaya laporan shift A/B bisa dibuat.</span>
+            <strong>{{ __('Jadwal rotasi grup A/B belum diatur.') }}</strong>
+            <span class="muted">{{ __('Isi tanggal mulai dan grup yang masuk pagi supaya laporan shift A/B bisa dibuat.') }}</span>
         @endif
     </div>
     <form method="POST" action="{{ route('hrms.absensi.rotasi') }}">
         @csrf
         <input type="hidden" name="tanggal" value="{{ $tanggal->toDateString() }}">
-        <span class="small muted">Mulai</span>
-        <input type="date" name="tanggal_mulai" value="{{ old('tanggal_mulai', $tanggal->toDateString()) }}" required aria-label="Tanggal mulai rotasi">
-        <span class="small muted">grup pagi</span>
-        <select name="grup_pagi" aria-label="Grup shift pagi">
+        <span class="small muted">{{ __('Mulai') }}</span>
+        <input type="date" name="tanggal_mulai" value="{{ old('tanggal_mulai', $tanggal->toDateString()) }}" required aria-label="{{ __('Tanggal mulai rotasi') }}">
+        <span class="small muted">{{ __('grup pagi') }}</span>
+        <select name="grup_pagi" aria-label="{{ __('Grup shift pagi') }}">
             @foreach ($grupOptions as $grup)
                 <option value="{{ $grup }}" @selected(old('grup_pagi', $grupPagi) === $grup)>{{ $grup }}</option>
             @endforeach
         </select>
-        <button type="submit" class="btn btn-sm">Simpan rotasi</button>
+        <button type="submit" class="btn btn-sm">{{ __('Simpan rotasi') }}</button>
     </form>
     @error('tanggal_mulai') <div class="field-error" style="flex-basis: 100%;">{{ $message }}</div> @enderror
     @error('grup_pagi') <div class="field-error" style="flex-basis: 100%;">{{ $message }}</div> @enderror
@@ -130,12 +130,12 @@
     <section class="card det-section">
         <div class="det-title">
             <div>
-                <h2>{{ $section['tanggal']->translatedFormat('l') }} : {{ $section['tanggal']->translatedFormat('d F Y') }} ({{ $section['judul'] }})</h2>
-                <span class="muted small">{{ $section['keterangan'] }} · grup {{ $section['grups'] ? implode(', ', $section['grups']) : '-' }}</span>
+                <h2>{{ $section['tanggal']->translatedFormat('l') }} : {{ $section['tanggal']->translatedFormat('d F Y') }} ({{ __($section['judul']) }})</h2>
+                <span class="muted small">{{ __($section['keterangan']) }} · {{ __('grup') }} {{ $section['grups'] ? implode(', ', $section['grups']) : '-' }}</span>
             </div>
             <div class="stats">
                 <span class="badge">MP {{ $section['headcount'] }}</span>
-                <span class="badge">Tidak hadir {{ $section['rows']->count() }}</span>
+                <span class="badge">{{ __('Tidak hadir') }} {{ $section['rows']->count() }}</span>
                 @if ($section['persen'] !== null)
                     <span @class(['badge', 'bad' => $section['persen'] > $section['grafik']['target'], 'ok' => $section['persen'] <= $section['grafik']['target']])>{{ number_format($section['persen'], 1, ',', '.') }}%</span>
                 @endif
@@ -145,15 +145,15 @@
             <table class="det">
                 <thead>
                     <tr>
-                        <th rowspan="2">No</th>
+                        <th rowspan="2">{{ __('No') }}</th>
                         <th rowspan="2">NIK</th>
-                        <th rowspan="2">Nama</th>
-                        <th rowspan="2">Group</th>
+                        <th rowspan="2">{{ __('Nama') }}</th>
+                        <th rowspan="2">{{ __('Group') }}</th>
                         <th rowspan="2">Shift</th>
-                        <th colspan="{{ count($kategoris) }}">Kategori Absensi</th>
-                        <th rowspan="2">Keterangan</th>
-                        <th rowspan="2">Durasi Libur</th>
-                        <th rowspan="2">Status MP</th>
+                        <th colspan="{{ count($kategoris) }}">{{ __('Kategori Absensi') }}</th>
+                        <th rowspan="2">{{ __('Keterangan') }}</th>
+                        <th rowspan="2">{{ __('Durasi Libur') }}</th>
+                        <th rowspan="2">{{ __('Status MP') }}</th>
                     </tr>
                     <tr>
                         @foreach ($kategoris as $kategori)
@@ -176,12 +176,12 @@
                                 <td class="kat" @if ($row['kategori'] === $kategori) title="{{ $kodes[$row['kode']]['label'] ?? $row['kode'] }}" @endif>{{ $row['kategori'] === $kategori ? 1 : '' }}</td>
                             @endforeach
                             <td class="l ket">{{ $row['keterangan'] ?: ($kodes[$row['kode']]['label'] ?? $row['kode']) }}</td>
-                            <td>{{ $row['durasi'] }} Hari</td>
+                            <td>{{ __(':count Hari', ['count' => $row['durasi']]) }}</td>
                             <td>{{ $statusMp($karyawan->status) }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="{{ 8 + count($kategoris) }}" class="empty">
-                            {{ $section['grups'] ? 'Semua karyawan hadir.' : 'Grup shift belum diketahui — atur jadwal rotasi di atas.' }}
+                            {{ $section['grups'] ? __('Semua karyawan hadir.') : __('Grup shift belum diketahui — atur jadwal rotasi di atas.') }}
                         </td></tr>
                     @endforelse
                 </tbody>

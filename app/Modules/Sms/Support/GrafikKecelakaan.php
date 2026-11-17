@@ -43,7 +43,7 @@ class GrafikKecelakaan
         return [
             'work' => [
                 'title' => 'Work Accident',
-                'subtitle' => "Kasus per bulan — {$year} vs {$lastYear}",
+                'subtitle' => __('Kasus per bulan — :tahun vs :lalu', ['tahun' => $year, 'lalu' => $lastYear]),
                 'series' => [
                     self::series("Accident {$year}", self::COLOR_MONTHLY, self::cutOff(self::monthly($work, $year), $currentMonth)),
                     self::target(),
@@ -53,7 +53,7 @@ class GrafikKecelakaan
             ],
             'traffic' => [
                 'title' => 'Traffic Accident',
-                'subtitle' => "Akumulasi kasus per bulan — {$year} vs {$lastYear}",
+                'subtitle' => __('Akumulasi kasus per bulan — :tahun vs :lalu', ['tahun' => $year, 'lalu' => $lastYear]),
                 'series' => [
                     self::target(),
                     self::series("Acc.Accident {$lastYear}", self::COLOR_LAST_YEAR, self::cumulative(self::monthly($traffic, $lastYear))),
@@ -116,6 +116,6 @@ class GrafikKecelakaan
 
     private static function target(): array
     {
-        return ['label' => 'Target', 'color' => '#6b7a95', 'values' => array_fill(0, 12, 0), 'target' => true];
+        return ['label' => __('Target'), 'color' => '#6b7a95', 'values' => array_fill(0, 12, 0), 'target' => true];
     }
 }

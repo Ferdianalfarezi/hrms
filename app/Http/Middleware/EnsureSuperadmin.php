@@ -10,7 +10,7 @@ class EnsureSuperadmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless($request->user()?->is_superadmin, 403, 'Hanya super admin yang boleh mengakses halaman ini.');
+        abort_unless($request->user()?->is_superadmin, 403, __('Hanya super admin yang boleh mengakses halaman ini.'));
 
         return $next($request);
     }

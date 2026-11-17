@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Cross Patrol')
+@section('title', __('Cross Patrol'))
 
 @section('styles')
     @include('sms.partials.patrol-styles')
@@ -32,11 +32,11 @@
 
 <div class="dp-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Cross Patrol</h1>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Cross Patrol') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
-            Form temuan safety patrol
+            {{ __('Form temuan safety patrol') }}
             @if ($lockedDepartments->isNotEmpty())
-                · departemen
+                {{ __('· departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
@@ -47,58 +47,58 @@
         {{-- Export mengikuti filter yang sedang dipakai; data-turbo="false" karena hasilnya file, bukan halaman. --}}
         <a href="{{ route('sms.cross-patrols.export', $listFilters) }}" class="btn btn-ghost" data-turbo="false">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-            Export Excel
+            {{ __('Export Excel') }}
         </a>
         {{-- Tanpa centang = cetak semua hasil filter; ada centang = cetak yang dicentang saja. --}}
         <button type="button" class="btn btn-ghost" data-print-bulk data-total="{{ $patrols->total() }}" @disabled($patrols->total() === 0)>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            <span data-print-label>Print semua ({{ $patrols->total() }})</span>
+            <span data-print-label>{{ __('Print semua (:count)', ['count' => $patrols->total()]) }}</span>
         </button>
         @if ($canManage)
-            <button type="button" class="btn" data-create>+ Tambah Temuan</button>
+            <button type="button" class="btn" data-create>{{ __('+ Tambah Temuan') }}</button>
         @endif
     </div>
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 
 <form method="GET" class="filters">
-    <input type="date" name="tanggal" value="{{ $tanggal }}" onchange="this.form.requestSubmit()" aria-label="Tanggal" title="Tanggal (kosongkan untuk semua)">
-    <select name="plant" onchange="this.form.requestSubmit()" aria-label="Plant">
-        <option value="">Semua plant</option>
+    <input type="date" name="tanggal" value="{{ $tanggal }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal') }}" title="{{ __('Tanggal (kosongkan untuk semua)') }}">
+    <select name="plant" onchange="this.form.requestSubmit()" aria-label="{{ __('Plant') }}">
+        <option value="">{{ __('Semua plant') }}</option>
         @foreach ($plantOptions as $option)
             <option value="{{ $option }}" @selected($plant === $option)>{{ $option }}</option>
         @endforeach
     </select>
-    <select name="zona" onchange="this.form.requestSubmit()" aria-label="Zona" style="min-width: 120px;">
-        <option value="">Semua zona</option>
+    <select name="zona" onchange="this.form.requestSubmit()" aria-label="{{ __('Zona') }}" style="min-width: 120px;">
+        <option value="">{{ __('Semua zona') }}</option>
         @foreach ($zonas as $option)
-            <option value="{{ $option }}" @selected($zona === (string) $option)>Zona {{ $option }}</option>
+            <option value="{{ $option }}" @selected($zona === (string) $option)>{{ __('Zona') }} {{ $option }}</option>
         @endforeach
     </select>
-    <select name="status" onchange="this.form.requestSubmit()" aria-label="Status">
-        <option value="">Semua status</option>
-        <option value="open" @selected($status === 'open')>Open</option>
-        <option value="closed" @selected($status === 'closed')>Close</option>
+    <select name="status" onchange="this.form.requestSubmit()" aria-label="{{ __('Status') }}">
+        <option value="">{{ __('Semua status') }}</option>
+        <option value="open" @selected($status === 'open')>{{ __('Open') }}</option>
+        <option value="closed" @selected($status === 'closed')>{{ __('Close') }}</option>
     </select>
     @if ($canFilterDepartment)
-        <select name="department" onchange="this.form.requestSubmit()" aria-label="Departemen">
-            <option value="">Semua departemen</option>
+        <select name="department" onchange="this.form.requestSubmit()" aria-label="{{ __('Departemen') }}">
+            <option value="">{{ __('Semua departemen') }}</option>
             @foreach ($departments as $option)
                 <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
             @endforeach
         </select>
     @endif
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari finding / area / PIC / patroler...">
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari finding / area / PIC / patroler...') }}">
     @if ($listFilters)
-        <a href="{{ route('sms.cross-patrols.index') }}" class="btn btn-ghost btn-sm">Reset</a>
+        <a href="{{ route('sms.cross-patrols.index') }}" class="btn btn-ghost btn-sm">{{ __('Reset') }}</a>
     @endif
     <div class="summary">
-        <span class="chip">Total <b>{{ $patrols->total() }}</b></span>
-        <span class="chip chip-open">Open <b>{{ $statusCounts['open'] }}</b></span>
-        <span class="chip chip-closed">Close <b>{{ $statusCounts['closed'] }}</b></span>
+        <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
+        <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
+        <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
     </div>
 </form>
 
@@ -107,14 +107,14 @@
         <table class="patrol">
             <thead>
                 <tr>
-                    <th class="c-check"><input type="checkbox" data-check-all aria-label="Pilih semua di halaman ini" @disabled($patrols->isEmpty())></th>
-                    <th>No</th>
-                    <th>Tanggal</th>
-                    <th>Foto</th>
-                    <th>Finding</th>
-                    <th>Resiko</th>
-                    <th>Target</th>
-                    <th>Status</th>
+                    <th class="c-check"><input type="checkbox" data-check-all aria-label="{{ __('Pilih semua di halaman ini') }}" @disabled($patrols->isEmpty())></th>
+                    <th>{{ __('No') }}</th>
+                    <th>{{ __('Tanggal') }}</th>
+                    <th>{{ __('Foto') }}</th>
+                    <th>{{ __('Finding') }}</th>
+                    <th>{{ __('Resiko') }}</th>
+                    <th>{{ __('Target') }}</th>
+                    <th>{{ __('Status') }}</th>
                     <th></th>
                 </tr>
             </thead>
@@ -125,8 +125,8 @@
                         <td class="muted">{{ $patrols->firstItem() + $loop->index }}</td>
                         <td class="nowrap">{{ $patrol->tanggal->format('d M Y') }}</td>
                         <td>
-                            <button type="button" class="thumb" data-photo="{{ $patrol->foto_url }}" title="Lihat foto temuan">
-                                <img src="{{ $patrol->foto_url }}" alt="Foto temuan" loading="lazy">
+                            <button type="button" class="thumb" data-photo="{{ $patrol->foto_url }}" title="{{ __('Lihat foto temuan') }}">
+                                <img src="{{ $patrol->foto_url }}" alt="{{ __('Foto temuan') }}" loading="lazy">
                             </button>
                         </td>
                         <td class="c-finding" style="max-width: 360px;">
@@ -137,12 +137,12 @@
                         <td class="nowrap">{{ $patrol->target->format('d M Y') }}</td>
                         <td>
                             @if ($patrol->isClosed())
-                                <span class="status-pill status-closed" title="Ditutup {{ $patrol->closed_at?->format('d/m/Y H:i') }}">Close</span>
+                                <span class="status-pill status-closed" title="Ditutup {{ $patrol->closed_at?->format('d/m/Y H:i') }}">{{ __('Close') }}</span>
                                 @if ($patrol->closer)
-                                    <span class="closed-by">oleh <b>{{ $patrol->closer->name }}</b></span>
+                                    <span class="closed-by">{{ __('oleh') }} <b>{{ $patrol->closer->name }}</b></span>
                                 @endif
                             @else
-                                <span class="status-pill status-open">Open</span>
+                                <span class="status-pill status-open">{{ __('Open') }}</span>
                             @endif
                         </td>
                         <td style="text-align: right;">
@@ -183,7 +183,7 @@
                 @empty
                     <tr>
                         <td colspan="9" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $listFilters ? 'Data tidak ditemukan.' : 'Belum ada temuan Cross Patrol.' }}
+                            {{ $listFilters ? __('Data tidak ditemukan.') : __('Belum ada temuan Cross Patrol.') }}
                         </td>
                     </tr>
                 @endforelse
@@ -199,21 +199,21 @@
 <dialog class="modal" id="print-modal">
     <div class="modal-head">
         <div>
-            <h2>Preview Print</h2>
+            <h2>{{ __('Preview Print') }}</h2>
             <div class="muted small" id="print-info"></div>
         </div>
-        <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+        <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
     </div>
     <div class="print-frame-wrap">
-        <div class="print-loading" id="print-loading"><span class="spinner" aria-hidden="true"></span> Menyiapkan halaman...</div>
-        <iframe id="print-frame" title="Preview print"></iframe>
+        <div class="print-loading" id="print-loading"><span class="spinner" aria-hidden="true"></span> {{ __('Menyiapkan halaman...') }}</div>
+        <iframe id="print-frame" title="{{ __('Preview print') }}"></iframe>
     </div>
     <div class="modal-foot">
-        <span class="muted small" style="margin-right: auto;">Kertas A4 portrait · maksimal 25 kotak per halaman</span>
-        <button type="button" class="btn btn-ghost" data-close>Batal</button>
+        <span class="muted small" style="margin-right: auto;">{{ __('Kertas A4 portrait · maksimal 25 kotak per halaman') }}</span>
+        <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
         <button type="button" class="btn" id="print-go" disabled>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Print
+            {{ __('Print') }}
         </button>
     </div>
 </dialog>
@@ -230,24 +230,24 @@
                 <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
             @endforeach
             <div class="modal-head">
-                <h2 id="patrol-modal-title">Tambah Temuan</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="patrol-modal-title">{{ __('Tambah Temuan') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 @unless ($canManage)
-                    <div class="locked-note">Admin Departemen hanya bisa mengisi bagian <b>Perbaikan</b>. Data temuan lainnya diisi oleh Admin SMS.</div>
+                    <div class="locked-note">{{ __('Admin Departemen hanya bisa mengisi bagian') }} <b>{{ __('Perbaikan') }}</b>{{ __('. Data temuan lainnya diisi oleh Admin SMS.') }}</div>
                 @endunless
                 {{-- Admin Departemen: semua field temuan dikunci (abu-abu), hanya kotak Perbaikan yang bisa diisi. --}}
                 <fieldset class="patrol-main" @disabled(! $canManage)>
                 <div class="grid-2">
                     <div>
-                        <label for="f-tanggal">Tanggal</label>
+                        <label for="f-tanggal">{{ __('Tanggal') }}</label>
                         <input id="f-tanggal" type="date" name="tanggal" required>
                         @error('tanggal') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-plant">Plant</label>
-                        <input id="f-plant" type="text" name="plant" maxlength="50" placeholder="Mis. Zona 1" list="plant-list" required>
+                        <label for="f-plant">{{ __('Plant') }}</label>
+                        <input id="f-plant" type="text" name="plant" maxlength="50" placeholder="{{ __('Mis. Zona 1') }}" list="plant-list" required>
                         <datalist id="plant-list">
                             @foreach ($plantOptions as $option)
                                 <option value="{{ $option }}">
@@ -257,22 +257,22 @@
                     </div>
                 </div>
                 <div>
-                    <label for="f-zona">Zona</label>
+                    <label for="f-zona">{{ __('Zona') }}</label>
                     <select id="f-zona" name="zona" required>
-                        <option value="">-- Pilih Zona --</option>
+                        <option value="">{{ __('-- Pilih Zona --') }}</option>
                         @foreach ($zonas as $option)
-                            <option value="{{ $option }}">Zona {{ $option }}</option>
+                            <option value="{{ $option }}">{{ __('Zona') }} {{ $option }}</option>
                         @endforeach
                     </select>
                     @error('zona') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-finding">Finding</label>
-                    <textarea id="f-finding" name="finding" maxlength="2000" rows="2" placeholder="Mis. Kabel AC menjuntai" required></textarea>
+                    <label for="f-finding">{{ __('Finding') }}</label>
+                    <textarea id="f-finding" name="finding" maxlength="2000" rows="2" placeholder="{{ __('Mis. Kabel AC menjuntai') }}" required></textarea>
                     @error('finding') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-foto">Foto temuan <span class="muted" data-edit-only>(kosongkan kalau tidak diganti)</span></label>
+                    <label for="f-foto">{{ __('Foto temuan') }} <span class="muted" data-edit-only>{{ __('(kosongkan kalau tidak diganti)') }}</span></label>
                     <div class="photo-field">
                         <img class="photo-preview" id="preview-foto" alt="" hidden>
                         <input id="f-foto" type="file" name="foto" accept="image/*" data-photo-input data-preview="preview-foto">
@@ -281,16 +281,16 @@
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-efek">Efek / Impact</label>
-                        <input id="f-efek" type="text" name="efek" maxlength="2000" placeholder="Mis. Tersetrum" required>
+                        <label for="f-efek">{{ __('Efek / Impact') }}</label>
+                        <input id="f-efek" type="text" name="efek" maxlength="2000" placeholder="{{ __('Mis. Tersetrum') }}" required>
                         @error('efek') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-resiko">Tingkat Resiko Bahaya</label>
+                        <label for="f-resiko">{{ __('Tingkat Resiko Bahaya') }}</label>
                         <select id="f-resiko" name="resiko" required>
-                            <option value="">-- Pilih --</option>
+                            <option value="">{{ __('-- Pilih --') }}</option>
                             @foreach ($resikos as $kode => $info)
-                                <option value="{{ $kode }}">{{ $info['label'] }}</option>
+                                <option value="{{ $kode }}">{{ __($info['label']) }}</option>
                             @endforeach
                         </select>
                         @error('resiko') <div class="field-error">{{ $message }}</div> @enderror
@@ -298,15 +298,15 @@
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-area">Area</label>
-                        <input id="f-area" type="text" name="area" maxlength="100" placeholder="Mis. OBEYA, QAD" required>
+                        <label for="f-area">{{ __('Area') }}</label>
+                        <input id="f-area" type="text" name="area" maxlength="100" placeholder="{{ __('Mis. OBEYA, QAD') }}" required>
                         @error('area') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-department_id">Departemen</label>
+                        <label for="f-department_id">{{ __('Departemen') }}</label>
                         @if ($canFilterDepartment)
                             <select id="f-department_id" name="department_id" required>
-                                <option value="">-- Pilih Departemen --</option>
+                                <option value="">{{ __('-- Pilih Departemen --') }}</option>
                                 @foreach ($departments as $option)
                                     <option value="{{ $option->id }}">{{ $option->name }}</option>
                                 @endforeach
@@ -318,24 +318,24 @@
                     </div>
                 </div>
                 <div>
-                    <label for="f-rekomendasi">Rekomendasi Perbaikan</label>
-                    <textarea id="f-rekomendasi" name="rekomendasi" maxlength="2000" rows="2" placeholder="Mis. Kabel AC dirapikan" required></textarea>
+                    <label for="f-rekomendasi">{{ __('Rekomendasi Perbaikan') }}</label>
+                    <textarea id="f-rekomendasi" name="rekomendasi" maxlength="2000" rows="2" placeholder="{{ __('Mis. Kabel AC dirapikan') }}" required></textarea>
                     @error('rekomendasi') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-target">Target Perbaikan</label>
+                        <label for="f-target">{{ __('Target Perbaikan') }}</label>
                         <input id="f-target" type="date" name="target" required>
                         @error('target') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-kategori">Kategori</label>
+                        <label for="f-kategori">{{ __('Kategori') }}</label>
                         <select id="f-kategori" name="kategori" required>
-                            <option value="">-- Pilih Kategori --</option>
+                            <option value="">{{ __('-- Pilih Kategori --') }}</option>
                             @foreach ($kategoris as $group => $options)
-                                <optgroup label="── {{ $group }} ──">
+                                <optgroup label="── {{ __($group) }} ──">
                                     @foreach ($options as $kode => $label)
-                                        <option value="{{ $kode }}">{{ $label }}</option>
+                                        <option value="{{ $kode }}">{{ __($label) }}</option>
                                     @endforeach
                                 </optgroup>
                             @endforeach
@@ -352,8 +352,8 @@
                 @include('sms.partials.patrol-fix-fields')
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" id="patrol-submit">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" id="patrol-submit">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -390,8 +390,8 @@
                 checkAll.indeterminate = ids.length > 0 && ids.length < checks.length;
             }
             bulk.querySelector('[data-print-label]').textContent = ids.length
-                ? 'Print ' + ids.length + ' terpilih'
-                : 'Print semua (' + bulk.dataset.total + ')';
+                ? __t('Print :count terpilih', { count: ids.length })
+                : __t('Print semua (:count)', { count: bulk.dataset.total });
         }
 
         function openPreview(params) {
@@ -410,8 +410,8 @@
             var cards = doc ? doc.querySelectorAll('.card').length : 0;
             var pages = doc ? doc.querySelectorAll('.sheet').length : 0;
             document.getElementById('print-info').textContent = cards
-                ? cards + ' kotak · ' + pages + ' halaman A4'
-                : 'Tidak ada temuan untuk dicetak.';
+                ? __t(':cards kotak · :pages halaman A4', { cards: cards, pages: pages })
+                : __t('Tidak ada temuan untuk dicetak.');
             loading.hidden = true;
             go.disabled = cards === 0;
         });

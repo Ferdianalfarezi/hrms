@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Absensi')
+@section('title', __('Absensi'))
 
 @push('head')
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}">
@@ -128,11 +128,11 @@
 
 <div class="ent-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Absensi Karyawan</h1>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Absensi Karyawan') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
             {{ $tanggal->translatedFormat('l, d F Y') }}
             @if ($lockedDepartments->isNotEmpty())
-                · departemen
+                {{ __('· departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
@@ -140,7 +140,7 @@
         </p>
     </div>
     @if ($canEdit)
-        <button type="button" class="btn" data-create>+ Tambah Absensi</button>
+        <button type="button" class="btn" data-create>{{ __('+ Tambah Absensi') }}</button>
     @endif
 </div>
 
@@ -149,21 +149,21 @@
 @enderror
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 
 <form method="GET" class="filters">
     <span class="day-nav">
-        <a href="{{ route('hrms.absensi.index', ['tanggal' => $prev]) }}" title="Hari sebelumnya">&lsaquo;</a>
-        <a href="{{ route('hrms.absensi.index') }}">Hari ini</a>
-        <a href="{{ route('hrms.absensi.index', ['tanggal' => $next]) }}" title="Hari berikutnya">&rsaquo;</a>
+        <a href="{{ route('hrms.absensi.index', ['tanggal' => $prev]) }}" title="{{ __('Hari sebelumnya') }}">&lsaquo;</a>
+        <a href="{{ route('hrms.absensi.index') }}">{{ __('Hari ini') }}</a>
+        <a href="{{ route('hrms.absensi.index', ['tanggal' => $next]) }}" title="{{ __('Hari berikutnya') }}">&rsaquo;</a>
     </span>
-    <input type="text" name="tanggal" value="{{ $tanggal->toDateString() }}" data-weekday-picker data-submit aria-label="Tanggal">
-    <input type="search" name="q" value="{{ $search }}" placeholder="Cari NIK / nama...">
+    <input type="text" name="tanggal" value="{{ $tanggal->toDateString() }}" data-weekday-picker data-submit aria-label="{{ __('Tanggal') }}">
+    <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('Cari NIK / nama...') }}">
     <div class="summary">
-        <span class="chip hadir">Hadir <b>{{ $karyawans->count() - $tidakHadir }}</b></span>
-        <span class="chip absen">Tidak hadir <b>{{ $tidakHadir }}</b></span>
-        <span class="chip" style="background: var(--glass-strong);">dari {{ $karyawans->count() }} karyawan</span>
+        <span class="chip hadir">{{ __('Hadir') }} <b>{{ $karyawans->count() - $tidakHadir }}</b></span>
+        <span class="chip absen">{{ __('Tidak hadir') }} <b>{{ $tidakHadir }}</b></span>
+        <span class="chip" style="background: var(--glass-strong);">{{ __('dari :count karyawan', ['count' => $karyawans->count()]) }}</span>
     </div>
 </form>
 
@@ -172,14 +172,14 @@
         <table>
             <thead>
                 <tr>
-                    <th>No</th>
+                    <th>{{ __('No') }}</th>
                     <th>NIK</th>
-                    <th>Nama</th>
-                    <th>Group</th>
-                    <th>Kode</th>
-                    <th>Keterangan</th>
-                    <th>Diinput oleh</th>
-                    <th>Status</th>
+                    <th>{{ __('Nama') }}</th>
+                    <th>{{ __('Group') }}</th>
+                    <th>{{ __('Kode') }}</th>
+                    <th>{{ __('Keterangan') }}</th>
+                    <th>{{ __('Diinput oleh') }}</th>
+                    <th>{{ __('Status') }}</th>
                     @if ($canEdit)
                         <th></th>
                     @endif
@@ -199,9 +199,9 @@
                         <td class="nowrap">{{ $absensi->karyawan->group ?? '-' }}</td>
                         <td class="nowrap"><i class="k k-tag k-{{ $info['tone'] }}">{{ $absensi->kode }}</i> <span class="small muted">{{ $info['label'] }}</span>
                             @if ($absensi->menit_terlambat)
-                                <span class="badge" style="margin-left: 4px;">{{ $absensi->menit_terlambat }} menit</span>
+                                <span class="badge" style="margin-left: 4px;">{{ __(':menit menit', ['menit' => $absensi->menit_terlambat]) }}</span>
                             @elseif (in_array($absensi->kode, $kodeTerlambat, true))
-                                <span class="badge badge-off" style="margin-left: 4px;" title="Edit untuk mengisi menit terlambat">menit belum diisi</span>
+                                <span class="badge badge-off" style="margin-left: 4px;" title="{{ __('Edit untuk mengisi menit terlambat') }}">{{ __('menit belum diisi') }}</span>
                             @endif
                         </td>
                         <td>{{ $absensi->keterangan ?: '-' }}</td>
@@ -209,9 +209,9 @@
                         <td>
                             @if ($approval)
                                 <span class="ap-badge ap-{{ $approval->statusTone() }}"
-                                      title="{{ $approval->isDeletion() ? 'Pengajuan hapus' : 'Pengajuan ubah ke '.$approval->kode_baru }}{{ $approval->catatan_review ? ' · Catatan HRD: '.$approval->catatan_review : '' }}">{{ $approval->statusLabel() }}</span>
+                                      title="{{ $approval->isDeletion() ? __('Pengajuan hapus') : __('Pengajuan ubah ke :kode', ['kode' => $approval->kode_baru]) }}{{ $approval->catatan_review ? ' · '.__('Catatan HRD').': '.$approval->catatan_review : '' }}">{{ $approval->statusLabel() }}</span>
                                 @if (! $pending && $approval->catatan_review)
-                                    <div class="small muted" style="margin-top: 2px;">Catatan HRD: {{ $approval->catatan_review }}</div>
+                                    <div class="small muted" style="margin-top: 2px;">{{ __('Catatan HRD') }}: {{ $approval->catatan_review }}</div>
                                 @endif
                             @else
                                 <span class="muted">-</span>
@@ -227,9 +227,9 @@
                                             'kode' => $absensi->kode,
                                             'menit_terlambat' => $absensi->menit_terlambat,
                                             'keterangan' => $absensi->keterangan,
-                                        ]) }}">Edit</button>
+                                        ]) }}">{{ __('Edit') }}</button>
                                 <button type="button" class="btn btn-danger btn-sm" data-delete="{{ $absensi->id }}"
-                                        data-name="{{ $absensi->karyawan->nik }} - {{ $absensi->karyawan->nama }}">Hapus</button>
+                                        data-name="{{ $absensi->karyawan->nik }} - {{ $absensi->karyawan->nama }}">{{ __('Hapus') }}</button>
                                 @endunless
                             </td>
                         @endif
@@ -237,7 +237,7 @@
                 @empty
                     <tr>
                         <td colspan="9" class="muted" style="text-align: center; padding: 32px;">
-                            {{ $search !== '' ? 'Data tidak ditemukan.' : 'Belum ada karyawan yang tidak hadir di tanggal ini — semua dianggap masuk.' }}
+                            {{ $search !== '' ? __('Data tidak ditemukan.') : __('Belum ada karyawan yang tidak hadir di tanggal ini — semua dianggap masuk.') }}
                         </td>
                     </tr>
                 @endforelse
@@ -254,58 +254,58 @@
             <input type="hidden" name="_method" value="POST">
             <input type="hidden" name="_modal" value="create">
             <div class="modal-head">
-                <h2 id="entry-modal-title">Tambah Absensi</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2 id="entry-modal-title">{{ __('Tambah Absensi') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body" style="display: grid; gap: 14px;">
                 <div>
-                    <label for="combo-trigger">Karyawan</label>
+                    <label for="combo-trigger">{{ __('Karyawan') }}</label>
                     <input type="hidden" name="karyawan_id" id="f-karyawan_id">
                     <div class="combo" id="karyawan-combo">
                         <button type="button" class="combo-trigger" id="combo-trigger" aria-haspopup="listbox" aria-expanded="false">
-                            <span id="combo-label" class="placeholder">Pilih karyawan...</span>
+                            <span id="combo-label" class="placeholder">{{ __('Pilih karyawan...') }}</span>
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
                         <div class="combo-panel" id="combo-panel" hidden>
-                            <input type="search" id="f-karyawan-search" placeholder="Ketik NIK / nama..." autocomplete="off" aria-label="Cari karyawan">
+                            <input type="search" id="f-karyawan-search" placeholder="{{ __('Ketik NIK / nama...') }}" autocomplete="off" aria-label="{{ __('Cari karyawan') }}">
                             <div class="combo-list" id="combo-list" role="listbox"></div>
-                            <div class="combo-hint" id="combo-hint">Ketik NIK atau nama untuk mencari.</div>
+                            <div class="combo-hint" id="combo-hint">{{ __('Ketik NIK atau nama untuk mencari.') }}</div>
                         </div>
                     </div>
                     @error('karyawan_id') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div class="grid-2">
                     <div>
-                        <label for="f-tanggal">Tanggal</label>
-                        <input id="f-tanggal" type="text" name="tanggal" placeholder="Pilih tanggal" data-weekday-picker required>
+                        <label for="f-tanggal">{{ __('Tanggal') }}</label>
+                        <input id="f-tanggal" type="text" name="tanggal" placeholder="{{ __('Pilih tanggal') }}" data-weekday-picker required>
                         @error('tanggal') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div data-create-only>
-                        <label for="f-sampai">Sampai <span class="muted">(opsional)</span></label>
-                        <input id="f-sampai" type="text" name="sampai" placeholder="Pilih tanggal" data-weekday-picker>
+                        <label for="f-sampai">{{ __('Sampai') }} <span class="muted">{{ __('(opsional)') }}</span></label>
+                        <input id="f-sampai" type="text" name="sampai" placeholder="{{ __('Pilih tanggal') }}" data-weekday-picker>
                         @error('sampai') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                 </div>
-                <div class="muted small" data-create-only style="margin-top: -6px;">Hanya hari Senin - Jumat. Isi "Sampai" untuk cuti / sakit beberapa hari; Sabtu & Minggu dilewati.</div>
+                <div class="muted small" data-create-only style="margin-top: -6px;">{{ __('Hanya hari Senin - Jumat. Isi "Sampai" untuk cuti / sakit beberapa hari; Sabtu & Minggu dilewati.') }}</div>
                 <div>
-                    <label for="f-pilih-alasan">Alasan tidak masuk</label>
+                    <label for="f-pilih-alasan">{{ __('Alasan tidak masuk') }}</label>
                     <select id="f-pilih-alasan" name="pilihan_alasan">
-                        <option value="">Pilih alasan (kode terisi otomatis)...</option>
+                        <option value="">{{ __('Pilih alasan (kode terisi otomatis)...') }}</option>
                         @foreach (\App\Modules\Hrms\Models\Absensi::ALASAN as $kategoriAlasan => $alasans)
-                            <optgroup label="{{ $kategoriAlasan }}">
+                            <optgroup label="{{ __($kategoriAlasan) }}">
                                 @foreach ($alasans as $alasan => $kodeAlasan)
-                                    <option value="{{ $alasan }}" data-alasan-kode="{{ $kodeAlasan }}">{{ $alasan }} ({{ $kodeAlasan }})</option>
+                                    <option value="{{ $alasan }}" data-alasan-kode="{{ $kodeAlasan }}">{{ __($alasan) }} ({{ $kodeAlasan }})</option>
                                 @endforeach
                             </optgroup>
                         @endforeach
-                        <option value="{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }}">{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }} (pilih kode sendiri, keterangan wajib)</option>
+                        <option value="{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }}">{{ __(\App\Modules\Hrms\Models\Absensi::ALASAN_LAIN) }} {{ __('(pilih kode sendiri, keterangan wajib)') }}</option>
                     </select>
-                    <div class="muted small" style="margin-top: 4px;">Untuk terlambat / pulang cepat / WFH, langsung pilih kodenya di bawah.</div>
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Untuk terlambat / pulang cepat / WFH, langsung pilih kodenya di bawah.') }}</div>
                 </div>
                 <div>
-                    <label for="f-kode">Kode</label>
+                    <label for="f-kode">{{ __('Kode') }}</label>
                     <select id="f-kode" name="kode" required>
-                        <option value="">Pilih kode...</option>
+                        <option value="">{{ __('Pilih kode...') }}</option>
                         @foreach ($kodes as $kode => $info)
                             <option value="{{ $kode }}">{{ $kode }} — {{ $info['label'] }}</option>
                         @endforeach
@@ -313,34 +313,34 @@
                     @error('kode') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div data-menit-field hidden>
-                    <label for="f-menit_terlambat">Terlambat berapa menit?</label>
-                    <input id="f-menit_terlambat" type="number" name="menit_terlambat" min="1" max="720" placeholder="Mis. 45" inputmode="numeric">
-                    <div class="muted small" style="margin-top: 4px;">Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT&lt; tidak perlu diisi, otomatis 30 menit.</div>
+                    <label for="f-menit_terlambat">{{ __('Terlambat berapa menit?') }}</label>
+                    <input id="f-menit_terlambat" type="number" name="menit_terlambat" min="1" max="720" placeholder="{{ __('Mis. 45') }}" inputmode="numeric">
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< tidak perlu diisi, otomatis 30 menit.') }}</div>
                     @error('menit_terlambat') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
-                    <label for="f-keterangan">Keterangan <span class="muted" data-ket-hint>(opsional)</span></label>
-                    <input id="f-keterangan" type="text" name="keterangan" maxlength="255" placeholder="Mis. Cuti pulang kampung, sakit demam, DT 07:27">
+                    <label for="f-keterangan">{{ __('Keterangan') }} <span class="muted" data-ket-hint>{{ __('(opsional)') }}</span></label>
+                    <input id="f-keterangan" type="text" name="keterangan" maxlength="255" placeholder="{{ __('Mis. Cuti pulang kampung, sakit demam, DT 07:27') }}">
                     @error('keterangan') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 {{-- Edit data yang sudah ada = pengajuan ke HRD, absensi baru berubah setelah disetujui. --}}
                 <div class="approval-box" data-edit-only hidden>
-                    <div class="note">Perubahan akan berstatus <strong>Menunggu approval HRD</strong>. Data absensi baru berubah setelah disetujui Admin HRMS.</div>
+                    <div class="note">{{ __('Perubahan akan berstatus') }} <strong>{{ __('Menunggu approval HRD') }}</strong>{{ __('. Data absensi baru berubah setelah disetujui Admin HRMS.') }}</div>
                     <div>
-                        <label for="f-alasan">Alasan perubahan</label>
-                        <textarea id="f-alasan" name="alasan" rows="2" maxlength="1000" placeholder="Mis. Karyawan ternyata sakit, surat dokter baru diserahkan"></textarea>
+                        <label for="f-alasan">{{ __('Alasan perubahan') }}</label>
+                        <textarea id="f-alasan" name="alasan" rows="2" maxlength="1000" placeholder="{{ __('Mis. Karyawan ternyata sakit, surat dokter baru diserahkan') }}"></textarea>
                         @error('alasan') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label for="f-evidence">Evidence <span class="muted" data-evidence-hint>(opsional, JPG/PNG/PDF maks. 5 MB)</span></label>
+                        <label for="f-evidence">{{ __('Evidence') }} <span class="muted" data-evidence-hint>{{ __('(opsional, JPG/PNG/PDF maks. 5 MB)') }}</span></label>
                         <input id="f-evidence" type="file" name="evidence" accept=".jpg,.jpeg,.png,.webp,.pdf">
                         @error('evidence') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" id="entry-submit">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" id="entry-submit">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -351,21 +351,21 @@
             @csrf
             @method('DELETE')
             <div class="modal-head">
-                <h2>Hapus Absensi</h2>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <h2>{{ __('Hapus Absensi') }}</h2>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <input type="hidden" name="_delete_id" id="delete-id">
             <div class="modal-body" style="display: grid; gap: 14px;">
-                <div>Ajukan penghapusan data absensi <strong id="delete-name"></strong>? Setelah disetujui HRD, karyawan dianggap <strong>masuk</strong> di tanggal ini.</div>
+                <div>{{ __('Ajukan penghapusan data absensi') }} <strong id="delete-name"></strong>{{ __('? Setelah disetujui HRD, karyawan dianggap') }} <strong>{{ __('masuk') }}</strong> {{ __('di tanggal ini.') }}</div>
                 <div>
-                    <label for="delete-alasan">Alasan penghapusan</label>
-                    <textarea id="delete-alasan" name="alasan" rows="2" maxlength="1000" required placeholder="Mis. Salah input, karyawan ternyata masuk">{{ old('_delete_id') ? old('alasan') : '' }}</textarea>
+                    <label for="delete-alasan">{{ __('Alasan penghapusan') }}</label>
+                    <textarea id="delete-alasan" name="alasan" rows="2" maxlength="1000" required placeholder="{{ __('Mis. Salah input, karyawan ternyata masuk') }}">{{ old('_delete_id') ? old('alasan') : '' }}</textarea>
                     @error('alasan', 'hapus') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" style="background: var(--danger);">Ajukan Hapus</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" style="background: var(--danger);">{{ __('Ajukan Hapus') }}</button>
             </div>
         </form>
     </dialog>
@@ -408,7 +408,7 @@
             var sakit = editing && kodeSakit.indexOf(kode) !== -1;
             form.elements.evidence.required = sakit;
             modal.querySelector('[data-evidence-hint]').textContent = sakit
-                ? '(wajib: surat dokter, JPG/PNG/PDF maks. 5 MB)' : '(opsional, JPG/PNG/PDF maks. 5 MB)';
+                ? __t('(wajib: surat dokter, JPG/PNG/PDF maks. 5 MB)') : __t('(opsional, JPG/PNG/PDF maks. 5 MB)');
         }
         form.elements.kode.addEventListener('change', syncKode);
 
@@ -469,7 +469,7 @@
         function choose(id) {
             hidden.value = id || '';
             var label = document.getElementById('combo-label');
-            label.textContent = id ? labelOf(id) : 'Pilih karyawan...';
+            label.textContent = id ? labelOf(id) : __t('Pilih karyawan...');
             label.classList.toggle('placeholder', !id);
         }
 
@@ -488,9 +488,9 @@
                 list.appendChild(option);
             });
             hint.hidden = term !== '' && results.length > 0 && results.length <= MAX_RESULTS;
-            hint.textContent = term === '' ? 'Ketik NIK atau nama untuk mencari.'
-                : results.length === 0 ? 'Karyawan tidak ditemukan.'
-                : 'Menampilkan ' + MAX_RESULTS + ' dari ' + results.length + ' hasil, perjelas kata kunci.';
+            hint.textContent = term === '' ? __t('Ketik NIK atau nama untuk mencari.')
+                : results.length === 0 ? __t('Karyawan tidak ditemukan.')
+                : __t('Menampilkan :max dari :count hasil, perjelas kata kunci.', { max: MAX_RESULTS, count: results.length });
         }
 
         function setActive(index) {
@@ -539,7 +539,7 @@
             if (!hidden.disabled && !hidden.value) {
                 event.preventDefault();
                 open();
-                hint.textContent = 'Pilih karyawan dulu.';
+                hint.textContent = __t('Pilih karyawan dulu.');
             }
         });
 
@@ -547,7 +547,7 @@
             form.action = id ? updateUrl.replace('__ID__', id) : storeUrl;
             form.elements._method.value = id ? 'PUT' : 'POST';
             form.elements._modal.value = id ? 'edit:' + id : 'create';
-            document.getElementById('entry-modal-title').textContent = id ? 'Edit Absensi' : 'Tambah Absensi';
+            document.getElementById('entry-modal-title').textContent = id ? __t('Edit Absensi') : __t('Tambah Absensi');
             close();
             choose(record && record.karyawan_id);
             fields.forEach(function (name) {
@@ -566,7 +566,7 @@
             form.elements.alasan.required = !!id;
             form.elements.evidence.disabled = !id;
             form.elements.evidence.value = '';
-            document.getElementById('entry-submit').textContent = id ? 'Ajukan Perubahan' : 'Simpan';
+            document.getElementById('entry-submit').textContent = id ? __t('Ajukan Perubahan') : __t('Simpan');
             syncKode();
             syncAlasan();
             // Kalender (flatpickr) diselaraskan dengan nilai yang baru diisi.
@@ -662,7 +662,7 @@
                         // Tombol Clear & Today seperti date picker bawaan browser.
                         var foot = document.createElement('div');
                         foot.className = 'dp-foot';
-                        foot.innerHTML = '<button type="button" data-clear>Clear</button><button type="button" data-today>Today</button>';
+                        foot.innerHTML = '<button type="button" data-clear>' + __t('Hapus') + '</button><button type="button" data-today>' + __t('Hari ini') + '</button>';
                         foot.querySelector('[data-clear]').addEventListener('click', function () { picker.clear(); picker.close(); });
                         foot.querySelector('[data-today]').addEventListener('click', function () {
                             picker.jumpToDate(new Date());

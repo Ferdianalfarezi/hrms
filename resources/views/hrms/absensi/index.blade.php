@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Absensi')
+@section('title', __('Absensi'))
 
 @section('styles')
     .abs-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -113,15 +113,15 @@
 
 <div class="abs-head">
     <div>
-        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">Laporan Absensi Harian</h1>
+        <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Laporan Absensi Harian') }}</h1>
         <p class="muted" style="margin: 2px 0 0;">
             @if ($tidakMasuk)
-                {{ $tanggal->translatedFormat('l, d F Y') }} · {{ $karyawans->count() }} karyawan tidak masuk
+                {{ $tanggal->translatedFormat('l, d F Y') }} · {{ __(':count karyawan tidak masuk', ['count' => $karyawans->count()]) }}
             @else
-                {{ $tanggal->translatedFormat('F Y') }} · {{ $karyawans->count() }} karyawan
+                {{ $tanggal->translatedFormat('F Y') }} · {{ __(':count karyawan', ['count' => $karyawans->count()]) }}
             @endif
             @if ($lockedDepartments->isNotEmpty())
-                · departemen
+                {{ __('· departemen') }}
                 @foreach ($lockedDepartments as $lockedDepartment)
                     <span class="badge">{{ $lockedDepartment->name }}</span>
                 @endforeach
@@ -131,56 +131,56 @@
     <div class="abs-hint">
         @if ($canEdit)
             <p class="muted small" style="margin: 0; max-width: 340px; text-align: right;">
-                Klik sel pada tanggal untuk mengisi keterangan. Sel kosong berarti karyawan <strong>masuk</strong>.
+                {{ __('Klik sel pada tanggal untuk mengisi keterangan. Sel kosong berarti karyawan') }} <strong>{{ __('masuk') }}</strong>.
                 @unless ($isAdmin)
-                    Mengubah data yang sudah terisi lewat menu <a href="{{ route('hrms.absensi.index') }}" style="text-decoration: underline;">Daftar</a> (perlu approval HRD).
+                    {{ __('Mengubah data yang sudah terisi lewat menu') }} <a href="{{ route('hrms.absensi.index') }}" style="text-decoration: underline;">{{ __('Daftar') }}</a> {{ __('(perlu approval HRD).') }}
                 @endunless
             </p>
         @endif
         <button type="button" class="btn btn-ghost btn-sm" data-open-legend>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            Keterangan kode
+            {{ __('Keterangan kode') }}
         </button>
     </div>
 </div>
 
 @if ($missingDepartment)
-    <div class="alert">Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.</div>
+    <div class="alert">{{ __('Akun Anda adalah Admin Departemen tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif
 
 <div class="abs-toolbar-row">
 <form method="GET" class="abs-toolbar" id="abs-filter">
     <span class="day-nav">
-        <a href="{{ route($routeName, [...$prev, ...$keepFilters]) }}" title="{{ $tidakMasuk ? 'Hari' : 'Bulan' }} sebelumnya">&lsaquo;</a>
-        <a href="{{ route($routeName, $keepFilters) }}">{{ $tidakMasuk ? 'Hari ini' : 'Bulan ini' }}</a>
-        <a href="{{ route($routeName, [...$next, ...$keepFilters]) }}" title="{{ $tidakMasuk ? 'Hari' : 'Bulan' }} berikutnya">&rsaquo;</a>
+        <a href="{{ route($routeName, [...$prev, ...$keepFilters]) }}" title="{{ $tidakMasuk ? __('Hari sebelumnya') : __('Bulan sebelumnya') }}">&lsaquo;</a>
+        <a href="{{ route($routeName, $keepFilters) }}">{{ $tidakMasuk ? __('Hari ini') : __('Bulan ini') }}</a>
+        <a href="{{ route($routeName, [...$next, ...$keepFilters]) }}" title="{{ $tidakMasuk ? __('Hari berikutnya') : __('Bulan berikutnya') }}">&rsaquo;</a>
     </span>
     @if ($tidakMasuk)
-        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal tidak masuk">
+        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal tidak masuk') }}">
     @else
-        <input type="month" name="bulan" value="{{ $tanggal->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="Bulan">
+        <input type="month" name="bulan" value="{{ $tanggal->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Bulan') }}">
     @endif
-    <select name="status" onchange="this.form.requestSubmit()" aria-label="Status">
-        <option value="">Semua karyawan</option>
-        <option value="tidak_masuk" @selected($tidakMasuk)>Tidak masuk</option>
+    <select name="status" onchange="this.form.requestSubmit()" aria-label="{{ __('Status') }}">
+        <option value="">{{ __('Semua karyawan') }}</option>
+        <option value="tidak_masuk" @selected($tidakMasuk)>{{ __('Tidak masuk') }}</option>
     </select>
     @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()">
-            <option value="">Semua departemen</option>
+            <option value="">{{ __('Semua departemen') }}</option>
             @foreach ($departments as $option)
                 <option value="{{ $option->id }}" @selected($department === (string) $option->id)>{{ $option->name }}</option>
             @endforeach
-            <option value="none" @selected($department === 'none')>Tanpa departemen</option>
+            <option value="none" @selected($department === 'none')>{{ __('Tanpa departemen') }}</option>
         </select>
     @endif
     <select name="group" onchange="this.form.requestSubmit()" style="min-width: 130px;">
-        <option value="">Semua group</option>
+        <option value="">{{ __('Semua group') }}</option>
         @foreach ($groupOptions as $option)
-            <option value="{{ $option }}" @selected($group === $option)>Group {{ $option }}</option>
+            <option value="{{ $option }}" @selected($group === $option)>{{ __('Group') }} {{ $option }}</option>
         @endforeach
-        <option value="none" @selected($group === 'none')>Tanpa group</option>
+        <option value="none" @selected($group === 'none')>{{ __('Tanpa group') }}</option>
     </select>
-    <input type="search" id="abs-search" placeholder="Cari NIK / nama..." autocomplete="off">
+    <input type="search" id="abs-search" placeholder="{{ __('Cari NIK / nama...') }}" autocomplete="off">
 </form>
 
 {{-- Ringkasan tanggal terpilih, diisi oleh JS (ikut berubah saat sel disimpan). --}}
@@ -190,29 +190,29 @@
 {{-- Daftar arti kode, dibuka lewat tombol "Keterangan kode". --}}
 <dialog class="modal" id="legend-modal" style="width: min(520px, calc(100% - 32px));">
     <div class="modal-head">
-        <h2>Keterangan Kode Absensi</h2>
-        <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+        <h2>{{ __('Keterangan Kode Absensi') }}</h2>
+        <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
     </div>
     <div class="modal-body">
         <div class="legend-list">
             <div class="legend-item">
-                <span class="k k-tag" style="background: #86efac; color: #14532d;">hijau</span>
-                <span>Masuk</span>
+                <span class="k k-tag" style="background: #86efac; color: #14532d;">{{ __('hijau') }}</span>
+                <span>{{ __('Masuk') }}</span>
             </div>
             <div class="legend-item">
                 <span class="k k-tag" style="background: #86efac; color: #14532d;">I</span>
-                <span>Hijau berkode: hadir di mesin absen, tapi admin input tidak hadir (cek ulang)</span>
+                <span>{{ __('Hijau berkode: hadir di mesin absen, tapi admin input tidak hadir (cek ulang)') }}</span>
             </div>
             <div class="legend-item">
-                <span class="k k-tag k-red">merah</span>
-                <span>Tidak masuk di mesin absen, belum ada keterangan</span>
+                <span class="k k-tag k-red">{{ __('merah') }}</span>
+                <span>{{ __('Tidak masuk di mesin absen, belum ada keterangan') }}</span>
             </div>
             @foreach ($kodes as $kode => $info)
                 <div class="legend-item">
                     <span class="k k-tag k-{{ $info['tone'] }}">{{ $kode }}</span>
                     <span>{{ $info['label'] }}</span>
                     @if ($info['hadir'])
-                        <span class="badge" style="margin-left: auto;">dihitung hadir</span>
+                        <span class="badge" style="margin-left: auto;">{{ __('dihitung hadir') }}</span>
                     @endif
                 </div>
             @endforeach
@@ -224,14 +224,14 @@
     <table class="abs" id="abs-table" data-month="{{ $tanggal->format('Y-m') }}">
         <thead>
             <tr>
-                <th class="c-no" rowspan="2">No</th>
+                <th class="c-no" rowspan="2">{{ __('No') }}</th>
                 <th class="c-nik" rowspan="2">NIK</th>
-                <th class="c-nama" rowspan="2">Nama Karyawan</th>
-                <th class="c-group" rowspan="2">Group</th>
-                <th class="c-bagian" rowspan="2">Bagian</th>
+                <th class="c-nama" rowspan="2">{{ __('Nama Karyawan') }}</th>
+                <th class="c-group" rowspan="2">{{ __('Group') }}</th>
+                <th class="c-bagian" rowspan="2">{{ __('Bagian') }}</th>
                 <th colspan="{{ $days->count() }}">{{ $tanggal->translatedFormat('F Y') }}</th>
-                <th colspan="{{ count($kodes) + 1 }}">Rekap bulan ini</th>
-                <th class="c-ket" rowspan="2">Keterangan {{ $tanggal->translatedFormat('d M') }}</th>
+                <th colspan="{{ count($kodes) + 1 }}">{{ __('Rekap bulan ini') }}</th>
+                <th class="c-ket" rowspan="2">{{ __('Keterangan') }} {{ $tanggal->translatedFormat('d M') }}</th>
             </tr>
             <tr>
                 @foreach ($days as $day)
@@ -242,7 +242,7 @@
                 @foreach ($kodes as $kode => $info)
                     <th class="sum" title="{{ $info['label'] }}">{{ $kode }}</th>
                 @endforeach
-                <th class="sum">Total</th>
+                <th class="sum">{{ __('Total') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -270,10 +270,10 @@
                             $tanpaKet = ! $mark && $mesinTanpaKet;
                             $label = $mark ? ($kodes[$mark['kode']]['label'] ?? $mark['kode']) : null;
                             $title = match (true) {
-                                $salahInput => 'Hadir di mesin absen · admin input '.$label.', cek ulang',
+                                $salahInput => __('Hadir di mesin absen · admin input :kode, cek ulang', ['kode' => $label]),
                                 $mark !== null => $label.($mark['menit'] ? ' · '.$mark['menit'].' menit' : '').($mark['keterangan'] ? ' · '.$mark['keterangan'] : ''),
-                                $tanpaKet => 'Tidak masuk · belum ada keterangan',
-                                default => 'Masuk',
+                                $tanpaKet => __('Tidak masuk · belum ada keterangan'),
+                                default => __('Masuk'),
                             };
                             // Admin Departemen hanya mengisi hari kerja (Senin - Jumat) yang masih kosong;
                             // mengubah data lama lewat menu Daftar karena perlu approval HRD.
@@ -297,7 +297,7 @@
             @empty
                 <tr>
                     <td colspan="{{ 6 + $days->count() + count($kodes) + 1 }}" class="muted" style="text-align: left; padding: 32px;">
-                        {{ $tidakMasuk ? 'Tidak ada karyawan yang tidak masuk di tanggal ini.' : 'Tidak ada karyawan untuk ditampilkan.' }}
+                        {{ $tidakMasuk ? __('Tidak ada karyawan yang tidak masuk di tanggal ini.') : __('Tidak ada karyawan untuk ditampilkan.') }}
                     </td>
                 </tr>
             @endforelse
@@ -307,7 +307,7 @@
                 @foreach ($kodes as $kode => $info)
                     <tr>
                         <td class="foot-label" colspan="5">
-                            @if ($loop->first)<strong style="color: var(--text);">DETAIL ABSENSI</strong> · @endif
+                            @if ($loop->first)<strong style="color: var(--text);">{{ __('DETAIL ABSENSI') }}</strong> · @endif
                             <i class="k k-tag k-{{ $info['tone'] }}">{{ $kode }}</i>
                         </td>
                         @foreach ($days as $day)
@@ -317,14 +317,14 @@
                     </tr>
                 @endforeach
                 <tr class="foot-total">
-                    <td class="foot-label" colspan="5"><strong style="color: var(--text);">Total tidak hadir</strong></td>
+                    <td class="foot-label" colspan="5"><strong style="color: var(--text);">{{ __('Total tidak hadir') }}</strong></td>
                     @foreach ($days as $day)
                         <td @class(['day', 'sun' => $day['weekend'], 'sel' => $day['selected']]) data-foot="absen" data-day="{{ $day['day'] }}">0</td>
                     @endforeach
                     <td colspan="{{ count($kodes) + 2 }}"></td>
                 </tr>
                 <tr class="foot-total">
-                    <td class="foot-label" colspan="5"><strong style="color: var(--text);">% tidak hadir</strong> <span class="small">dari {{ $karyawans->count() }} karyawan</span></td>
+                    <td class="foot-label" colspan="5"><strong style="color: var(--text);">{{ __('% tidak hadir') }}</strong> <span class="small">{{ __('dari :count karyawan', ['count' => $karyawans->count()]) }}</span></td>
                     @foreach ($days as $day)
                         <td @class(['day', 'sun' => $day['weekend'], 'sel' => $day['selected']]) data-foot="persen" data-day="{{ $day['day'] }}">0</td>
                     @endforeach
@@ -343,31 +343,31 @@
             <input type="hidden" name="tanggal">
             <div class="modal-head">
                 <div>
-                    <h2 id="abs-modal-title">Absensi</h2>
+                    <h2 id="abs-modal-title">{{ __('Absensi') }}</h2>
                     <div class="muted small" id="abs-modal-sub"></div>
                 </div>
-                <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+                <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="alert" id="abs-error" hidden></div>
                 <div style="margin-bottom: 16px;">
-                    <label for="abs-alasan">Alasan</label>
+                    <label for="abs-alasan">{{ __('Alasan') }}</label>
                     <select id="abs-alasan" name="pilihan_alasan">
-                        <option value="">Pilih alasan (kode terisi otomatis)...</option>
+                        <option value="">{{ __('Pilih alasan (kode terisi otomatis)...') }}</option>
                         @foreach (\App\Modules\Hrms\Models\Absensi::ALASAN as $kategoriAlasan => $alasans)
-                            <optgroup label="{{ $kategoriAlasan }}">
+                            <optgroup label="{{ __($kategoriAlasan) }}">
                                 @foreach ($alasans as $alasan => $kodeAlasan)
                                     <option value="{{ $alasan }}" data-alasan-kode="{{ $kodeAlasan }}">{{ $alasan }} ({{ $kodeAlasan }})</option>
                                 @endforeach
                             </optgroup>
                         @endforeach
-                        <option value="{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }}">{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }} (pilih kode sendiri, keterangan wajib)</option>
+                        <option value="{{ \App\Modules\Hrms\Models\Absensi::ALASAN_LAIN }}">{{ __(\App\Modules\Hrms\Models\Absensi::ALASAN_LAIN) }} {{ __('(pilih kode sendiri, keterangan wajib)') }}</option>
                     </select>
                 </div>
                 <div class="kode-grid">
                     <label class="kode-opt">
                         <input type="radio" name="kode" value="">
-                        <span><i class="k k-tag" style="background: var(--success-bg); color: var(--success);">✓</i>Masuk</span>
+                        <span><i class="k k-tag" style="background: var(--success-bg); color: var(--success);">✓</i>{{ __('Masuk') }}</span>
                     </label>
                     @foreach ($kodes as $kode => $info)
                         <label class="kode-opt">
@@ -377,18 +377,18 @@
                     @endforeach
                 </div>
                 <div style="margin-top: 16px;" id="abs-menit-wrap" hidden>
-                    <label for="abs-menit">Terlambat berapa menit?</label>
-                    <input id="abs-menit" type="number" name="menit_terlambat" min="1" max="720" placeholder="Mis. 45" inputmode="numeric" disabled>
-                    <div class="muted small" style="margin-top: 4px;">Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT&lt; tidak perlu diisi, otomatis 30 menit.</div>
+                    <label for="abs-menit">{{ __('Terlambat berapa menit?') }}</label>
+                    <input id="abs-menit" type="number" name="menit_terlambat" min="1" max="720" placeholder="{{ __('Mis. 45') }}" inputmode="numeric" disabled>
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< tidak perlu diisi, otomatis 30 menit.') }}</div>
                 </div>
                 <div style="margin-top: 16px;">
-                    <label for="abs-ket">Keterangan <span class="muted" id="abs-ket-hint">(opsional)</span></label>
-                    <input id="abs-ket" type="text" name="keterangan" maxlength="255" placeholder="Mis. PC 13:00, DT 07:27, surat dokter menyusul">
+                    <label for="abs-ket">{{ __('Keterangan') }} <span class="muted" id="abs-ket-hint">{{ __('(opsional)') }}</span></label>
+                    <input id="abs-ket" type="text" name="keterangan" maxlength="255" placeholder="{{ __('Mis. PC 13:00, DT 07:27, surat dokter menyusul') }}">
                 </div>
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>Batal</button>
-                <button type="submit" class="btn" id="abs-submit">Simpan</button>
+                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
+                <button type="submit" class="btn" id="abs-submit">{{ __('Simpan') }}</button>
             </div>
         </form>
     </dialog>
@@ -446,8 +446,8 @@
                 return headcount ? (Math.round(value * 1000 / headcount) / 10).toString().replace('.', ',') + '%' : '0%';
             };
             document.getElementById('day-summary').innerHTML =
-                '<span class="chip hadir">Hadir <b>' + hadir + '</b><span class="pct">' + pct(hadir) + '</span></span>'
-                + '<span class="chip absen">Tidak hadir <b>' + tidakHadir + '</b><span class="pct">' + pct(tidakHadir) + '</span></span>';
+                '<span class="chip hadir">' + __t('Hadir') + ' <b>' + hadir + '</b><span class="pct">' + pct(hadir) + '</span></span>'
+                + '<span class="chip absen">' + __t('Tidak hadir') + ' <b>' + tidakHadir + '</b><span class="pct">' + pct(tidakHadir) + '</span></span>';
         }
 
         // Pencarian cepat di browser (tidak mengubah angka rekap).
@@ -548,7 +548,7 @@
             document.getElementById('abs-modal-title').textContent = row.querySelector('.c-nama').textContent;
             var date = new Date(isoDate + 'T00:00:00');
             document.getElementById('abs-modal-sub').textContent = 'NIK ' + row.querySelector('.c-nik').textContent + ' · '
-                + date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                + date.toLocaleDateString(@json(__('id-ID')), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
             error.hidden = true;
             modal.showModal();
             (form.querySelector('input[name=kode]:checked') || form.querySelector('input[name=kode]')).focus();
@@ -563,7 +563,7 @@
             event.preventDefault();
             var submit = document.getElementById('abs-submit');
             submit.disabled = true;
-            submit.textContent = 'Menyimpan...';
+            submit.textContent = __t('Menyimpan...');
 
             fetch(form.action, {
                 method: 'POST',
@@ -573,9 +573,9 @@
                 return response.json().catch(function () { return {}; }).then(function (body) { return { ok: response.ok, status: response.status, body: body }; });
             }).then(function (result) {
                 if (!result.ok) {
-                    var message = result.status === 403 ? 'Anda tidak berhak mengisi absensi karyawan ini.'
-                        : result.status === 419 ? 'Sesi habis, muat ulang halaman lalu coba lagi.'
-                        : (result.body.errors ? Object.values(result.body.errors)[0][0] : (result.body.message || 'Gagal menyimpan.'));
+                    var message = result.status === 403 ? __t('Anda tidak berhak mengisi absensi karyawan ini.')
+                        : result.status === 419 ? __t('Sesi habis, muat ulang halaman lalu coba lagi.')
+                        : (result.body.errors ? Object.values(result.body.errors)[0][0] : (result.body.message || __t('Gagal menyimpan.')));
                     error.textContent = message;
                     error.hidden = false;
                     return;
@@ -590,8 +590,8 @@
                 var tanpaKet = !kode && 'tanpaKet' in activeCell.dataset;
                 var salahInput = kode && !kodes[kode].hadir && 'hadirMesin' in activeCell.dataset;
                 activeCell.className = 'cell editable' + (kode && !salahInput ? ' k k-' + kodes[kode].tone : (tanpaKet ? ' tanpa-ket' : ('worked' in activeCell.dataset || salahInput ? ' present' : '')));
-                activeCell.title = salahInput ? 'Hadir di mesin absen · admin input ' + kodes[kode].label + ', cek ulang'
-                    : kode ? kodes[kode].label + (menit ? ' · ' + menit + ' menit' : '') + (ket ? ' · ' + ket : '') : (tanpaKet ? 'Tidak masuk · belum ada keterangan' : 'Masuk');
+                activeCell.title = salahInput ? __t('Hadir di mesin absen · admin input :kode, cek ulang', { kode: kodes[kode].label })
+                    : kode ? kodes[kode].label + (menit ? ' · ' + __t(':menit menit', { menit: menit }) : '') + (ket ? ' · ' + ket : '') : (tanpaKet ? __t('Tidak masuk · belum ada keterangan') : __t('Masuk'));
                 if (Number(activeCell.dataset.day) === selectedDay) {
                     activeCell.closest('tr').querySelector('[data-ket-selected]').textContent = ket;
                 }
@@ -600,11 +600,11 @@
                 recalc();
                 modal.close();
             }).catch(function () {
-                error.textContent = 'Tidak bisa terhubung ke server. Coba lagi.';
+                error.textContent = __t('Tidak bisa terhubung ke server. Coba lagi.');
                 error.hidden = false;
             }).finally(function () {
                 submit.disabled = false;
-                submit.textContent = 'Simpan';
+                submit.textContent = __t('Simpan');
             });
         });
     })();

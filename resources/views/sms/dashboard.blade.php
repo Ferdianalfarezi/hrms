@@ -117,33 +117,33 @@
     <div class="card a-cross stack-card" style="--i: 4;" data-stack-card="cross" data-stack-years="{{ json_encode($grafikCross['data']) }}">
         <div class="card-head">
             <div style="min-width: 0;">
-                <h2 class="card-title">Cross Patrol</h2>
-                <div class="muted small">Temuan per bulan</div>
+                <h2 class="card-title">{{ __('Cross Patrol') }}</h2>
+                <div class="muted small">{{ __('Temuan per bulan') }}</div>
             </div>
             <div class="temuan-tools">
-                <select data-stack-year aria-label="Tahun">
+                <select data-stack-year aria-label="{{ __('Tahun') }}">
                     @foreach ($grafikCross['years'] as $year)
                         <option value="{{ $year }}" @selected($year === $grafikCross['selected'])>{{ $year }}</option>
                     @endforeach
                 </select>
-                <button type="button" class="mini-btn" data-stack-expand title="Perbesar" aria-label="Perbesar grafik Cross Patrol per departemen">
+                <button type="button" class="mini-btn" data-stack-expand title="{{ __('Perbesar') }}" aria-label="{{ __('Perbesar grafik Cross Patrol per departemen') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                 </button>
                 @can('sms-patrol')
-                    <a href="{{ route('sms.cross-patrols.index') }}" class="mini-btn" title="Buka Cross Patrol">
+                    <a href="{{ route('sms.cross-patrols.index') }}" class="mini-btn" title="{{ __('Buka Cross Patrol') }}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg>
                     </a>
                 @endcan
             </div>
         </div>
         <div class="chart-plot chart-plot-sm" data-stack-plot role="img"
-             aria-label="Grafik temuan Cross Patrol per bulan, Open dan Close. Klik perbesar untuk rincian per departemen.">
+             aria-label="{{ __('Grafik temuan Cross Patrol per bulan, Open dan Close. Klik perbesar untuk rincian per departemen.') }}">
             <div class="chart-tip" hidden></div>
         </div>
         <div class="chart-legend chart-legend-sm">
-            <span><i class="swatch" style="--c: #eb6834;"></i>Open</span>
-            <span><i class="swatch" style="--c: #1baf7a;"></i>Close</span>
-            <span>Total <b data-stack-total></b></span>
+            <span><i class="swatch" style="--c: #eb6834;"></i>{{ __('Open') }}</span>
+            <span><i class="swatch" style="--c: #1baf7a;"></i>{{ __('Close') }}</span>
+            <span>{{ __('Total') }} <b data-stack-total></b></span>
         </div>
     </div>
 @endsection
@@ -159,10 +159,10 @@
     @foreach ($hariTanpa as $item)
         <div class="card" style="--i: 2;" data-hari-tanpa="{{ $item['tipe'] }}">
             <div class="status-top" style="gap: 12px;">
-                <h2 class="card-title" style="min-width: 0;">Hari Tanpa {{ $item['label'] }}</h2>
+                <h2 class="card-title" style="min-width: 0;">{{ __('Hari Tanpa :jenis', ['jenis' => __($item['label'])]) }}</h2>
                 <b data-count style="white-space: nowrap;">{{ $item['value'] }}</b>
             </div>
-            <div class="muted small" style="margin-top: 10px;">{{ $item['note'] }}</div>
+            <div class="muted small" style="margin-top: 10px;">{{ __($item['note']) }}</div>
         </div>
     @endforeach
     </div>
@@ -171,28 +171,28 @@
 @section('side-bottom')
     <div class="card temuan-card a-temuan" style="--i: 3;" data-temuan="{{ json_encode($grafikTemuan['data']) }}">
         <div class="card-head">
-            <h2 class="card-title">Temuan Daily Patrol</h2>
+            <h2 class="card-title">{{ __('Temuan Daily Patrol') }}</h2>
             <div class="temuan-tools">
-                <select data-temuan-month aria-label="Bulan">
-                    <option value="all">All</option>
+                <select data-temuan-month aria-label="{{ __('Bulan') }}">
+                    <option value="all">{{ __('All') }}</option>
                     @foreach (\App\Modules\Sms\Support\GrafikKecelakaan::MONTHS as $index => $monthLabel)
                         <option value="{{ $index + 1 }}" @selected($index + 1 === $grafikTemuan['selectedMonth'])>{{ ucfirst(strtolower($monthLabel)) }}</option>
                     @endforeach
                 </select>
-                <select data-temuan-year aria-label="Tahun">
+                <select data-temuan-year aria-label="{{ __('Tahun') }}">
                     @foreach ($grafikTemuan['years'] as $year)
                         <option value="{{ $year }}" @selected($year === $grafikTemuan['selected'])>{{ $year }}</option>
                     @endforeach
                 </select>
-                <button type="button" class="mini-btn" data-temuan-expand title="Perbesar" aria-label="Perbesar grafik temuan Daily Patrol">
+                <button type="button" class="mini-btn" data-temuan-expand title="{{ __('Perbesar') }}" aria-label="{{ __('Perbesar grafik temuan Daily Patrol') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                 </button>
             </div>
         </div>
         <div class="chart-legend chart-legend-sm" style="margin-top: 0;">
-            <span><i class="swatch" style="--c: #eb6834;"></i>Open</span>
-            <span><i class="swatch" style="--c: #1baf7a;"></i>Close</span>
-            <span>angka = total</span>
+            <span><i class="swatch" style="--c: #eb6834;"></i>{{ __('Open') }}</span>
+            <span><i class="swatch" style="--c: #1baf7a;"></i>{{ __('Close') }}</span>
+            <span>{{ __('angka = total') }}</span>
         </div>
         <div class="temuan-rows" data-temuan-rows></div>
         <div class="temuan-sum" data-temuan-sum></div>
@@ -207,7 +207,7 @@
             <h2 id="chart-modal-title"></h2>
             <div class="muted small" id="chart-modal-sub"></div>
         </div>
-        <button type="button" class="modal-close" data-close aria-label="Tutup">&times;</button>
+        <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
     </div>
     <div class="modal-body" id="chart-modal-body"></div>
 </dialog>
@@ -469,8 +469,8 @@
             var note = document.createElement('span');
             note.className = 'recap-note';
             note.setAttribute('aria-live', 'polite');
-            var copyBtn = iconButton('button', 'Salin gambar', ICONS.copy);
-            var downloadBtn = iconButton('button', 'Unduh PNG', ICONS.download);
+            var copyBtn = iconButton('button', __t('Salin gambar'), ICONS.copy);
+            var downloadBtn = iconButton('button', __t('Unduh PNG'), ICONS.download);
             actions.append(note, copyBtn, downloadBtn);
 
             function flash(text) { note.textContent = text; setTimeout(function () { if (note.textContent === text) note.textContent = ''; }, 3000); }
@@ -486,15 +486,15 @@
             copyBtn.addEventListener('click', function () {
                 // Salin gambar ke clipboard hanya diizinkan browser di HTTPS / localhost; selain itu diunduh sebagai PNG.
                 if (!window.isSecureContext || !navigator.clipboard || !window.ClipboardItem) {
-                    download().then(function () { flash('Browser tidak mengizinkan salin gambar di alamat ini, file PNG diunduh.'); });
+                    download().then(function () { flash(__t('Browser tidak mengizinkan salin gambar di alamat ini, file PNG diunduh.')); });
                     return;
                 }
                 var blob = getCanvas().then(function (canvas) {
                     return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
                 });
                 navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-                    .then(function () { flash('Gambar tersalin, tinggal paste.'); })
-                    .catch(function () { download().then(function () { flash('Gagal menyalin, file PNG diunduh.'); }); });
+                    .then(function () { flash(__t('Gambar tersalin, tinggal paste.')); })
+                    .catch(function () { download().then(function () { flash(__t('Gagal menyalin, file PNG diunduh.')); }); });
             });
             return actions;
         }
@@ -571,7 +571,7 @@
                     x += catW;
                 });
             });
-            cell(x, 0, W.total, headH, 'TOTAL TEMUAN', C.total); x += W.total;
+            cell(x, 0, W.total, headH, __t('TOTAL TEMUAN'), C.total); x += W.total;
             if (cfg.statusGroup) {
                 cell(x, 0, W.open + W.closed, rowH, cfg.statusGroup, C.openHead);
                 cell(x, rowH, W.open, rowH * 2, 'OPEN', C.openHead);
@@ -601,7 +601,7 @@
                 sumTotal += row.total; sumOpen += row.open; sumClose += row.close;
             });
             var sumY = headH + cfg.rows.length * rowH;
-            cell(0, sumY, W.no + W.label, rowH, 'Total', null, { bold: true });
+            cell(0, sumY, W.no + W.label, rowH, __t('Total'), null, { bold: true });
             x = W.no + W.label;
             cols.forEach(function (col, ci) {
                 R.forEach(function (r) { cell(x, sumY, W.res, rowH, sums[ci + '.' + r.code] || 0); x += W.res; });
@@ -611,7 +611,7 @@
             cell(x, sumY, W.closed, rowH, sumClose, C.closedBody);
 
             c.canvas.setAttribute('role', 'img');
-            c.canvas.setAttribute('aria-label', (cfg.ariaLabel || 'Tabel rekap temuan') + '. Total ' + sumTotal + ' temuan, ' + sumOpen + ' open, ' + sumClose + ' closed.');
+            c.canvas.setAttribute('aria-label', (cfg.ariaLabel || __t('Tabel rekap temuan')) + '. ' + __t('Total :total temuan, :open open, :close closed.', { total: sumTotal, open: sumOpen, close: sumClose }));
             return c.canvas;
         }
 
@@ -649,7 +649,7 @@
         // Grafik SVG di modal -> PNG: style dari CSS disalin ke elemen SVG supaya ikut tergambar.
         function chartCanvas(plot, title, legend) {
             var svg = plot.querySelector('svg');
-            if (!svg) return Promise.reject(new Error('Grafik belum tampil.'));
+            if (!svg) return Promise.reject(new Error(__t('Grafik belum tampil.')));
             var clone = svg.cloneNode(true);
             var originals = svg.querySelectorAll('*'), copies = clone.querySelectorAll('*');
             originals.forEach(function (node, i) {
@@ -688,7 +688,7 @@
 
         // Tombol "Export Excel" (link unduhan .xlsx, ikon hijau); href diisi pemanggil sesuai periode yang dipilih di modal.
         function exportLink() {
-            var link = iconButton('a', 'Export Excel', ICONS.excel, 'icon-excel');
+            var link = iconButton('a', __t('Export Excel'), ICONS.excel, 'icon-excel');
             link.setAttribute('data-turbo', 'false');
             return link;
         }
@@ -703,12 +703,12 @@
 
         var NS = 'http://www.w3.org/2000/svg';
         var COLORS = { total: '#2a78d6', open: '#eb6834', close: '#1baf7a' };
-        var LABELS = { total: 'Total', open: 'Open', close: 'Close' };
+        var LABELS = { total: __t('Total'), open: __t('Open'), close: __t('Close') };
         var data = JSON.parse(card.dataset.temuan);
         var select = card.querySelector('[data-temuan-year]');
         var monthSelect = card.querySelector('[data-temuan-month]');
         var rowsBox = card.querySelector('[data-temuan-rows]');
-        var MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        var MONTH_NAMES = {{ Js::from(collect(range(1, 12))->map(fn (int $bulan) => \Illuminate\Support\Carbon::create(2000, $bulan, 1)->translatedFormat('F'))) }};
         var KATEGORI = @json(\App\Modules\Sms\Models\DailyPatrol::KATEGORI);
         var RESIKO = @json(array_keys(\App\Modules\Sms\Models\DailyPatrol::RESIKO));
         var blankCanvas = PatrolImage.blankCanvas, imageActions = PatrolImage.imageActions, sectionHead = PatrolImage.sectionHead;
@@ -722,11 +722,11 @@
         }
 
         function labelFor(year, month) {
-            return month === 'all' ? 'Tahun ' + year : MONTH_NAMES[month - 1] + ' ' + year;
+            return month === 'all' ? __t('Tahun :tahun', { tahun: year }) : MONTH_NAMES[month - 1] + ' ' + year;
         }
 
         function emptyFor(month) {
-            return month === 'all' ? 'Belum ada temuan di tahun ini.' : 'Belum ada temuan di bulan ini.';
+            return month === 'all' ? __t('Belum ada temuan di tahun ini.') : __t('Belum ada temuan di bulan ini.');
         }
 
         function currentRows() { return rowsFor(select.value, monthSelect.value); }
@@ -864,13 +864,13 @@
                 return { keys: [key], label: KATEGORI['Stop 6'][key].split(' (')[0].toUpperCase() };
             });
             return PatrolImage.recapTable({
-                rowHeader: 'Departemen',
+                rowHeader: __t('Departemen'),
                 rows: rows.map(function (row) { return { label: row.department, total: row.total, open: row.open, close: row.close, cells: row.cells }; }),
                 groups: [{ label: 'STOP 6', cols: stop6.concat([{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }]) }],
                 resiko: RESIKO.map(function (code) { return { code: code }; }),
                 colors: { no: '#f8cbad', label: '#ed7d31', group: '#00b0f0', kat: '#00b050', res: '#f8cbad', total: '#ed7d31', openHead: '#ffff00', closedHead: '#00b050' },
                 targetWidth: targetWidth,
-                ariaLabel: 'Tabel rekap temuan Daily Patrol per departemen, kategori dan resiko',
+                ariaLabel: __t('Tabel rekap temuan Daily Patrol per departemen, kategori dan resiko'),
             });
         }
 
@@ -921,7 +921,7 @@
             var top = pad + headH, x = pad;
             box(x, top, firstW, rowH, '', { fill: '#eef3fb' }); x += firstW;
             rows.forEach(function (row) { box(x, top, colW, rowH, row.department, { fill: '#eef3fb', bold: true }); x += colW; });
-            box(x, top, lastW, rowH, 'Jumlah', { fill: '#eef3fb', bold: true });
+            box(x, top, lastW, rowH, __t('Jumlah'), { fill: '#eef3fb', bold: true });
             ['total', 'open', 'close'].forEach(function (key, k) {
                 var y = top + rowH * (k + 1);
                 x = pad;
@@ -975,7 +975,7 @@
         card.querySelector('[data-temuan-expand]').addEventListener('click', function () {
             var modal = document.getElementById('chart-modal');
             var body = document.getElementById('chart-modal-body');
-            document.getElementById('chart-modal-title').textContent = 'Grafik Temuan Daily Patrol';
+            document.getElementById('chart-modal-title').textContent = __t('Grafik Temuan Daily Patrol');
             body.innerHTML = '';
 
             var filter = document.createElement('div');
@@ -1025,16 +1025,16 @@
                     legend.appendChild(item);
                 });
                 var chartButtons = imageActions(function () {
-                    return chartCanvas(plot, 'Grafik Temuan Daily Patrol · ' + period);
+                    return chartCanvas(plot, __t('Grafik Temuan Daily Patrol') + ' · ' + period);
                 }, function () { return 'grafik-temuan-daily-patrol-' + fileBase; });
                 chartButtons.insertBefore(exportLink, chartButtons.querySelector('.icon-action'));
-                content.append(sectionHead('Grafik Temuan per Departemen', chartButtons, true), legend, plot);
+                content.append(sectionHead(__t('Grafik Temuan per Departemen'), chartButtons, true), legend, plot);
 
                 // 2. Ringkasan Total / Open / Close.
                 var summary = summaryTable(rows);
                 content.append(
-                    sectionHead('Ringkasan', imageActions(function () {
-                        return Promise.resolve(summaryCanvas(rows, 'Ringkasan Temuan Daily Patrol · ' + period, summary.clientWidth));
+                    sectionHead(__t('Ringkasan'), imageActions(function () {
+                        return Promise.resolve(summaryCanvas(rows, __t('Ringkasan Temuan Daily Patrol') + ' · ' + period, summary.clientWidth));
                     }, function () { return 'ringkasan-temuan-daily-patrol-' + fileBase; })),
                     summary
                 );
@@ -1044,7 +1044,7 @@
                 recapWrap.className = 'recap-wrap';
                 var recapCanvas = null;
                 content.append(
-                    sectionHead('Rekap per Kategori & Resiko', imageActions(function () {
+                    sectionHead(__t('Rekap per Kategori & Resiko'), imageActions(function () {
                         return Promise.resolve(recapCanvas);
                     }, function () { return 'rekap-temuan-daily-patrol-' + fileBase; })),
                     recapWrap
@@ -1081,9 +1081,9 @@
     // dan modal perbesar (grafik besar + tabel; Cross Patrol ditambah heatmap departemen x bulan).
     (function () {
         var NS = 'http://www.w3.org/2000/svg';
-        var SERIES = [{ key: 'open', label: 'Open', color: '#eb6834' }, { key: 'close', label: 'Close', color: '#1baf7a' }];
-        var MONTHS = @json(\App\Modules\Sms\Support\GrafikKecelakaan::MONTHS);
-        var MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        var SERIES = [{ key: 'open', label: __t('Open'), color: '#eb6834' }, { key: 'close', label: __t('Close'), color: '#1baf7a' }];
+        var MONTHS = {{ Js::from(array_map(fn (string $bulan) => __($bulan), \App\Modules\Sms\Support\GrafikKecelakaan::MONTHS)) }};
+        var MONTH_NAMES = {{ Js::from(collect(range(1, 12))->map(fn (int $bulan) => \Illuminate\Support\Carbon::create(2000, $bulan, 1)->translatedFormat('F'))) }};
         // Skala biru berurutan (terang = sedikit, gelap = banyak) untuk heatmap.
         var HEAT = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
         var today = new Date();
@@ -1174,17 +1174,17 @@
                         tip.appendChild(row);
                     });
                     var total = html('div');
-                    total.append(html('span', '', 'Total'), html('span', '', totals[i]));
+                    total.append(html('span', '', __t('Total')), html('span', '', totals[i]));
                     tip.appendChild(total);
                     var details = (chart.details || [])[i] || [];
                     if (details.length) {
-                        tip.appendChild(html('div', 'tip-sep', 'Per departemen'));
+                        tip.appendChild(html('div', 'tip-sep', __t('Per departemen')));
                         details.slice(0, 6).forEach(function (d) {
                             var row = html('div');
                             row.append(html('span', '', d.name), html('span', '', d.count));
                             tip.appendChild(row);
                         });
-                        if (details.length > 6) tip.appendChild(html('div', 'tip-sep', '+' + (details.length - 6) + ' departemen lain'));
+                        if (details.length > 6) tip.appendChild(html('div', 'tip-sep', __t('+:count departemen lain', { count: details.length - 6 })));
                     }
                     tip.hidden = false;
                     var left = center + slot / 2 + 6;
@@ -1214,10 +1214,10 @@
             var headRow = html('tr');
             headRow.appendChild(html('th'));
             chart.labels.forEach(function (label) { headRow.appendChild(html('th', '', label)); });
-            headRow.appendChild(html('th', '', 'Jumlah'));
+            headRow.appendChild(html('th', '', __t('Jumlah')));
             table.appendChild(html('thead')).appendChild(headRow);
             var body = table.appendChild(html('tbody'));
-            SERIES.concat([{ key: 'total', label: 'Total' }]).forEach(function (s) {
+            SERIES.concat([{ key: 'total', label: __t('Total') }]).forEach(function (s) {
                 var values = s.key === 'total' ? chart.labels.map(function (_, i) { return chart.open[i] + chart.close[i]; }) : chart[s.key];
                 var tr = html('tr');
                 var name = html('td', 'series-name');
@@ -1250,15 +1250,15 @@
         function heatTable(departments, labels, titles) {
             var wrap = html('div', 'table-wrap');
             if (!departments.length) {
-                wrap.appendChild(html('p', 'muted', 'Belum ada temuan.'));
+                wrap.appendChild(html('p', 'muted', __t('Belum ada temuan.')));
                 return wrap;
             }
             var max = Math.max.apply(null, departments.map(function (d) { return Math.max.apply(null, d.values); }).concat([1]));
             var table = html('table', 'chart-table heat-table');
             var headRow = html('tr');
-            headRow.appendChild(html('th', '', 'Departemen'));
+            headRow.appendChild(html('th', '', __t('Departemen')));
             labels.forEach(function (label) { headRow.appendChild(html('th', '', label)); });
-            headRow.appendChild(html('th', '', 'Jumlah'));
+            headRow.appendChild(html('th', '', __t('Jumlah')));
             SERIES.forEach(function (s) {
                 var th = html('th', 'status-col');
                 th.append(swatch(s.color), s.label);
@@ -1297,7 +1297,7 @@
                 body.appendChild(tr);
             });
             var sumRow = html('tr', 'sum-row');
-            sumRow.appendChild(html('td', 'dept-name', 'Total'));
+            sumRow.appendChild(html('td', 'dept-name', __t('Total')));
             monthTotals.forEach(function (v) { sumRow.appendChild(html('td', '', v)); });
             sumRow.appendChild(html('td', '', sum(monthTotals)));
             SERIES.forEach(function (s) {
@@ -1309,9 +1309,9 @@
             wrap.appendChild(table);
 
             var scale = html('div', 'heat-scale');
-            scale.append('Sedikit');
+            scale.append(__t('Sedikit'));
             HEAT.forEach(function (color) { var i = html('i'); i.style.setProperty('--h', color); scale.appendChild(i); });
-            scale.append('Banyak');
+            scale.append(__t('Banyak'));
             wrap.appendChild(scale);
             return wrap;
         }
@@ -1329,7 +1329,7 @@
             body.append(PatrolImage.chartActions(plot, title + ' · ' + subtitle, SERIES), legend, plot);
             body.appendChild(totalsTable(chart));
             if (extra) {
-                var heading = html('h3', 'card-title', 'Temuan per Departemen');
+                var heading = html('h3', 'card-title', __t('Temuan per Departemen'));
                 heading.style.margin = '20px 0 8px';
                 body.append(heading, extra);
             }
@@ -1346,11 +1346,11 @@
             var section = html('div');
             var right = html('div', 'recap-actions');
             var monthSelect = html('select');
-            monthSelect.setAttribute('aria-label', 'Bulan');
-            monthSelect.appendChild(new Option('All', 'all'));
+            monthSelect.setAttribute('aria-label', __t('Bulan'));
+            monthSelect.appendChild(new Option(__t('All'), 'all'));
             MONTHS.forEach(function (label, i) { monthSelect.appendChild(new Option(label.charAt(0) + label.slice(1).toLowerCase(), String(i + 1))); });
             var yearSelect = html('select');
-            yearSelect.setAttribute('aria-label', 'Tahun');
+            yearSelect.setAttribute('aria-label', __t('Tahun'));
             Object.keys(years).sort().reverse().forEach(function (year) { yearSelect.appendChild(new Option(year, year)); });
             yearSelect.value = String(initialYear);
             // Default bulan berjalan kalau tahun yang dibuka = tahun ini; tahun lain langsung rekap setahun.
@@ -1362,14 +1362,14 @@
             var canvas = null;
 
             function period() {
-                return monthSelect.value === 'all' ? 'Tahun ' + yearSelect.value : MONTH_NAMES[monthSelect.value - 1] + ' ' + yearSelect.value;
+                return monthSelect.value === 'all' ? __t('Tahun :tahun', { tahun: yearSelect.value }) : MONTH_NAMES[monthSelect.value - 1] + ' ' + yearSelect.value;
             }
 
             var actions = PatrolImage.imageActions(function () { return Promise.resolve(canvas); }, function () {
                 return 'progress-perbaikan-cross-patrol-' + period().toLowerCase().replace(/[^a-z0-9]+/g, '-');
             });
             right.append(filter, actions);
-            section.append(PatrolImage.sectionHead('Progress Perbaikan Cross Patrol', right), wrap);
+            section.append(PatrolImage.sectionHead(__t('Progress Perbaikan Cross Patrol'), right), wrap);
 
             var stop6 = Object.keys(CROSS_KATEGORI['Stop 6']).map(function (key) {
                 return { keys: [key], label: CROSS_KATEGORI['Stop 6'][key].split(' (')[0].toUpperCase() };
@@ -1381,22 +1381,22 @@
                 zonas = zonas || {};
                 var empty = { total: 0, open: 0, close: 0, cells: {} };
                 // Zona 1-9 selalu tampil; data lama tanpa zona (key 0) ditaruh di baris terakhir kalau ada.
-                var rows = CROSS_ZONA.map(function (zona) { return Object.assign({ label: 'ZONA ' + zona }, zonas[zona] || empty); });
-                if (zonas[0]) rows.push(Object.assign({ label: 'Tanpa zona' }, zonas[0]));
+                var rows = CROSS_ZONA.map(function (zona) { return Object.assign({ label: __t('ZONA') + ' ' + zona }, zonas[zona] || empty); });
+                if (zonas[0]) rows.push(Object.assign({ label: __t('Tanpa zona') }, zonas[0]));
 
                 var next = PatrolImage.recapTable({
-                    rowHeader: 'Zona',
+                    rowHeader: __t('Zona'),
                     rows: rows,
                     // Ergonomi/Kesehatan tidak punya kolom sendiri di form, jadi dihitung di kolom OTHER.
                     groups: [
                         { label: 'STOP 6', cols: stop6 },
-                        { label: 'LAIN-LAIN', cols: [{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }] },
+                        { label: __t('LAIN-LAIN'), cols: [{ keys: ['other', 'ergonomi'], label: 'OTHER' }, { keys: ['5r'], label: '5R' }] },
                     ],
                     resiko: [{ code: 'A', color: '#ff0000' }, { code: 'B', color: '#00b0f0' }, { code: 'C', color: '#000000' }],
-                    statusGroup: 'PERBAIKAN STATUS',
+                    statusGroup: __t('PERBAIKAN STATUS'),
                     colors: { no: '#ddd9c4', label: '#ddd9c4', group: '#ddd9c4', kat: '#ddd9c4', res: '#ffffff', total: '#ddd9c4', openHead: '#ddd9c4', closedHead: '#ddd9c4', openBody: '#ffff00', closedBody: '#00b050' },
                     targetWidth: wrap.clientWidth,
-                    ariaLabel: 'Tabel progress perbaikan Cross Patrol ' + period() + ' per zona, kategori dan resiko',
+                    ariaLabel: __t('Tabel progress perbaikan Cross Patrol :periode per zona, kategori dan resiko', { periode: period() }),
                 });
                 if (canvas) canvas.replaceWith(next); else wrap.appendChild(next);
                 canvas = next;
@@ -1442,7 +1442,7 @@
             watch(crossPlot, crossChart, 1050);
             select.addEventListener('change', function () { showTotal(); draw(crossPlot, crossChart(), reduceMotion ? null : 0); });
             crossCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
-                openModal('Grafik Temuan Cross Patrol', 'Per bulan · Tahun ' + select.value, crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles));
+                openModal(__t('Grafik Temuan Cross Patrol'), __t('Per bulan · Tahun :tahun', { tahun: select.value }), crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles));
                 var progress = crossProgressSection(years, select.value);
                 var modalBody = document.getElementById('chart-modal-body');
                 modalBody.appendChild(progress);
