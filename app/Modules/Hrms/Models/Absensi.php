@@ -38,9 +38,9 @@ class Absensi extends Model
      * Kolom "Kategori Absensi" di laporan detail harian. Kode yang hadir (DT/PC) tidak masuk laporan.
      */
     public const KATEGORI = [
-        'CT' => ['CT', 'CK', 'CH', 'CB'],
+        'CT' => ['CT', 'CK', 'CH', 'CB', 'IMP'],
         'S' => ['S', 'SD'],
-        'I' => ['I', 'IMP', 'DISP'],
+        'I' => ['I', 'DISP'],
         'WFH' => ['WFH'],
         'Alpa' => ['A'],
     ];

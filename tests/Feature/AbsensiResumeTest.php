@@ -110,6 +110,11 @@ class AbsensiResumeTest extends TestCase
         $tanpaCuti = $total(['sections' => $response->viewData('sections')]);
         $this->assertSame([0, 0, 1, 3], [$tanpaCuti['cuti'], $tanpaCuti['ct'], $tanpaCuti['total_absen'], $tanpaCuti['kerja']]);
         $this->assertEquals(25, $tanpaCuti['persen']);
+
+        // IMP (izin meninggalkan pekerjaan) dihitung cuti, bukan izin.
+        $this->absen($this->karyawan('0005', 'PSD', 'B'), '2026-10-15', 'IMP');
+        $denganImp = $total(ResumeAbsensi::build(Carbon::parse('2026-10-15')));
+        $this->assertSame([2, 0], [$denganImp['cuti'], $denganImp['ijin']]);
     }
 
     public function test_halaman_resume_hanya_untuk_admin_hrms(): void
