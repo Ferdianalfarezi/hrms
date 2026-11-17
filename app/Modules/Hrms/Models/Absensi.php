@@ -102,6 +102,14 @@ class Absensi extends Model
         'Alpa' => [
             'Alpa' => 'A',
         ],
+        'Datang Terlambat' => [
+            'Datang terlambat ≤ 30 menit' => 'DT<',
+            'Datang terlambat ≥ 30 menit' => 'DT>',
+        ],
+        'Pulang Cepat' => [
+            'Pulang cepat ≤ 30 menit' => 'PC<',
+            'Pulang cepat ≥ 30 menit' => 'PC>',
+        ],
     ];
 
     /** Pilihan alasan di luar daftar ALASAN: kode dipilih manual dan keterangan wajib diisi. */
