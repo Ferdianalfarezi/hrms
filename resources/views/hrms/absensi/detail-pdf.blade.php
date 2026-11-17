@@ -33,18 +33,18 @@
         table.det tfoot td { background: #f2f2f2; font-weight: 700; }
         table.det .empty { font-style: italic; padding: 6px; }
 
-        .charts { display: grid; grid-template-columns: 1fr; gap: 10mm; margin-top: 14px; break-before: page; }
+        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 14px; break-inside: avoid; }
         .chart { break-inside: avoid; }
-        .chart h3 { margin: 0 0 4px; font-size: 9pt; }
+        .chart h3 { margin: 0 0 4px; font-size: 8pt; }
         .chart svg { width: 100%; height: auto; display: block; }
         .chart .grid line { stroke: #d1d5db; }
-        .chart text { font-size: 8px; fill: var(--muted); font-family: Arial, sans-serif; }
-        .chart .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 7.5pt; margin-top: 4px; }
-        .chart .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; background: var(--c); }
-        .chart .legend span.bar::before { width: 9px; height: 9px; }
+        .chart text { font-size: 11px; fill: var(--muted); font-family: Arial, sans-serif; }
+        .chart .legend { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 6pt; margin-top: 3px; }
+        .chart .legend span::before { content: ""; display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; background: var(--c); }
+        .chart .legend span.bar::before { width: 7px; height: 7px; }
         table.chart-data { border-collapse: collapse; margin-top: 6px; width: 100%; table-layout: fixed; }
-        table.chart-data th, table.chart-data td { border: 1px solid #9ca3af; padding: 1px 0; text-align: center; font-size: 6pt; font-weight: 400; }
-        table.chart-data th:first-child { width: 66px; text-align: left; padding-left: 2px; white-space: nowrap; }
+        table.chart-data th, table.chart-data td { border: 1px solid #9ca3af; padding: 1px 0; text-align: center; font-size: 4.8pt; font-weight: 400; }
+        table.chart-data th:first-child { width: 54px; text-align: left; padding-left: 2px; white-space: nowrap; }
         table.chart-data .sel { background: #eef4ff; font-weight: 700; }
 
         @media print {
