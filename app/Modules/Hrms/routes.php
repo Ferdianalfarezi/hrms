@@ -40,6 +40,7 @@ Route::post('absensi/rotasi', [AbsensiDetailController::class, 'storeRotasi'])->
 
 // Resume absensi harian per shift & plant (khusus Admin HRMS).
 Route::get('absensi/resume', [AbsensiResumeController::class, 'index'])->name('absensi.resume');
+Route::get('absensi/resume/pdf', [AbsensiResumeController::class, 'pdf'])->name('absensi.resume.pdf');
 
 // Persentase ketidakhadiran bulanan per kelompok karyawan (khusus Admin HRMS).
 Route::get('absensi/presentase', [AbsensiPresentaseController::class, 'index'])->name('absensi.presentase');

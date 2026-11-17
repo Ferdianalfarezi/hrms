@@ -64,6 +64,7 @@
             <input type="hidden" name="cuti" value="0">
         @endunless
         <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="Tanggal laporan">
+        <a href="{{ route('hrms.absensi.resume.pdf', ['tanggal' => $tanggal->toDateString(), ...$keepCuti]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">Unduh PDF</a>
         <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
     </form>
 </div>

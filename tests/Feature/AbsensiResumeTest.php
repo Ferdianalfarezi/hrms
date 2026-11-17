@@ -131,4 +131,22 @@ class AbsensiResumeTest extends TestCase
         $deptAdmin->assignRole('hrms', 'dept_admin', Department::where('name', 'PSD')->value('id'));
         $this->actingAs($deptAdmin)->get(route('hrms.absensi.resume'))->assertForbidden();
     }
+
+    public function test_pdf_resume_berisi_kedua_shift_dan_tanda_tangan(): void
+    {
+        $this->absen($this->karyawan('0001', 'PSD', 'A'), '2026-10-14', 'S');
+        $this->karyawan('0002', 'PSD', 'B');
+
+        $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.resume.pdf', ['tanggal' => '2026-10-15']))
+            ->assertOk()
+            ->assertSeeInOrder(['RESUME ABSENSI HARIAN PT.STEP',
+                'Rabu, 14 Oktober 2026 (Shift 2)', 'MP PSD S.2', '100,00',
+                'Kamis, 15 Oktober 2026 (Shift 1)', 'MP PSD',
+                'Cikarang, 15 Oktober 2026', 'Direktur', 'Sigit WH']);
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', Department::where('name', 'PSD')->value('id'));
+        $this->actingAs($deptAdmin)->get(route('hrms.absensi.resume.pdf'))->assertForbidden();
+    }
 }

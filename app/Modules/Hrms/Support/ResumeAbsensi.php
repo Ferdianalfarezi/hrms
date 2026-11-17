@@ -15,6 +15,17 @@ class ResumeAbsensi
     /** Departemen yang punya baris sendiri; departemen lain digabung ke baris "ALL MP". */
     public const PLANTS = ['PSD', 'PWD', 'PHD'];
 
+    /**
+     * Kotak tanda tangan di PDF resume, urut kiri ke kanan.
+     *
+     * @var list<array{jabatan: string, nama: string}>
+     */
+    public const PENANDATANGAN = [
+        ['jabatan' => 'Direktur', 'nama' => 'Sigit WH'],
+        ['jabatan' => 'GM HRD/GA/Safety', 'nama' => 'Adi Winata Kp'],
+        ['jabatan' => 'SPV HRD', 'nama' => 'Isnur L'],
+    ];
+
     /** Kolom kategori absen => kategori di Absensi::KATEGORI. WFH tidak dihitung absen di resume. */
     public const KATEGORI = [
         'cuti' => 'CT',

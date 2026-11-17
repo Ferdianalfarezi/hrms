@@ -29,6 +29,23 @@ class AbsensiResumeController extends Controller
         ]);
     }
 
+    /**
+     * Halaman cetak A4 seperti format Excel HRD; dialog print langsung terbuka untuk disimpan sebagai PDF.
+     */
+    public function pdf(Request $request): View
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        return view('hrms.absensi.resume-pdf', [
+            ...ResumeAbsensi::build(
+                $this->parseDate((string) $request->query('tanggal')) ?? Carbon::today(),
+                $request->boolean('cuti', true),
+            ),
+            'target' => LaporanAbsensiShift::TARGET_PERSEN,
+            'penandatangan' => ResumeAbsensi::PENANDATANGAN,
+        ]);
+    }
+
     private function parseDate(string $value): ?Carbon
     {
         try {
