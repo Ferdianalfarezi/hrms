@@ -8,37 +8,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Detail Absensi {{ $tanggal->format('d-m-Y') }}</title>
     <style>
-        @page { size: A4 landscape; margin: 10mm 10mm; }
+        @page { size: A4 portrait; margin: 10mm 9mm; }
         * { box-sizing: border-box; }
         :root { --navy: #1e3a8a; --muted: #4b5563; --line-strong: #9ca3af; }
-        body { margin: 0; background: #e5e7eb; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 8pt; line-height: 1.25; }
+        body { margin: 0; background: #e5e7eb; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; line-height: 1.25; }
         .toolbar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: center; gap: 8px; padding: 10px; background: #1e3a8a; }
         .toolbar button { padding: 8px 18px; border: 0; border-radius: 999px; font: 600 13px Arial, sans-serif; cursor: pointer; background: #fff; color: #1e3a8a; }
         .toolbar button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); }
-        .sheet { width: 297mm; min-height: 210mm; margin: 12px auto; padding: 10mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+        .sheet { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 10mm 9mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
 
         h1 { margin: 0 0 2px; font-size: 12pt; text-align: center; }
         .sub { margin: 0 0 10px; text-align: center; font-size: 8pt; color: #333; }
         .sec { margin-top: 12px; break-inside: auto; }
-        .sec-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 3px; }
+        .sec-title { margin-bottom: 3px; }
         .sec-title b { font-size: 9pt; }
-        .sec-title span { font-size: 7.5pt; color: #333; }
+        .sec-title span { display: block; font-size: 7pt; color: #333; }
 
         table.det { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        table.det th, table.det td { border: 1px solid #000; padding: 2px 4px; text-align: center; vertical-align: middle; }
-        table.det thead th { background: #dce6f1; font-size: 7.5pt; }
+        table.det th, table.det td { border: 1px solid #000; padding: 2px 3px; text-align: center; vertical-align: middle; }
+        table.det thead th { background: #dce6f1; font-size: 7pt; }
         table.det tr { break-inside: avoid; }
         table.det td.l { text-align: left; }
         table.det td.kat { font-weight: 700; width: 30px; }
         table.det tfoot td { background: #f2f2f2; font-weight: 700; }
         table.det .empty { font-style: italic; padding: 6px; }
 
-        .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 14px; break-before: page; }
+        .charts { display: grid; grid-template-columns: 1fr; gap: 10mm; margin-top: 14px; break-before: page; }
         .chart { break-inside: avoid; }
         .chart h3 { margin: 0 0 4px; font-size: 9pt; }
         .chart svg { width: 100%; height: auto; display: block; }
         .chart .grid line { stroke: #d1d5db; }
-        .chart text { font-size: 10px; fill: var(--muted); font-family: Arial, sans-serif; }
+        .chart text { font-size: 8px; fill: var(--muted); font-family: Arial, sans-serif; }
         .chart .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 7.5pt; margin-top: 4px; }
         .chart .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; background: var(--c); }
         .chart .legend span.bar::before { width: 9px; height: 9px; }
@@ -81,11 +81,11 @@
             </div>
             <table class="det">
                 <colgroup>
-                    <col style="width: 3%;"><col style="width: 5%;"><col style="width: 18%;"><col style="width: 15%;"><col style="width: 4%;">
+                    <col style="width: 4%;"><col style="width: 6%;"><col style="width: 19%;"><col style="width: 15%;"><col style="width: 5%;">
                     @foreach ($kategoris as $kategori)
-                        <col style="width: 3.5%;">
+                        <col style="width: 4%;">
                     @endforeach
-                    <col><col style="width: 6%;"><col style="width: 6%;">
+                    <col><col style="width: 7%;"><col style="width: 7%;">
                 </colgroup>
                 <thead>
                     <tr>

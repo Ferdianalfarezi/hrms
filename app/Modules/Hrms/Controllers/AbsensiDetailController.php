@@ -43,7 +43,7 @@ class AbsensiDetailController extends Controller
     }
 
     /**
-     * Halaman cetak A4 landscape (tabel per shift + grafik); dialog print langsung terbuka untuk disimpan sebagai PDF.
+     * Halaman cetak A4 portrait (tabel per shift + grafik); dialog print langsung terbuka untuk disimpan sebagai PDF.
      */
     public function pdf(Request $request): View
     {
