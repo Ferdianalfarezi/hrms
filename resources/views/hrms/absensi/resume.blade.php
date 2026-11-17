@@ -83,7 +83,8 @@
                         <th rowspan="2">Jumlah Kary</th>
                         <th colspan="4">Kategori Absen</th>
                         <th rowspan="2">Total Absen</th>
-                        <th rowspan="2">Total %</th>
+                        <th rowspan="2">Total %<br>dgn Cuti</th>
+                        <th rowspan="2">Total %<br>tanpa Cuti</th>
                         <th rowspan="2">Jml Kary. Kerja</th>
                         <th rowspan="2" title="Sakit dengan surat dokter">SKD</th>
                         <th rowspan="2" title="Cuti tahunan">CT</th>
@@ -108,13 +109,14 @@
                                 <td>{{ $row['alpa'] }}</td>
                                 <td>{{ $row['total_absen'] }}</td>
                                 <td @class(['pct', 'bad' => $row['persen'] > $target])>{{ $persen($row['persen'], 2) }}</td>
+                                <td @class(['pct', 'bad' => $row['persen_tanpa_cuti'] > $target])>{{ $persen($row['persen_tanpa_cuti'], 2) }}</td>
                                 <td>{{ $row['kerja'] }}</td>
                                 <td>{{ $row['skd'] ?: '' }}</td>
                                 <td>{{ $row['ct'] ?: '' }}</td>
                             </tr>
                         @endforeach
                     @else
-                        <tr><td colspan="12" class="empty">Grup shift belum diketahui — atur jadwal rotasi di menu Detail.</td></tr>
+                        <tr><td colspan="13" class="empty">Grup shift belum diketahui — atur jadwal rotasi di menu Detail.</td></tr>
                     @endif
                 </tbody>
                 @if ($section['grups'])
@@ -128,6 +130,7 @@
                             <td>{{ $section['total']['alpa'] }}</td>
                             <td>{{ $section['total']['total_absen'] }}</td>
                             <td @class(['pct', 'bad' => $section['total']['persen'] > $target])>{{ $persen($section['total']['persen'], 1) }}</td>
+                            <td @class(['pct', 'bad' => $section['total']['persen_tanpa_cuti'] > $target])>{{ $persen($section['total']['persen_tanpa_cuti'], 1) }}</td>
                             <td>{{ $section['total']['kerja'] }}</td>
                             <td>{{ $section['total']['skd'] ?: '' }}</td>
                             <td>{{ $section['total']['ct'] ?: '' }}</td>

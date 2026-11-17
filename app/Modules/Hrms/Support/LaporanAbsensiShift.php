@@ -23,6 +23,12 @@ class LaporanAbsensiShift
     /** Keterangan baris Alpa otomatis dari data mesin absen. */
     public const KETERANGAN_TANPA_KETERANGAN = 'Tidak absen di mesin, belum ada keterangan';
 
+    /** Jabatan yang masuk bar "Asst. Leader up" di grafik. */
+    public const JABATAN_ASST_LEADER_UP = [
+        'Asst. Leader', 'Senior Staff', 'Leader', 'Supervisor', 'Section Chief', 'Asst. Manager',
+        'Manager', 'Ast. General Manager', 'GM', 'Direktur',
+    ];
+
     /** Batas hari ke belakang/depan saat menghitung durasi libur berturut-turut. */
     private const DURASI_MAKS = 60;
 
@@ -155,9 +161,16 @@ class LaporanAbsensiShift
         ];
     }
 
-    private function headcountOf(array $grups): int
+    private function headcountOf(array $grups, ?array $headcount = null): int
     {
-        return array_sum(array_map(fn ($grup) => $this->headcount[$grup] ?? 0, $grups));
+        $headcount ??= $this->headcount;
+
+        return array_sum(array_map(fn ($grup) => $headcount[$grup] ?? 0, $grups));
+    }
+
+    public static function isAsstLeaderUp(?string $jabatan): bool
+    {
+        return in_array($jabatan, self::JABATAN_ASST_LEADER_UP, true);
     }
 
     /**
@@ -206,27 +219,38 @@ class LaporanAbsensiShift
         $start = $tanggal->copy()->startOfMonth();
         $end = $tanggal->copy()->endOfMonth();
 
-        // [Y-m-d][grup] => jumlah karyawan tidak hadir
+        // [Y-m-d][grup] => jumlah karyawan tidak hadir; $leaderCounts sama, khusus Asst. Leader up.
         $counts = [];
+        $leaderCounts = [];
+        $tambah = function (string $key, string $grup, ?string $jabatan) use (&$counts, &$leaderCounts) {
+            $counts[$key][$grup] = ($counts[$key][$grup] ?? 0) + 1;
+
+            if (self::isAsstLeaderUp($jabatan)) {
+                $leaderCounts[$key][$grup] = ($leaderCounts[$key][$grup] ?? 0) + 1;
+            }
+        };
+
         Absensi::query()
             ->join('karyawans', 'karyawans.id', '=', 'absensis.karyawan_id')
             ->whereNotNull('karyawans.group')
             ->whereIn('absensis.kode', $this->kodeDihitung())
             ->whereBetween('absensis.tanggal', [$start->toDateString(), $end->toDateString()])
-            ->get(['absensis.tanggal', 'karyawans.group'])
-            ->each(function ($row) use (&$counts) {
-                $key = $row->tanggal->toDateString();
-                $counts[$key][$row->group] = ($counts[$key][$row->group] ?? 0) + 1;
-            });
+            ->get(['absensis.tanggal', 'karyawans.group', 'karyawans.jabatan'])
+            ->each(fn ($row) => $tambah($row->tanggal->toDateString(), $row->group, $row->jabatan));
 
         // Ditambah karyawan yang tidak absen di mesin dan belum ada keterangan (dihitung Alpa).
-        $karyawans = Karyawan::whereNotNull('group')->get(['id', 'nik', 'group']);
-        $groupOf = $karyawans->pluck('group', 'id');
+        $karyawans = Karyawan::whereNotNull('group')->get(['id', 'nik', 'group', 'jabatan'])->keyBy('id');
         foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $start, $end) as $karyawanId => $dates) {
             foreach (array_keys($dates) as $key) {
-                $counts[$key][$groupOf[$karyawanId]] = ($counts[$key][$groupOf[$karyawanId]] ?? 0) + 1;
+                $tambah($key, $karyawans[$karyawanId]->group, $karyawans[$karyawanId]->jabatan);
             }
         }
+
+        $leaderHeadcount = $karyawans->filter(fn (Karyawan $karyawan) => self::isAsstLeaderUp($karyawan->jabatan))
+            ->countBy('group')->all();
+        $persen = fn (array $daily, array $grups, int $headcount) => $headcount > 0
+            ? round(array_sum(array_map(fn ($grup) => $daily[$grup] ?? 0, $grups)) / $headcount * 100, 1)
+            : null;
 
         $points = [];
 
@@ -236,15 +260,16 @@ class LaporanAbsensiShift
             }
 
             $actual = null;
+            $leader = null;
 
             if ($day->lte($tanggal)) {
                 $grups = $this->grups($shift, $day);
-                $headcount = $this->headcountOf($grups);
-                $absen = array_sum(array_map(fn ($grup) => $counts[$day->toDateString()][$grup] ?? 0, $grups));
-                $actual = $headcount > 0 ? round($absen / $headcount * 100, 1) : null;
+                $key = $day->toDateString();
+                $actual = $persen($counts[$key] ?? [], $grups, $this->headcountOf($grups));
+                $leader = $persen($leaderCounts[$key] ?? [], $grups, $this->headcountOf($grups, $leaderHeadcount));
             }
 
-            $points[] = ['day' => $day->day, 'actual' => $actual, 'selected' => $day->isSameDay($tanggal)];
+            $points[] = ['day' => $day->day, 'actual' => $actual, 'leader' => $leader, 'selected' => $day->isSameDay($tanggal)];
         }
 
         return ['bulan' => $start, 'target' => self::TARGET_PERSEN, 'points' => $points];

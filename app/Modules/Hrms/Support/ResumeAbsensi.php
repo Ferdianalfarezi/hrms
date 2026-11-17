@@ -81,7 +81,7 @@ class ResumeAbsensi
     }
 
     /**
-     * Tambah total absen, persen, dan jumlah karyawan yang bekerja.
+     * Tambah total absen, persen (dengan & tanpa cuti), dan jumlah karyawan yang bekerja.
      *
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
@@ -94,6 +94,7 @@ class ResumeAbsensi
             ...$row,
             'total_absen' => $totalAbsen,
             'persen' => $row['jumlah'] > 0 && $totalAbsen > 0 ? $totalAbsen / $row['jumlah'] * 100 : null,
+            'persen_tanpa_cuti' => $row['jumlah'] > 0 && $totalAbsen - $row['cuti'] > 0 ? ($totalAbsen - $row['cuti']) / $row['jumlah'] * 100 : null,
             'kerja' => $row['jumlah'] - $totalAbsen,
         ];
     }

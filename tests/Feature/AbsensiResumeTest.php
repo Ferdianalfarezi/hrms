@@ -101,6 +101,7 @@ class AbsensiResumeTest extends TestCase
         $dihitung = $total(ResumeAbsensi::build(Carbon::parse('2026-10-15')));
         $this->assertSame([1, 1, 2], [$dihitung['cuti'], $dihitung['ct'], $dihitung['total_absen']]);
         $this->assertEquals(50, $dihitung['persen']);
+        $this->assertEquals(25, $dihitung['persen_tanpa_cuti']);
 
         $response = $this->actingAs($this->hrmsAdmin())
             ->get(route('hrms.absensi.resume', ['tanggal' => '2026-10-15', 'cuti' => 0]))

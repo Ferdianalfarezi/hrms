@@ -50,6 +50,7 @@
     .chart .lbl { fill: #c2410c; font-weight: 700; }
     .chart .legend { display: flex; gap: 16px; font-size: 12px; margin-top: 6px; }
     .chart .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; background: var(--c); }
+    .chart .legend span.bar::before { width: 10px; height: 10px; }
     table.chart-data { border-collapse: collapse; font-size: 11px; margin-top: 8px; width: 100%; }
     table.chart-data th, table.chart-data td { border: 1px solid var(--line-strong); padding: 3px 4px; text-align: center; text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--text); }
     table.chart-data th:first-child { text-align: left; white-space: nowrap; }
@@ -202,12 +203,13 @@
         @php
             $grafik = $section['grafik'];
             $points = $grafik['points'];
-            $values = array_filter(array_column($points, 'actual'), fn ($v) => $v !== null);
+            $values = array_filter([...array_column($points, 'actual'), ...array_column($points, 'leader')], fn ($v) => $v !== null);
             $yMax = max(8, (int) ceil((max($values ?: [0]) + 1) / 2) * 2);
             [$left, $right, $top, $bottom] = [30, 552, 14, 176];
             $n = max(count($points), 1);
             $step = ($right - $left) / $n;
             $x = fn (int $i) => round($left + $step * ($i + .5), 1);
+            $barWidth = round($step * .55, 1);
             $y = fn (float $v) => round($bottom - ($v / $yMax) * ($bottom - $top), 1);
             $targetLine = collect($points)->keys()->map(fn ($i) => $x($i).','.$y($grafik['target']))->implode(' ');
             $actualLine = collect($points)->filter(fn ($p) => $p['actual'] !== null)->map(fn ($p, $i) => $x($i).','.$y($p['actual']))->implode(' ');
@@ -225,6 +227,11 @@
                 @foreach ($points as $i => $point)
                     <text x="{{ $x($i) }}" y="{{ $bottom + 14 }}" text-anchor="middle" @if ($point['selected']) style="fill: var(--navy); font-weight: 700;" @endif>{{ $point['day'] }}</text>
                 @endforeach
+                @foreach ($points as $i => $point)
+                    @if ($point['leader'])
+                        <rect x="{{ $x($i) - $barWidth / 2 }}" y="{{ $y($point['leader']) }}" width="{{ $barWidth }}" height="{{ round($bottom - $y($point['leader']), 1) }}" fill="#a5b4fc"><title>Tgl {{ $point['day'] }}: Asst. Leader up {{ $fmt($point['leader']) }}%</title></rect>
+                    @endif
+                @endforeach
                 <polyline points="{{ $targetLine }}" fill="none" stroke="#3b82f6" stroke-width="2"/>
                 @foreach ($points as $i => $point)
                     <path d="M{{ $x($i) }} {{ $y($grafik['target']) - 3.5 }} l3.5 6 h-7 z" fill="#3b82f6"/>
@@ -238,12 +245,13 @@
                     @endforeach
                 @endif
             </svg>
-            <div class="legend"><span style="--c: #3b82f6">Target {{ $grafik['target'] }}%</span><span style="--c: #ea580c">Actual (%)</span></div>
+            <div class="legend"><span style="--c: #3b82f6">Target {{ $grafik['target'] }}%</span><span style="--c: #ea580c">Actual (%)</span><span class="bar" style="--c: #a5b4fc">Asst. Leader up (%)</span></div>
             <div class="table-wrap">
                 <table class="chart-data">
                     <tr><th>Tgl</th>@foreach ($points as $point)<th @class(['sel' => $point['selected']])>{{ $point['day'] }}</th>@endforeach</tr>
                     <tr><th>Target</th>@foreach ($points as $point)<td>{{ $grafik['target'] }}</td>@endforeach</tr>
                     <tr><th>Actual</th>@foreach ($points as $point)<td @class(['sel' => $point['selected']])>{{ $fmt($point['actual']) }}</td>@endforeach</tr>
+                    <tr><th>Asst. Leader up</th>@foreach ($points as $point)<td @class(['sel' => $point['selected']])>{{ $fmt($point['leader']) }}</td>@endforeach</tr>
                 </table>
             </div>
         </div>

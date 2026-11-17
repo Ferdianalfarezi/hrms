@@ -36,9 +36,9 @@ class AbsensiDetailTest extends TestCase
         parent::tearDown();
     }
 
-    private function karyawan(string $nik, string $nama, string $group, string $status = 'Tetap'): Karyawan
+    private function karyawan(string $nik, string $nama, string $group, string $status = 'Tetap', string $jabatan = 'Tandem'): Karyawan
     {
-        return Karyawan::create(['nik' => $nik, 'nama' => $nama, 'department_id' => $this->psd->id, 'jabatan' => 'Tandem',
+        return Karyawan::create(['nik' => $nik, 'nama' => $nama, 'department_id' => $this->psd->id, 'jabatan' => $jabatan,
             'jenis_kelamin' => 'Laki-laki', 'status' => $status, 'group' => $group]);
     }
 
@@ -143,6 +143,27 @@ class AbsensiDetailTest extends TestCase
         $this->assertSame(0, $shiftPagi['totals']['CT']);
         $this->assertSame(25.0, $shiftPagi['persen']);
         $this->assertSame(25.0, collect($shiftPagi['grafik']['points'])->firstWhere('selected', true)['actual']);
+    }
+
+    public function test_grafik_berisi_persentase_asst_leader_up(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $leader = $this->karyawan('0001', 'Andi Leader', 'B', jabatan: 'Leader');
+        $this->karyawan('0002', 'Budi Asst', 'B', jabatan: 'Asst. Leader');
+        $operator = $this->karyawan('0003', 'Cici Operator', 'B', jabatan: 'Karyawan');
+        $this->karyawan('0004', 'Dodi Operator', 'B', jabatan: 'Karyawan');
+        $this->absen($leader, '2026-10-15', 'S');
+        $this->absen($operator, '2026-10-15', 'I');
+
+        $shiftPagi = $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.detail', ['tanggal' => '2026-10-15']))
+            ->assertOk()
+            ->assertSee('Asst. Leader up (%)')
+            ->viewData('sections')[1];
+        $point = collect($shiftPagi['grafik']['points'])->firstWhere('selected', true);
+
+        $this->assertSame(50.0, $point['actual']);   // 2 dari 4 karyawan
+        $this->assertSame(50.0, $point['leader']);   // 1 dari 2 Asst. Leader up
     }
 
     public function test_export_excel_berisi_shift_malam_dan_pagi(): void
