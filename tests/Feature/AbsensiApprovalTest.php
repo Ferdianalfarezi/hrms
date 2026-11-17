@@ -155,6 +155,34 @@ class AbsensiApprovalTest extends TestCase
         $this->assertModelMissing($absensi);
     }
 
+    public function test_hrms_admin_cannot_delete_or_change_absensi_while_approval_is_pending(): void
+    {
+        $absensi = $this->alpa($this->andi);
+        $this->actingAs($this->deptAdmin)->delete(route('hrms.absensi.entries.destroy', $absensi), ['alasan' => 'Salah input']);
+
+        $this->actingAs($this->hrmsAdmin)->delete(route('hrms.absensi.entries.destroy', $absensi))
+            ->assertSessionHasErrors('approval');
+        $this->actingAs($this->hrmsAdmin)->put(route('hrms.absensi.entries.update', $absensi), ['tanggal' => '2026-10-15', 'kode' => 'I'])
+            ->assertSessionHasErrors('approval');
+        $this->actingAs($this->hrmsAdmin)->postJson('/hrms/absensi', ['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-15', 'kode' => null])
+            ->assertStatus(422);
+
+        $this->assertSame('A', $absensi->fresh()->kode);
+        $this->assertTrue(AbsensiApproval::sole()->isPending());
+    }
+
+    public function test_deletion_request_can_be_approved_when_absensi_is_already_gone(): void
+    {
+        $absensi = $this->alpa($this->andi);
+        $this->actingAs($this->deptAdmin)->delete(route('hrms.absensi.entries.destroy', $absensi), ['alasan' => 'Salah input']);
+        $absensi->delete();
+
+        $this->actingAs($this->hrmsAdmin)->post(route('hrms.absensi.approval.approve', AbsensiApproval::sole()))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(AbsensiApproval::STATUS_APPROVED, AbsensiApproval::sole()->status);
+    }
+
     public function test_department_admin_cannot_change_existing_cell_from_matrix(): void
     {
         $absensi = $this->alpa($this->andi);

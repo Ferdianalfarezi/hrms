@@ -220,8 +220,8 @@ class AbsensiController extends Controller
         Gate::authorize('update', $absensi->karyawan);
         $isAdmin = $request->user()->isModuleAdmin('hrms');
 
-        if (! $isAdmin && $absensi->pendingApproval()->exists()) {
-            return back()->withErrors(['approval' => 'Absensi ini masih punya pengajuan perubahan yang menunggu approval HRD.']);
+        if ($absensi->pendingApproval()->exists()) {
+            return back()->withErrors(['approval' => $this->pesanMenungguApproval($isAdmin)]);
         }
 
         $data = $this->validateEntry($request, false, ! $isAdmin);
@@ -277,15 +277,17 @@ class AbsensiController extends Controller
         $karyawan = $absensi->karyawan;
         $tanggal = $absensi->tanggal->toDateString();
 
-        if ($request->user()->isModuleAdmin('hrms')) {
+        $isAdmin = $request->user()->isModuleAdmin('hrms');
+
+        if ($absensi->pendingApproval()->exists()) {
+            return back()->withErrors(['approval' => $this->pesanMenungguApproval($isAdmin)]);
+        }
+
+        if ($isAdmin) {
             $absensi->delete();
 
             return redirect()->route('hrms.absensi.index', ['tanggal' => $tanggal])
                 ->with('status', "Absensi {$karyawan->nik} - {$karyawan->nama} dihapus (dianggap masuk).");
-        }
-
-        if ($absensi->pendingApproval()->exists()) {
-            return back()->withErrors(['approval' => 'Absensi ini masih punya pengajuan perubahan yang menunggu approval HRD.']);
         }
 
         $data = $request->validateWithBag('hapus', [
@@ -305,6 +307,17 @@ class AbsensiController extends Controller
 
         return redirect()->route('hrms.absensi.index', ['tanggal' => $tanggal])
             ->with('status', "Penghapusan absensi {$karyawan->nik} - {$karyawan->nama} diajukan, menunggu approval HRD.");
+    }
+
+    /**
+     * Absensi yang masih punya pengajuan pending tidak boleh diubah/dihapus langsung, termasuk oleh Admin HRMS,
+     * supaya pengajuannya tidak kehilangan data sebelum diputuskan.
+     */
+    private function pesanMenungguApproval(bool $isAdmin): string
+    {
+        return $isAdmin
+            ? 'Absensi ini masih punya pengajuan yang menunggu approval. Setujui atau tolak dulu di menu Approval Absensi.'
+            : 'Absensi ini masih punya pengajuan perubahan yang menunggu approval HRD.';
     }
 
     /**
@@ -449,6 +462,10 @@ class AbsensiController extends Controller
 
         if ($existing && ! $isAdmin) {
             return response()->json(['message' => 'Data absensi ini sudah ada. Ubah lewat menu Absensi > Daftar (perlu approval HRD).'], 422);
+        }
+
+        if ($existing?->pendingApproval()->exists()) {
+            return response()->json(['message' => $this->pesanMenungguApproval(true)], 422);
         }
 
         if (empty($data['kode'])) {

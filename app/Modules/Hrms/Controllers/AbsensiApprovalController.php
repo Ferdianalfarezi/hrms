@@ -58,6 +58,14 @@ class AbsensiApprovalController extends Controller
         }
 
         $absensi = $approval->absensi;
+
+        // Pengajuan hapus yang datanya sudah tidak ada: hasil akhirnya sama, jadi cukup ditandai disetujui.
+        if (! $absensi && $approval->isDeletion()) {
+            $this->decide($approval, AbsensiApproval::STATUS_APPROVED, $request, $data['catatan_review'] ?? null);
+
+            return back()->with('status', "Pengajuan {$approval->karyawan->nik} - {$approval->karyawan->nama} disetujui, data absensinya sudah tidak ada.");
+        }
+
         if (! $absensi) {
             return back()->withErrors(['approval' => 'Data absensi yang diajukan sudah dihapus, pengajuan tidak bisa disetujui. Tolak pengajuan ini.']);
         }

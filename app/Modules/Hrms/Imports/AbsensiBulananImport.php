@@ -39,7 +39,7 @@ class AbsensiBulananImport
     /**
      * @param  bool  $simpan  false = hanya hitung perubahan (dry-run), database tidak diubah.
      * @param  bool  $hapus  true = hapus absensi karyawan di sheet yang selnya kosong, supaya sama persis dengan sheet.
-     * @return array{bulan: Carbon, sel: int, ditambah: int, diubah: int, sama: int, hanya_di_database: list<string>, dihapus: int, nik_tidak_terdaftar: list<string>, kode_tidak_dikenal: list<string>, contoh_diubah: list<string>}
+     * @return array{bulan: Carbon, sel: int, ditambah: int, diubah: int, sama: int, hanya_di_database: list<string>, dihapus: int, nik_tidak_terdaftar: list<string>, kode_tidak_dikenal: list<string>, contoh_diubah: list<string>, menunggu_approval: list<string>}
      */
     public function import(string $path, string $sheetName, bool $simpan = true, ?Carbon $bulan = null, bool $hapus = false): array
     {
@@ -85,6 +85,7 @@ class AbsensiBulananImport
         $nikTidakTerdaftar = array_values(array_diff($niks, array_map('strval', $karyawanIds->keys()->all())));
 
         $existing = Absensi::query()
+            ->withCount('pendingApproval')
             ->whereIn('karyawan_id', $karyawanIds->values())
             ->whereBetween('tanggal', [$bulan->toDateString(), $bulan->copy()->endOfMonth()->toDateString()])
             ->get()
@@ -94,7 +95,10 @@ class AbsensiBulananImport
         $contohDiubah = [];
         $dipakai = [];
 
-        $proses = function () use ($sel, $karyawanIds, $existing, $simpan, &$hasil, &$contohDiubah, &$dipakai) {
+        // Absensi yang masih menunggu approval tidak ditimpa maupun dihapus; diputuskan dulu lewat menu Approval.
+        $menungguApproval = $existing->filter(fn (Absensi $absensi) => $absensi->pending_approval_count > 0);
+
+        $proses = function () use ($sel, $karyawanIds, $existing, $menungguApproval, $simpan, &$hasil, &$contohDiubah, &$dipakai) {
             foreach ($sel as $nik => $tanggals) {
                 $karyawanId = $karyawanIds[(string) $nik] ?? null;
                 if ($karyawanId === null) {
@@ -105,6 +109,10 @@ class AbsensiBulananImport
                     $key = "{$karyawanId}|{$tanggal}";
                     $dipakai[$key] = true;
                     $absensi = $existing[$key] ?? null;
+
+                    if ($menungguApproval->has($key)) {
+                        continue;
+                    }
 
                     if ($absensi?->kode === $kode) {
                         $hasil['sama']++;
@@ -136,8 +144,8 @@ class AbsensiBulananImport
         };
 
         // Dihitung setelah $proses mengisi $dipakai: absensi yang tidak punya pasangan sel berkode di sheet.
-        $sisa = function () use ($existing, &$dipakai, $abaikan, $nikOf) {
-            return $existing->reject(fn (Absensi $absensi, string $key) => isset($dipakai[$key])
+        $sisa = function () use ($existing, $menungguApproval, &$dipakai, $abaikan, $nikOf) {
+            return $existing->reject(fn (Absensi $absensi, string $key) => isset($dipakai[$key]) || $menungguApproval->has($key)
                 || isset($abaikan[$nikOf[$absensi->karyawan_id].'|'.$absensi->tanggal->toDateString()]));
         };
 
@@ -165,6 +173,9 @@ class AbsensiBulananImport
             'nik_tidak_terdaftar' => $nikTidakTerdaftar,
             'kode_tidak_dikenal' => $kodeTidakDikenal,
             'contoh_diubah' => $contohDiubah,
+            'menunggu_approval' => $menungguApproval
+                ->map(fn (Absensi $absensi) => $nikOf[$absensi->karyawan_id].' '.$absensi->tanggal->toDateString().' '.$absensi->kode)
+                ->values()->all(),
         ];
     }
 

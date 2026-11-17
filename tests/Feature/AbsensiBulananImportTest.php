@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Modules\Hrms\Imports\AbsensiBulananImport;
 use App\Modules\Hrms\Models\Absensi;
+use App\Modules\Hrms\Models\AbsensiApproval;
 use App\Modules\Hrms\Models\Karyawan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use OpenSpout\Common\Entity\Row;
@@ -118,6 +119,26 @@ class AbsensiBulananImportTest extends TestCase
         $sisa = Absensi::with('karyawan')->orderBy('tanggal')->get()
             ->map(fn (Absensi $absensi) => $absensi->karyawan->nik.' '.$absensi->tanggal->toDateString())->sort()->values()->all();
         $this->assertSame(['0001 2026-10-05', '0001 2026-10-07', '0002 2026-11-02', '0003 2026-10-15'], $sisa);
+    }
+
+    public function test_absensi_yang_menunggu_approval_tidak_diubah_maupun_dihapus(): void
+    {
+        $andi = $this->karyawan('0001');
+        $diubah = Absensi::create(['karyawan_id' => $andi->id, 'tanggal' => '2026-10-05', 'kode' => 'A']);
+        $dihapus = Absensi::create(['karyawan_id' => $andi->id, 'tanggal' => '2026-10-06', 'kode' => 'S']);
+        foreach ([$diubah, $dihapus] as $absensi) {
+            AbsensiApproval::create([
+                'absensi_id' => $absensi->id, 'karyawan_id' => $andi->id, 'tanggal_lama' => $absensi->tanggal, 'kode_lama' => $absensi->kode,
+                'tanggal_baru' => $absensi->tanggal, 'kode_baru' => null, 'alasan' => 'Salah input', 'status' => AbsensiApproval::STATUS_PENDING,
+            ]);
+        }
+        $this->sheet("Okt'26", [['0001', [5 => 'I']]]);
+
+        $hasil = (new AbsensiBulananImport)->import($this->path, "Okt'26", hapus: true);
+
+        $this->assertSame(['A', 'S'], [$diubah->fresh()->kode, $dihapus->fresh()->kode]);
+        $this->assertSame(['0001 2026-10-05 A', '0001 2026-10-06 S'], $hasil['menunggu_approval']);
+        $this->assertSame([0, 0, 0], [$hasil['ditambah'], $hasil['diubah'], $hasil['dihapus']]);
     }
 
     public function test_command_tanpa_simpan_tidak_mengubah_database(): void

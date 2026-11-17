@@ -72,6 +72,10 @@ Artisan::command('hrms:import-absensi {file : Path file .xlsx / .xlsm} {sheet : 
         $this->warn('Kode tidak dikenal, dilewati: '.implode('; ', $hasil['kode_tidak_dikenal']));
     }
 
+    if ($hasil['menunggu_approval'] !== []) {
+        $this->warn('Masih menunggu approval, tidak diubah/dihapus: '.implode('; ', $hasil['menunggu_approval']));
+    }
+
     if (! $simpan) {
         $this->comment('Belum ada yang disimpan. Jalankan ulang dengan --simpan untuk menyimpan.');
     }
