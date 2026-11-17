@@ -26,6 +26,9 @@ class PresentaseAbsensi
         'magang' => ['grup' => 'OPERATOR', 'status' => 'PEMAGANGAN'],
     ];
 
+    /** Jumlah hari kerja ke belakang yang dicetak di PDF presentase. */
+    public const HARI_PDF = 10;
+
     /** Jabatan operator; karyawan tetap dengan jabatan lain masuk AST.LEAD UP. */
     private const JABATAN_OPERATOR = 'karyawan';
 
@@ -47,6 +50,36 @@ class PresentaseAbsensi
         $mulai = $bulan->copy()->startOfMonth();
         $akhir = $bulan->copy()->endOfMonth()->startOfDay()->min(Carbon::today());
 
+        return ['bulan' => $mulai, ...self::rentang($mulai, $akhir)];
+    }
+
+    /**
+     * Sejumlah hari kerja terakhir sampai tanggal itu (boleh lintas bulan), dipakai PDF presentase.
+     *
+     * @return array{mulai: Carbon, sampai: Carbon, days: list<array{tanggal: Carbon, rows: array<string, array<string, mixed>>}>, total: array<string, mixed>}
+     */
+    public static function hariKerjaTerakhir(Carbon $sampai, int $jumlahHari): array
+    {
+        $akhir = $sampai->copy()->startOfDay()->min(Carbon::today());
+        $mulai = $akhir->copy();
+        $hitung = $mulai->isWeekend() ? 0 : 1;
+
+        while ($hitung < $jumlahHari) {
+            $mulai->subDay();
+
+            if (! $mulai->isWeekend()) {
+                $hitung++;
+            }
+        }
+
+        return ['mulai' => $mulai, 'sampai' => $akhir, ...self::rentang($mulai, $akhir)];
+    }
+
+    /**
+     * @return array{days: list<array{tanggal: Carbon, rows: array<string, array<string, mixed>>}>, total: array<string, mixed>}
+     */
+    private static function rentang(Carbon $mulai, Carbon $akhir): array
+    {
         $karyawans = Karyawan::get(['id', 'nik', 'group', 'status', 'jabatan', 'tanggal_masuk'])
             ->each(fn (Karyawan $karyawan) => $karyawan->setAttribute('kelompok', self::kelompok($karyawan)))
             ->filter(fn (Karyawan $karyawan) => $karyawan->kelompok !== null)
@@ -80,7 +113,6 @@ class PresentaseAbsensi
         $rows = collect($days)->flatMap(fn (array $day) => array_values($day['rows']));
 
         return [
-            'bulan' => $mulai,
             'days' => $days,
             'total' => self::hitung(['total' => $rows->sum('total'), 'cuti' => $rows->sum('cuti'), 'si' => $rows->sum('si')]),
         ];

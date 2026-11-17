@@ -27,6 +27,23 @@ class AbsensiPresentaseController extends Controller
         ]);
     }
 
+    /**
+     * Halaman cetak A4 portrait berisi 10 hari kerja terakhir sampai akhir bulan yang dipilih (atau hari ini);
+     * dialog print langsung terbuka untuk disimpan sebagai PDF.
+     */
+    public function pdf(Request $request): View
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        $bulan = $this->parseMonth((string) $request->query('bulan')) ?? Carbon::today();
+
+        return view('hrms.absensi.presentase-pdf', [
+            ...PresentaseAbsensi::hariKerjaTerakhir($bulan->copy()->endOfMonth(), PresentaseAbsensi::HARI_PDF),
+            'kelompok' => PresentaseAbsensi::KELOMPOK,
+            'target' => LaporanAbsensiShift::TARGET_PERSEN,
+        ]);
+    }
+
     private function parseMonth(string $value): ?Carbon
     {
         try {

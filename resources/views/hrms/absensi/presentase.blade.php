@@ -51,6 +51,7 @@
             <a href="{{ route('hrms.absensi.presentase', ['bulan' => $bulan->copy()->addMonth()->format('Y-m')]) }}" title="Bulan berikutnya">&rsaquo;</a>
         </span>
         <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="Bulan">
+        <a href="{{ route('hrms.absensi.presentase.pdf', ['bulan' => $bulan->format('Y-m')]) }}" title="10 hari kerja terakhir" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">Unduh PDF</a>
         <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Cetak</button>
     </form>
 </div>

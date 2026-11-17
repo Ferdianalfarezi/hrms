@@ -113,4 +113,26 @@ class AbsensiPresentaseTest extends TestCase
         $deptAdmin->assignRole('hrms', 'dept_admin', Department::create(['name' => 'PSD'])->id);
         $this->actingAs($deptAdmin)->get(route('hrms.absensi.presentase'))->assertForbidden();
     }
+
+    public function test_pdf_presentase_berisi_10_hari_kerja_terakhir(): void
+    {
+        $this->karyawan('0001', 'Tetap', 'Leader');
+
+        // Hari ini Kamis 15 Okt: 10 hari kerja terakhir = Jumat 2 Okt s/d Kamis 15 Okt.
+        $this->actingAs($this->hrmsAdmin())
+            ->get(route('hrms.absensi.presentase.pdf', ['bulan' => '2026-10']))
+            ->assertOk()
+            ->assertSeeInOrder(['PRESENTASE ABSENSI 02 - 15 OKTOBER 2026', 'TOTAL 10 HARI KERJA', 'Jumat', '02/10', 'AST.LEAD UP', 'PEMAGANGAN', 'Kamis', '15/10'])
+            ->assertDontSee('01/10');
+
+        // Lintas bulan: hari ini Rabu 4 Nov, jadi 10 hari kerja terakhir mulai Kamis 22 Okt.
+        Carbon::setTestNow('2026-11-04 09:00:00');
+        $data = PresentaseAbsensi::hariKerjaTerakhir(Carbon::parse('2026-11-30'), 10);
+        $this->assertSame(['2026-10-22', '2026-11-04'], [$data['mulai']->toDateString(), $data['sampai']->toDateString()]);
+        $this->assertCount(10, $data['days']);
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', Department::create(['name' => 'PSD'])->id);
+        $this->actingAs($deptAdmin)->get(route('hrms.absensi.presentase.pdf'))->assertForbidden();
+    }
 }

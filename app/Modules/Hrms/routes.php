@@ -45,6 +45,7 @@ Route::get('absensi/resume/pdf', [AbsensiResumeController::class, 'pdf'])->name(
 
 // Persentase ketidakhadiran bulanan per kelompok karyawan (khusus Admin HRMS).
 Route::get('absensi/presentase', [AbsensiPresentaseController::class, 'index'])->name('absensi.presentase');
+Route::get('absensi/presentase/pdf', [AbsensiPresentaseController::class, 'pdf'])->name('absensi.presentase.pdf');
 
 // Komparasi data mesin absen: upload data mesin + daftar yang belum ada keterangan (khusus Admin HRMS).
 Route::get('absensi/komparasi', [AbsensiKomparasiController::class, 'index'])->name('absensi.komparasi');
