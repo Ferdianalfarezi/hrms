@@ -379,7 +379,7 @@
                 <div style="margin-top: 16px;" id="abs-menit-wrap" hidden>
                     <label for="abs-menit">Terlambat berapa menit?</label>
                     <input id="abs-menit" type="number" name="menit_terlambat" min="1" max="720" placeholder="Mis. 45" inputmode="numeric" disabled>
-                    <div class="muted small" style="margin-top: 4px;">Potongan gaji dihitung per kelipatan 30 menit (dibulatkan ke atas). DT&lt; = maks. 30 menit, DT&gt; = 30 menit ke atas.</div>
+                    <div class="muted small" style="margin-top: 4px;">Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT&lt; tidak perlu diisi, otomatis 30 menit.</div>
                 </div>
                 <div style="margin-top: 16px;">
                     <label for="abs-ket">Keterangan <span class="muted" id="abs-ket-hint">(opsional)</span></label>
@@ -480,7 +480,8 @@
         var form = document.getElementById('abs-form');
         var error = document.getElementById('abs-error');
         var activeCell = null;
-        var kodeTerlambat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_TERLAMBAT) }};
+        // Hanya DT> yang wajib isi menit; DT< otomatis 30 menit.
+        var kodeTerlambat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_WAJIB_MENIT) }};
 
         // Input menit hanya muncul (dan wajib) untuk kode datang terlambat.
         function syncMenit() {

@@ -388,30 +388,23 @@ class AbsensiController extends Controller
             ...$this->menitMessages(),
         ]);
 
-        // Menit hanya disimpan untuk kode datang terlambat.
-        $data['menit_terlambat'] = Absensi::isTerlambat($data['kode']) ? (int) $data['menit_terlambat'] : null;
+        // Menit hanya disimpan untuk kode datang terlambat; DT< otomatis 30 menit.
+        $data['menit_terlambat'] = Absensi::menitUntuk($data['kode'], $data['menit_terlambat'] ?? null);
 
         return $data;
     }
 
     /**
-     * Menit terlambat wajib untuk DT< (1 - 30 menit) dan DT> (30 menit ke atas).
+     * Menit terlambat wajib untuk DT> (menit sebenarnya, dihitung dibulatkan ke atas per 30 menit).
+     * DT< tidak perlu diisi, otomatis 30 menit.
      *
      * @return list<mixed>
      */
     private function menitRules(Request $request): array
     {
         return [
-            Rule::requiredIf(fn () => Absensi::isTerlambat($request->input('kode'))),
+            Rule::requiredIf(fn () => Absensi::wajibIsiMenit($request->input('kode'))),
             'nullable', 'integer', 'min:1', 'max:720',
-            function (string $attribute, mixed $value, Closure $fail) use ($request) {
-                $kode = $request->input('kode');
-                if ($kode === 'DT<' && (int) $value > Absensi::MENIT_PER_POTONGAN) {
-                    $fail('Kode DT< maksimal 30 menit. Pilih DT> untuk terlambat lebih dari 30 menit.');
-                } elseif ($kode === 'DT>' && (int) $value < Absensi::MENIT_PER_POTONGAN) {
-                    $fail('Kode DT> minimal 30 menit. Pilih DT< untuk terlambat kurang dari 30 menit.');
-                }
-            },
         ];
     }
 
@@ -477,7 +470,7 @@ class AbsensiController extends Controller
         $absensi = $existing ?? new Absensi(['karyawan_id' => $karyawan->id, 'tanggal' => $data['tanggal'], 'created_by' => $request->user()->id]);
         $absensi->fill([
             'kode' => $data['kode'],
-            'menit_terlambat' => Absensi::isTerlambat($data['kode']) ? (int) $data['menit_terlambat'] : null,
+            'menit_terlambat' => Absensi::menitUntuk($data['kode'], $data['menit_terlambat'] ?? null),
             'keterangan' => $data['keterangan'] ?? null,
             'updated_by' => $request->user()->id,
         ])->save();

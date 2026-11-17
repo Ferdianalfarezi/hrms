@@ -30,6 +30,7 @@
 @section('content')
 @php
     $keep = array_filter(['department' => $department, 'q' => $search, 'semua' => $showAll ? 1 : null]);
+    $menitPerBlok = \App\Modules\Hrms\Models\Absensi::MENIT_PER_POTONGAN;
     $durasi = fn (int $menit) => $menit >= 60 ? intdiv($menit, 60).' jam'.($menit % 60 ? ' '.($menit % 60).' mnt' : '') : $menit.' mnt';
 @endphp
 
@@ -49,7 +50,7 @@
     <div class="summary">
         <span class="chip">{{ $rows->where('jumlah', '>', 0)->count() }} karyawan terlambat</span>
         <span class="chip">{{ $rows->sum('jumlah') }}x DT · {{ $rows->sum('blok') }}x kelipatan 30 mnt</span>
-        <span class="chip total">Total terlambat <b>{{ $durasi($rows->sum('menit')) }}</b></span>
+        <span class="chip total">Total dihitung <b>{{ $durasi($rows->sum('blok') * $menitPerBlok) }}</b></span>
     </div>
 </div>
 
@@ -90,7 +91,7 @@
                     <th class="num">Jumlah DT</th>
                     <th class="num">Total Menit</th>
                     <th class="num" title="Kelipatan 30 menit, dibulatkan ke atas per kejadian">Kelipatan 30 mnt</th>
-                    <th class="num">Durasi</th>
+                    <th class="num" title="Kelipatan 30 menit x 30, mis. telat 1 menit = 30 menit, 31 menit = 1 jam">Durasi Dihitung</th>
                     <th></th>
                 </tr>
             </thead>
@@ -113,7 +114,7 @@
                         <td class="num">{{ $row['jumlah'] }}</td>
                         <td class="num">{{ number_format($row['menit'], 0, ',', '.') }}</td>
                         <td class="num">{{ $row['blok'] }}</td>
-                        <td class="num money">{{ $durasi($row['menit']) }}</td>
+                        <td class="num money">{{ $durasi($row['blok'] * $menitPerBlok) }}</td>
                         <td style="text-align: right;">
                             @if ($row['jumlah'])
                                 <button type="button" class="btn btn-ghost btn-sm" data-detail="{{ $karyawan->id }}">Detail</button>
@@ -156,7 +157,7 @@
                                                     <td colspan="2">Total</td>
                                                     <td class="num">{{ $row['menit'] }}</td>
                                                     <td class="num">{{ $row['blok'] }}</td>
-                                                    <td class="money">{{ $durasi($row['menit']) }}</td>
+                                                    <td class="money">{{ $durasi($row['blok'] * $menitPerBlok) }}</td>
                                                 </tr>
                                             </tfoot>
                                         </table>
@@ -180,7 +181,7 @@
                         <td class="num">{{ $rows->sum('jumlah') }}</td>
                         <td class="num">{{ number_format($rows->sum('menit'), 0, ',', '.') }}</td>
                         <td class="num">{{ $rows->sum('blok') }}</td>
-                        <td class="num money">{{ $durasi($rows->sum('menit')) }}</td>
+                        <td class="num money">{{ $durasi($rows->sum('blok') * $menitPerBlok) }}</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -189,7 +190,7 @@
     </div>
 </div>
 <p class="muted small" style="margin-top: 12px;">
-    Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. 10 menit = 1x, 45 menit = 2x. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:00).
+    Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. telat 1 - 30 menit = 1x (30 menit), 31 - 60 menit = 2x (1 jam). DT&lt; yang diinput manual otomatis 30 menit. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:00).
 </p>
 
 <dialog class="modal wide" id="detail-modal">

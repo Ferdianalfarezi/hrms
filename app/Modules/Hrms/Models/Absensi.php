@@ -124,9 +124,41 @@ class Absensi extends Model
     /** Potongan dihitung per kelipatan menit ini (dibulatkan ke atas). */
     public const MENIT_PER_POTONGAN = 30;
 
+    /** Kode terlambat yang menitnya wajib diisi manual; DT< otomatis MENIT_PER_POTONGAN menit. */
+    public const KODE_WAJIB_MENIT = ['DT>'];
+
     public static function isTerlambat(?string $kode): bool
     {
         return in_array($kode, self::KODE_TERLAMBAT, true);
+    }
+
+    public static function wajibIsiMenit(?string $kode): bool
+    {
+        return in_array($kode, self::KODE_WAJIB_MENIT, true);
+    }
+
+    /**
+     * Menit terlambat dari input manual: DT< selalu 30 menit, DT> memakai isian, kode lain tidak punya menit.
+     */
+    public static function menitUntuk(?string $kode, mixed $menit): ?int
+    {
+        return match (true) {
+            $kode === 'DT<' => self::MENIT_PER_POTONGAN,
+            self::isTerlambat($kode) => $menit ? (int) $menit : null,
+            default => null,
+        };
+    }
+
+    /**
+     * Jalur mana pun (input, approval, import) tidak boleh menyimpan DT< tanpa menit.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Absensi $absensi) {
+            if ($absensi->kode === 'DT<' && ! $absensi->menit_terlambat) {
+                $absensi->menit_terlambat = self::MENIT_PER_POTONGAN;
+            }
+        });
     }
 
     public static function isSakit(?string $kode): bool

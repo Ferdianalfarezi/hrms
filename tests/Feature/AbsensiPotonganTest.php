@@ -43,16 +43,24 @@ class AbsensiPotonganTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_late_code_requires_minutes_that_match_the_code(): void
+    public function test_dt_kecil_otomatis_30_menit_dan_dt_besar_wajib_isi_menit(): void
     {
         $save = fn (string $kode, ?int $menit) => $this->actingAs($this->hrmsAdmin)->postJson('/hrms/absensi', [
             'karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => $kode, 'menit_terlambat' => $menit,
         ]);
 
-        $save('DT<', null)->assertJsonValidationErrors('menit_terlambat');
-        $save('DT<', 31)->assertJsonValidationErrors('menit_terlambat');
-        $save('DT>', 20)->assertJsonValidationErrors('menit_terlambat');
+        // DT< tidak perlu isi menit: selalu dihitung 30 menit.
+        $save('DT<', null)->assertOk()->assertJson(['kode' => 'DT<', 'menit_terlambat' => 30]);
+        $save('DT<', 5)->assertOk()->assertJson(['menit_terlambat' => 30]);
+
+        // DT> wajib isi menit sebenarnya, tanpa batas minimal 30.
+        $save('DT>', null)->assertJsonValidationErrors('menit_terlambat');
+        $save('DT>', 20)->assertOk()->assertJson(['kode' => 'DT>', 'menit_terlambat' => 20]);
         $save('DT>', 45)->assertOk()->assertJson(['kode' => 'DT>', 'menit_terlambat' => 45]);
+
+        // Jalur lain (mis. import) yang menyimpan DT< tanpa menit juga otomatis 30 menit.
+        $import = Absensi::create(['karyawan_id' => $this->budi->id, 'tanggal' => '2026-10-14', 'kode' => 'DT<']);
+        $this->assertSame(30, $import->fresh()->menit_terlambat);
 
         // Kode selain DT tidak menyimpan menit.
         $save('I', 45)->assertOk()->assertJson(['menit_terlambat' => null]);
@@ -84,7 +92,7 @@ class AbsensiPotonganTest extends TestCase
         $this->actingAs($deptAdmin)->get(route('hrms.absensi.potongan'))
             ->assertOk()
             ->assertSee('Andi PSD')
-            ->assertSee('45 mnt')
+            ->assertSee('1 jam')   // telat 45 menit dihitung 2x 30 menit
             ->assertDontSee('Rp ')
             ->assertDontSee('Budi PWD');
     }
