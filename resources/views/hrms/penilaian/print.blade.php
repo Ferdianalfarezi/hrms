@@ -102,7 +102,6 @@
         .rekom { border: 1px solid #000; height: 10mm; padding: .6mm 1.5mm; font-size: 5.5pt; }
         .status td { font-size: 6.5pt; height: 3.6mm; }
         .status td.o { width: 6mm; text-align: center; font-size: 9pt; line-height: 1; }
-        .foot { margin-top: 3px; font-size: 6.5pt; color: #555; display: flex; justify-content: space-between; }
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }
@@ -375,16 +374,6 @@
     </table>
 </div>
 
-    <div class="foot">
-        <span>
-            @if ($penilaian->status === PenilaianTahunan::STATUS_DISETUJUI)
-                {{ __('Disetujui secara elektronik melalui HR System.') }}
-            @else
-                {{ __('Masih dalam proses approval (menunggu :tahap) · ditandatangani elektronik melalui HR System.', ['tahap' => \App\Modules\Hrms\Support\JenjangPenilaian::label($penilaian->posisi_level)]) }}
-            @endif
-        </span>
-        <span>{{ __('Dicetak :waktu oleh :nama', ['waktu' => now()->translatedFormat('d M Y H:i'), 'nama' => auth()->user()->name]) }}</span>
-    </div>
 </div>
 
 <script>

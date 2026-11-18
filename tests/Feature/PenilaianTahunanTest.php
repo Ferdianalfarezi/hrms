@@ -206,9 +206,7 @@ class PenilaianTahunanTest extends TestCase
         $this->actingAs($this->leader)->get($print)->assertNotFound();
 
         $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')]);
-        $response = $this->actingAs($this->leader)->get($print)
-            ->assertOk()
-            ->assertSee('Masih dalam proses approval');
+        $response = $this->actingAs($this->leader)->get($print)->assertOk();
         $this->assertSame([null, 'section', 'leader', 'asst_leader'], array_map(fn ($kotak) => $kotak['level'] ?? null, $response->viewData('kotakPenilai')));
         $this->assertNotNull($response->viewData('kotakPenilai')[3]['log']);
         $this->assertNull($response->viewData('kotakPenilai')[2]['log']);
