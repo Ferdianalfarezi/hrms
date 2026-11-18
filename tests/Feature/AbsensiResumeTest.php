@@ -124,7 +124,7 @@ class AbsensiResumeTest extends TestCase
         $this->actingAs($this->hrmsAdmin())
             ->get(route('hrms.absensi.resume', ['tanggal' => '2026-10-15']))
             ->assertOk()
-            ->assertSee('Kamis, 15 Oktober 2026 (Shift 1)')
+            ->assertSeeInOrder(['Rabu, 14 Oktober 2026 (Shift 2)', 'Kamis, 15 Oktober 2026 (Shift 1)'])
             ->assertSee('MP PSD');
 
         $deptAdmin = User::factory()->create();

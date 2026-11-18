@@ -69,7 +69,8 @@
     </form>
 </div>
 
-@foreach ($sections as $section)
+{{-- Urut kronologis seperti versi PDF / format kertas HRD: Shift 2 (malam sebelumnya) di atas, lalu Shift 1. --}}
+@foreach (collect($sections)->sortBy(fn (array $section) => $section['tanggal']->toDateString())->values() as $section)
     <section class="card rsm-section">
         <div class="rsm-title">
             <h2>{{ $section['tanggal']->translatedFormat('l, d F Y') }} ({{ __($section['judul']) }})</h2>
