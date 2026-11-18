@@ -4,7 +4,7 @@
 @use('App\Modules\Hrms\Support\QrCode')
 @php
     // Tata letak mengikuti form kertas HRD (contoh: FORM PENILAIAN AST. LEADER, HRD / FMR / 34).
-    // $tampilNilai = false: hanya centang yang tampil, semua angka nilai (total, nilai akhir, huruf) dikosongkan.
+    // $tampilNilai = false: hanya centang & nilai absen yang tampil, angka nilai lain (total, nilai akhir, huruf) dikosongkan.
     $tampilNilai ??= true;
     // Ditampilkan di dalam modal (preview isian / preview sebelum print): tanpa toolbar & tanpa langsung membuka dialog print.
     $tanpaToolbar = ! empty($preview) || ! empty($dalamModal);
@@ -231,7 +231,7 @@
                     <tr>
                         <td class="rumus">{{ __('Nilai Maksimum = :maks (a)', ['maks' => FormPenilaian::MAKS_ABSEN]) }}</td>
                         <td class="rumus" colspan="{{ count($kolomAbsen) }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai akhir = (Total nilai / a ) x ( b% x 100)') }}</td>
-                        <td class="akhir">{{ $tampilNilai ? $angka($penilaian->nilai_absen) : '' }}</td>
+                        <td class="akhir">{{ $angka($penilaian->nilai_absen) }}</td>
                     </tr>
                 </table>
                 <div class="bobot-absen">{{ __('Bobot Absen :level = :bobot% (b)', ['level' => __($levelForm[$penilaian->form] ?? ''), 'bobot' => $form['bobot_absen']]) }}</div>
@@ -379,7 +379,7 @@
                         <td class="lbl" colspan="2">{{ __('NILAI ABSEN') }}</td>
                     </tr>
                     <tr><td class="lbl">{{ __('ANGKA') }}</td><td class="lbl">{{ __('HURUF') }}</td></tr>
-                    <tr><td class="val" colspan="2">{{ $tampilNilai ? $angka($penilaian->nilai_absen) : '' }}</td></tr>
+                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_absen) }}</td></tr>
                     <tr><td class="lbl" colspan="2">{{ __('PERFORMANCE') }}</td></tr>
                     <tr><td class="val" colspan="2">{{ $tampilNilai ? $angka($penilaian->nilai_performance) : '' }}</td></tr>
                     <tr>

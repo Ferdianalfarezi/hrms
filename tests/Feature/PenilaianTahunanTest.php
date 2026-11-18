@@ -230,12 +230,13 @@ class PenilaianTahunanTest extends TestCase
         $this->actingAs($this->leader)->post($url, $setuju);
         $this->actingAs($this->section)->post($url, $setuju);
 
-        // Default hanya centang: angka nilai & huruf tidak dicetak.
+        // Default hanya centang & nilai absen: angka nilai lain & huruf tidak dicetak.
         $this->actingAs($this->leader)->get($print)
             ->assertOk()
             ->assertSee('HRD / FMR / 7')
             ->assertSee('Operator HRD')
             ->assertSee('color: #15803d;">✓', false)
+            ->assertSee('<td class="val" colspan="2">20,00</td>', false)
             ->assertDontSee('84,00')
             ->assertDontSee('= 12,80');
 
