@@ -8,6 +8,7 @@ use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Models\ShiftRotasi;
+use App\Modules\Hrms\Support\KomparasiAbsensi;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -184,6 +185,29 @@ class AbsensiKomparasiTest extends TestCase
         $this->assertSame('Mesin absen: Time In 20:45 (shift malam, acuan 20:00)', Absensi::where('karyawan_id', $bayu->id)->value('keterangan'));
     }
 
+    public function test_upload_tidak_mencatat_terlambat_untuk_manager_ke_atas_dan_lahir_di_jepang(): void
+    {
+        $operator = $this->karyawan('0001', 'Agus Operator', 'A');
+        $manager = $this->karyawan('0002', 'Budi Manager', 'A');
+        $manager->update(['jabatan' => 'Asst. Manager']);
+        $jepang = $this->karyawan('0003', 'Tanaka San', 'A');
+        $jepang->update(['tempat_lahir' => 'JAPAN']);
+        // DT otomatis dari upload sebelumnya ikut dihapus saat upload ulang.
+        Absensi::create(['karyawan_id' => $jepang->id, 'tanggal' => '2026-10-15', 'kode' => 'DT<', 'menit_terlambat' => 30,
+            'keterangan' => 'Mesin absen: Time In 07:30 (shift pagi, acuan 07:00)']);
+
+        $this->actingAs($this->hrmsAdmin())
+            ->post(route('hrms.absensi.komparasi.store'), ['file' => $this->attendanceReport([
+                ['14/10/2026', '0009', 'Tidak Terdaftar', '19:00', '06:00'],
+                ['15/10/2026', '0001', 'Agus Operator', '07:20', '-'],
+                ['15/10/2026', '0002', 'Budi Manager', '09:00', '-'],
+                ['15/10/2026', '0003', 'Tanaka San', '08:30', '-'],
+            ])])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([$operator->id], Absensi::whereIn('kode', Absensi::KODE_TERLAMBAT)->pluck('karyawan_id')->all());
+    }
+
     public function test_upload_tanpa_tanggal_kemarin_memberi_peringatan(): void
     {
         $this->karyawan('0001', 'Agus Pagi', 'A');
@@ -263,6 +287,37 @@ class AbsensiKomparasiTest extends TestCase
                 $malam->id => ['2026-10-14' => true],
             ])
             ->assertSee('Tidak masuk · belum ada keterangan');
+    }
+
+    public function test_manager_ke_atas_dan_lahir_di_jepang_tetap_di_komparasi_tapi_dianggap_masuk_di_harian(): void
+    {
+        $operator = $this->karyawan('0001', 'Andi Operator');
+        $manager = $this->karyawan('0002', 'Budi Manager');
+        $manager->update(['jabatan' => 'Manager']);
+        $jepang = $this->karyawan('0003', 'Tanaka San');
+        $jepang->update(['tempat_lahir' => 'Japan']);
+        $gmIzin = $this->karyawan('0004', 'Cici GM');
+        $gmIzin->update(['jabatan' => 'GM']);
+        $this->absen($gmIzin, '2026-10-15', 'I');
+        $this->mesin('2026-10-15', ['0001', '0002', '0003', '0004']);
+        $admin = $this->hrmsAdmin();
+
+        $this->actingAs($admin)
+            ->get(route('hrms.absensi.komparasi', ['tanggal' => '2026-10-15']))
+            ->assertOk()
+            ->assertViewHas('belum', fn ($rows) => $rows->pluck('karyawan.nik')->all() === ['0001', '0002', '0003'])
+            ->assertSee('Dianggap masuk');
+
+        // Input manual admin tetap tampil apa adanya; yang dibebaskan hanya sel "belum ada keterangan".
+        $this->actingAs($admin)
+            ->get(route('hrms.absensi.index', ['tanggal' => '2026-10-15']))
+            ->assertOk()
+            ->assertViewHas('tanpaKeterangan', fn ($sel) => $sel === [$operator->id => ['2026-10-15' => true]]);
+
+        $adminPsd = User::factory()->create();
+        $adminPsd->assignRole('hrms', 'dept_admin', $this->psd->id);
+        KomparasiAbsensi::beritahuAdminDepartemen(Carbon::parse('2026-10-15'));
+        $this->assertSame(['0001'], collect($adminPsd->notifications()->sole()->data['karyawans'])->pluck('nik')->all());
     }
 
     public function test_kode_tidak_hadir_padahal_hadir_di_mesin_ditandai(): void

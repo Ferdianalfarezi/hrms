@@ -62,8 +62,9 @@ class KomparasiAbsensi
             return 0;
         }
 
+        // Karyawan bebas absen mesin dianggap masuk, jadi Admin Departemen tidak perlu diminta mengisi keterangannya.
         $perDepartemen = self::belumAdaKeterangan($tanggal)
-            ->filter(fn (array $item) => $item['karyawan']->department_id !== null)
+            ->filter(fn (array $item) => $item['karyawan']->department_id !== null && ! $item['karyawan']->isBebasAbsenMesin())
             ->groupBy(fn (array $item) => $item['karyawan']->department_id);
 
         // Admin yang memegang beberapa departemen mendapat satu notifikasi berisi gabungan karyawannya.
@@ -94,6 +95,8 @@ class KomparasiAbsensi
 
     /**
      * Sel matriks absensi yang belum ada keterangan dalam rentang tanggal: [karyawan_id][Y-m-d] => true.
+     * Karyawan bebas absen mesin (Manager ke atas / lahir di Jepang) tidak pernah masuk di sini, jadi di Harian dan
+     * laporan lain tetap dianggap masuk sampai admin mengisi absensinya secara manual.
      *
      * @param  Collection<int, Karyawan>  $karyawans
      * @return array<int, array<string, true>>
@@ -101,7 +104,8 @@ class KomparasiAbsensi
     public static function selBelumAdaKeterangan(Collection $karyawans, Carbon $mulai, Carbon $sampai): array
     {
         $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
-        $byNik = $karyawans->keyBy('nik');
+        $bebas = array_flip(Karyawan::whereIn('id', $karyawans->pluck('id'))->bebasAbsenMesin()->pluck('id')->all());
+        $byNik = $karyawans->reject(fn (Karyawan $karyawan) => isset($bebas[$karyawan->id]))->keyBy('nik');
         $sudahDiisi = self::sudahDiisi($karyawans->pluck('id')->all(), $mulai, $sampai);
         $sel = [];
 

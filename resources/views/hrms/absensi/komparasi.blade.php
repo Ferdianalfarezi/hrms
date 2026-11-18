@@ -120,7 +120,12 @@
                     <tr>
                         <td class="c">{{ $loop->iteration }}</td>
                         <td>{{ $row['karyawan']->nik }}</td>
-                        <td class="nama">{{ $row['karyawan']->nama }}</td>
+                        <td class="nama">
+                            {{ $row['karyawan']->nama }}
+                            @if ($row['karyawan']->isBebasAbsenMesin())
+                                <span class="badge" title="{{ __('Manager ke atas / lahir di Jepang: di Harian dan laporan tetap dianggap masuk sampai admin mengisi absensinya.') }}">{{ __('Dianggap masuk') }}</span>
+                            @endif
+                        </td>
                         <td>{{ $row['karyawan']->department?->name ?? '-' }}</td>
                         <td class="c">{{ $row['karyawan']->group ?? '-' }}</td>
                         <td>{{ $row['tanggalLaporan']->translatedFormat('d M Y') }}</td>

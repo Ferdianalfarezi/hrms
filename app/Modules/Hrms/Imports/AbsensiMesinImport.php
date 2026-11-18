@@ -153,13 +153,16 @@ class AbsensiMesinImport
             return [];
         }
 
-        $ids = Karyawan::whereIn('nik', array_map('strval', array_keys($masuk)))->pluck('id', 'nik');
+        $niks = array_map('strval', array_keys($masuk));
+        $ids = Karyawan::whereIn('nik', $niks)->pluck('id', 'nik');
+        // Karyawan bebas absen mesin (Manager ke atas / lahir di Jepang) tidak dicatat DT: menit 0 = DT otomatis lama dihapus.
+        $bebas = array_flip(Karyawan::whereIn('nik', $niks)->bebasAbsenMesin()->pluck('id')->all());
         $jamAcuan = $this->jam($acuan);
 
         return $ids->map(fn (int $id, int|string $nik) => [
             'karyawan_id' => $id,
             'tanggal' => $tanggal,
-            'menit' => min(max(0, $masuk[$nik] - $acuan), 720),
+            'menit' => isset($bebas[$id]) ? 0 : min(max(0, $masuk[$nik] - $acuan), 720),
             'keterangan' => self::PENANDA_DT.': Time In '.$this->jam($masuk[$nik])." (shift {$shift}, acuan {$jamAcuan})",
         ])->values()->all();
     }

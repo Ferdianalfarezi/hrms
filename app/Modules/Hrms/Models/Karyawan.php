@@ -3,11 +3,13 @@
 namespace App\Modules\Hrms\Models;
 
 use App\Models\User;
+use App\Modules\Hrms\Support\JenjangPenilaian;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable(['nik', 'nama', 'department_id', 'jenis_kelamin', 'tempat_lahir', 'tgl_lahir', 'jabatan', 'tanggal_masuk', 'status', 'group'])]
 class Karyawan extends Model
@@ -15,6 +17,9 @@ class Karyawan extends Model
     public const JENIS_KELAMIN = ['Laki-laki', 'Perempuan'];
 
     public const STATUS = ['Tetap', 'PKWT 1', 'PKWT 2', 'PKWT 3', 'Pemagangan'];
+
+    /** Tempat lahir (huruf besar) yang membuat karyawan bebas absen mesin. */
+    public const TEMPAT_LAHIR_BEBAS_ABSEN_MESIN = ['JAPAN', 'JEPANG'];
 
     /**
      * Get the attributes that should be cast.
@@ -41,6 +46,40 @@ class Karyawan extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Karyawan yang tidak wajib tap mesin: jabatan Asst. Manager ke atas atau tempat lahir Jepang.
+     * Mereka tetap tercatat "tidak absen" di Komparasi Mesin, tapi di Harian / laporan dianggap masuk
+     * selama admin belum mengisi absensinya secara manual.
+     */
+    public function scopeBebasAbsenMesin(Builder $query): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->whereIn('jabatan', self::jabatanBebasAbsenMesin())
+            ->orWhereIn(DB::raw('UPPER(TRIM(tempat_lahir))'), self::TEMPAT_LAHIR_BEBAS_ABSEN_MESIN));
+    }
+
+    /**
+     * Versi per model dari scopeBebasAbsenMesin (butuh kolom jabatan & tempat_lahir sudah dimuat).
+     */
+    public function isBebasAbsenMesin(): bool
+    {
+        return in_array($this->jabatan, self::jabatanBebasAbsenMesin(), true)
+            || in_array(mb_strtoupper(trim((string) $this->tempat_lahir)), self::TEMPAT_LAHIR_BEBAS_ABSEN_MESIN, true);
+    }
+
+    /**
+     * Jabatan jenjang Asst. Manager / Manager ke atas.
+     *
+     * @return list<string>
+     */
+    public static function jabatanBebasAbsenMesin(): array
+    {
+        return array_keys(array_filter(
+            JenjangPenilaian::JABATAN,
+            fn (string $level) => JenjangPenilaian::rank($level) >= JenjangPenilaian::RANK['manager'],
+        ));
     }
 
     /**

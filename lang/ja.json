@@ -1231,5 +1231,7 @@
     "Pengajuan token :nama tidak disetujui.": ":nama のトークン申請を却下しました。",
     "Token penilaian Anda habis. Ajukan penambahan token ke Admin HRMS lewat menu profil (klik foto Anda).": "評価トークンがありません。プロフィール（写真をクリック）からHRMS管理者にトークン追加を申請してください。",
     "Token diminta": "申請トークン数",
-    "Penambahan token baru bisa diajukan setelah token Anda habis.": "トークン追加はトークンがなくなってから申請できます。"
+    "Penambahan token baru bisa diajukan setelah token Anda habis.": "トークン追加はトークンがなくなってから申請できます。",
+    "Dianggap masuk": "出勤扱い",
+    "Manager ke atas / lahir di Jepang: di Harian dan laporan tetap dianggap masuk sampai admin mengisi absensinya.": "マネージャー以上／日本出身：管理者が勤怠を入力するまで、日次や各レポートでは出勤扱いになります。"
 }
