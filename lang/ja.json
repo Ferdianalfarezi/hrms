@@ -1249,5 +1249,19 @@
     "Section Chief & Ast. Manager": "Section Chief & Ast. Manager",
     "Warna centang penilai:": "評価者のチェック色：",
     "Nilai tiap butir = rata-rata skor semua penilai.": "各項目の点数 = 全評価者の平均。",
-    "Diangkat menjadi karyawan tetap": "正社員に登用"
+    "Diangkat menjadi karyawan tetap": "正社員に登用",
+    "Absen": "勤怠",
+    "Catatan & Kirim": "コメント・送信",
+    "Langkah penilaian": "評価ステップ",
+    "Langkah :nomor: :judul": "ステップ :nomor：:judul",
+    "Preview Form Penilaian": "評価フォームのプレビュー",
+    "Memuat preview...": "プレビューを読み込み中...",
+    "Preview gagal dimuat. Tutup lalu coba lagi.": "プレビューを読み込めませんでした。閉じてもう一度お試しください。",
+    "Kembali ke isian": "入力に戻る",
+    "Konfirmasi": "確認",
+    "Sebelumnya": "前へ",
+    "Langkah :nomor dari :jumlah": "ステップ :nomor / :jumlah",
+    "Berikutnya": "次へ",
+    "Akan ditandatangani": "署名予定",
+    "(Auto by system)": "（システム自動入力）"
 }

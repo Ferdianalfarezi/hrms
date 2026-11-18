@@ -188,8 +188,8 @@ class PenilaianTahunanController extends Controller
      * Kalau jenjangnya dilewati (mis. langsung dinilai Leader), kotak jenjang itu dibiarkan kosong. Kalau dua tahap
      * jatuh di kotak yang sama (Manager lalu GM), tahap sebelumnya digeser satu kotak ke kanan.
      *
-     * @param  list<array{level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}>  $penilaiPerTahap
-     * @return list<array{level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}|null> urut dari kiri
+     * @param  list<array{tahap: int, level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}>  $penilaiPerTahap
+     * @return list<array{tahap: int, level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}|null> urut dari kiri
      */
     private function kotakPenilai(array $penilaiPerTahap): array
     {
@@ -226,58 +226,24 @@ class PenilaianTahunanController extends Controller
         $sebagaiPenilai = $this->canFill($user, $penilaian);
         abort_unless($sebagaiPenilai || $this->canApprove($user, $penilaian), 403);
 
-        $data = $request->validate([
-            'aksi' => ['required', Rule::in($sebagaiPenilai ? ['draft', 'kirim'] : ['simpan', 'setuju'])],
-            'skor' => ['nullable', 'array'],
-            'skor.*' => ['nullable', 'array'],
-            'skor.*.*' => ['nullable', Rule::in(array_keys(FormPenilaian::NILAI_HURUF))],
-            'catatan' => ['nullable', 'string', 'max:2000'],
-            'hasil' => ['nullable', Rule::in(PenilaianTahunan::HASIL)],
-        ], [
-            'skor.*.*.in' => __('Nilai butir harus A, B, C, D, atau E.'),
-            'catatan.max' => __('Catatan maksimal 2000 karakter.'),
-        ]);
-
+        $data = $this->validasiIsian($request, $sebagaiPenilai);
         $aksi = $data['aksi'];
-        $skorSaya = $this->bersihkanSkor($penilaian->form, $data['skor'] ?? []);
 
-        if (in_array($aksi, ['kirim', 'setuju'], true) && ! FormPenilaian::hitungPerformance($penilaian->form, [$skorSaya])['lengkap']) {
+        if (in_array($aksi, ['kirim', 'setuju'], true) && ! FormPenilaian::hitungPerformance($penilaian->form, [$this->bersihkanSkor($penilaian->form, $data['skor'] ?? [])])['lengkap']) {
             throw ValidationException::withMessages(['skor' => $aksi === 'kirim' ? __('Semua butir penilaian (poin II s/d VI) wajib diisi sebelum dikirim.') : __('Semua butir penilaian (poin II s/d VI) wajib diisi sebelum disetujui.')]);
         }
 
-        // Setiap penilai menyimpan skornya sendiri; nilai butir = rata-rata skor semua penilai.
-        $tahapSaya = $this->tahapPengisian($user, $penilaian);
-        $skorSebelumnya = $penilaian->skorUntukTahap($tahapSaya);
-        $penilaian->isiSkorPenilai($tahapSaya, JenjangPenilaian::userLevel($user), $skorSaya);
-        $performance = FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor());
-
-        // Nilai absen dikunci saat dikirim; approver hanya mengubah nilai performance.
-        $absen = $sebagaiPenilai
-            ? FormPenilaian::hitungAbsen($this->jumlahAbsen([$karyawan->id], $tahun)[$karyawan->id] ?? [], FormPenilaian::form($penilaian->form)['bobot_absen'])
-            : $penilaian->absen;
-        $nilaiAkhir = round($absen['nilai'] + $performance['nilai'], 2);
         $tahap = $penilaian->tahap;
         $level = $penilaian->posisi_level;
+        $diubahApprover = $this->terapkanIsian($penilaian, $user, $karyawan, $tahun, $data, $sebagaiPenilai);
 
         // Setiap tanda tangan (kirim / setuju) memakai 1 token penilaian milik yang menandatangani.
         $tandaTangan = in_array($aksi, ['kirim', 'setuju'], true);
 
-        DB::transaction(function () use ($penilaian, $user, $data, $aksi, $skorSaya, $skorSebelumnya, $absen, $performance, $nilaiAkhir, $sebagaiPenilai, $tahap, $level, $tandaTangan) {
+        DB::transaction(function () use ($penilaian, $user, $aksi, $sebagaiPenilai, $tahap, $level, $tandaTangan, $diubahApprover) {
             if ($tandaTangan && ! $user->pakaiTokenPenilaian()) {
                 throw ValidationException::withMessages(['token' => __('Token penilaian Anda habis. Ajukan penambahan token ke Admin HRMS lewat menu profil (klik foto Anda).')]);
             }
-
-            $penilaian->fill([
-                'absen' => $absen,
-                'nilai_absen' => $absen['nilai'],
-                'nilai_performance' => $performance['nilai'],
-                'nilai_akhir' => $nilaiAkhir,
-                'huruf' => FormPenilaian::huruf($nilaiAkhir),
-                'catatan' => $data['catatan'] ?? null,
-                'hasil' => $data['hasil'] ?? null,
-            ]);
-            // Approver memberi skor berbeda dari penilai sebelumnya (atau mengubah catatan / hasil): tercatat di riwayat.
-            $diubahApprover = ! $sebagaiPenilai && ($skorSaya != $skorSebelumnya || $penilaian->isDirty(['catatan', 'hasil']));
 
             if ($sebagaiPenilai) {
                 $penilaian->penilai_id = $user->id;
@@ -318,6 +284,89 @@ class PenilaianTahunanController extends Controller
             'kirim' => __('Penilaian :nama dikirim :lanjut', ['nama' => $nama, 'lanjut' => $diteruskan]),
             default => __('Penilaian :nama disetujui :lanjut', ['nama' => $nama, 'lanjut' => $diteruskan]),
         });
+    }
+
+    /**
+     * Preview form cetak dari isian yang belum disimpan (modal sebelum Kirim / Setujui). Tidak menyimpan apa pun.
+     */
+    public function preview(Request $request, Karyawan $karyawan): View
+    {
+        Gate::authorize('penilaian-tahunan');
+        abort_unless(JenjangPenilaian::canView($request->user(), $karyawan), 403);
+
+        $tahun = $this->tahun($request);
+        abort_if(FormPenilaian::formForJabatan($karyawan->jabatan) === null, 404);
+        $penilaian = $this->penilaianFor($karyawan, $tahun);
+        $user = $request->user();
+        $sebagaiPenilai = $this->canFill($user, $penilaian);
+        abort_unless($sebagaiPenilai || $this->canApprove($user, $penilaian), 403);
+
+        $data = $this->validasiIsian($request, $sebagaiPenilai);
+        $tahapSaya = $this->tahapPengisian($user, $penilaian);
+        $this->terapkanIsian($penilaian, $user, $karyawan, $tahun, $data, $sebagaiPenilai);
+
+        return view('hrms.penilaian.print', [
+            'karyawan' => $karyawan,
+            'penilaian' => $penilaian,
+            'tahun' => $tahun,
+            'form' => FormPenilaian::form($penilaian->form),
+            'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor()),
+            'kotakPenilai' => $this->kotakPenilai($this->penilaiPerTahap($penilaian)),
+            // Kotak tanda tangan user ini ditandai "akan ditandatangani".
+            'preview' => ['tahap' => $tahapSaya, 'nama' => $user->name],
+        ]);
+    }
+
+    /**
+     * @return array{aksi?: string, skor?: array<string, array<int, ?string>>, catatan?: ?string, hasil?: ?string}
+     */
+    private function validasiIsian(Request $request, bool $sebagaiPenilai): array
+    {
+        return $request->validate([
+            'aksi' => [$request->routeIs('hrms.penilaian.preview') ? 'nullable' : 'required', Rule::in($sebagaiPenilai ? ['draft', 'kirim'] : ['simpan', 'setuju'])],
+            'skor' => ['nullable', 'array'],
+            'skor.*' => ['nullable', 'array'],
+            'skor.*.*' => ['nullable', Rule::in(array_keys(FormPenilaian::NILAI_HURUF))],
+            'catatan' => ['nullable', 'string', 'max:2000'],
+            'hasil' => ['nullable', Rule::in(PenilaianTahunan::HASIL)],
+        ], [
+            'skor.*.*.in' => __('Nilai butir harus A, B, C, D, atau E.'),
+            'catatan.max' => __('Catatan maksimal 2000 karakter.'),
+        ]);
+    }
+
+    /**
+     * Masukkan isian user ke penilaian (belum disimpan): skor miliknya, nilai absen, nilai akhir, catatan, hasil.
+     * Setiap penilai menyimpan skornya sendiri; nilai butir = rata-rata skor semua penilai.
+     *
+     * @param  array{skor?: array<string, array<int, ?string>>, catatan?: ?string, hasil?: ?string}  $data
+     * @return bool approver memberi skor berbeda dari penilai sebelumnya (atau mengubah catatan / hasil)
+     */
+    private function terapkanIsian(PenilaianTahunan $penilaian, User $user, Karyawan $karyawan, int $tahun, array $data, bool $sebagaiPenilai): bool
+    {
+        $skorSaya = $this->bersihkanSkor($penilaian->form, $data['skor'] ?? []);
+        $tahapSaya = $this->tahapPengisian($user, $penilaian);
+        $skorSebelumnya = $penilaian->skorUntukTahap($tahapSaya);
+        $penilaian->isiSkorPenilai($tahapSaya, JenjangPenilaian::userLevel($user), $skorSaya);
+        $performance = FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor());
+
+        // Nilai absen dikunci saat dikirim; approver hanya mengubah nilai performance.
+        $absen = $sebagaiPenilai
+            ? FormPenilaian::hitungAbsen($this->jumlahAbsen([$karyawan->id], $tahun)[$karyawan->id] ?? [], FormPenilaian::form($penilaian->form)['bobot_absen'])
+            : $penilaian->absen;
+        $nilaiAkhir = round($absen['nilai'] + $performance['nilai'], 2);
+
+        $penilaian->fill([
+            'absen' => $absen,
+            'nilai_absen' => $absen['nilai'],
+            'nilai_performance' => $performance['nilai'],
+            'nilai_akhir' => $nilaiAkhir,
+            'huruf' => FormPenilaian::huruf($nilaiAkhir),
+            'catatan' => $data['catatan'] ?? null,
+            'hasil' => $data['hasil'] ?? null,
+        ]);
+
+        return ! $sebagaiPenilai && ($skorSaya != $skorSebelumnya || $penilaian->isDirty(['catatan', 'hasil']));
     }
 
     /**
@@ -399,7 +448,7 @@ class PenilaianTahunanController extends Controller
      * Kotak "Penilai" di form: satu kolom per tahap berisi nama & tanggal tindakan terakhir di tahap itu.
      * Kalau tahap di-approve jenjang yang lebih tinggi (override), judul kolom memakai jabatan yang meng-override.
      *
-     * @return list<array{level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}>
+     * @return list<array{tahap: int, level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}>
      */
     private function penilaiPerTahap(PenilaianTahunan $penilaian): array
     {
@@ -410,6 +459,7 @@ class PenilaianTahunanController extends Controller
             $override = $log && $log->level !== '' && $log->level !== $level;
 
             return [
+                'tahap' => $tahap,
                 'level' => $level,
                 'label' => JenjangPenilaian::label($override ? $log->level : $level),
                 'log' => $log,

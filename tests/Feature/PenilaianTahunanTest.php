@@ -368,6 +368,25 @@ class PenilaianTahunanTest extends TestCase
         $this->assertSame([0, 1, count(array_merge(...array_values($sama)))], [$hitam, $biru, $hijau]);
     }
 
+    public function test_preview_renders_unsaved_input_without_saving_or_using_tokens(): void
+    {
+        $preview = route('hrms.penilaian.preview', $this->operator);
+        $isian = ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'A'), 'catatan' => 'Catatan preview'];
+
+        $this->actingAs($this->section)->post($preview, $isian)->assertForbidden();
+
+        $response = $this->actingAs($this->asstLeader)->post($preview, $isian)
+            ->assertOk()
+            ->assertSee('Catatan preview')
+            ->assertSee('Akan ditandatangani')
+            ->assertDontSee('window.print()', false);
+        $this->assertSame(100.0, $response->viewData('penilaian')->nilai_akhir);
+
+        $this->assertDatabaseCount('penilaian_tahunans', 0);
+        $this->assertDatabaseCount('penilaian_tahunan_logs', 0);
+        $this->assertSame(User::TOKEN_PENILAIAN_AWAL, $this->asstLeader->fresh()->token_penilaian);
+    }
+
     public function test_print_signature_boxes_fill_from_the_right_by_level(): void
     {
         $setuju = ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'B')];

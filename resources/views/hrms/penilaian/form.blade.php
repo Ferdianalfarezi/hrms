@@ -30,7 +30,30 @@
     tr.kosong td.butir { color: #b45309; }
     td.c { white-space: nowrap; }
     .centang { font-size: 16px; line-height: 1; margin: 0 1px; vertical-align: middle; }
-    .legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 13px; padding-top: 12px; padding-bottom: 12px; }
+    .legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 13px; margin: 0 0 10px; }
+
+    /* Stepper: bulatan bernomor + garis progres. */
+    .stepper { position: relative; margin-top: 16px; padding: 18px 12px 12px; }
+    .stepper ol { position: relative; display: grid; grid-template-columns: repeat(var(--jumlah), minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+    .stepper li { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; min-width: 0; }
+    .stepper-track { position: absolute; top: 35px; left: calc(12px + 100% / var(--jumlah) / 2 - 12px / var(--jumlah)); right: calc(12px + 100% / var(--jumlah) / 2 - 12px / var(--jumlah)); height: 4px; border-radius: 999px; background: var(--line-strong); }
+    .stepper-fill { display: block; width: var(--progress, 0%); height: 100%; border-radius: inherit; background: var(--primary); transition: width .25s ease; }
+    .stepper-dot { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line-strong); background: #fff; color: var(--muted); font: 700 14px/1 inherit; cursor: pointer; transition: background .2s, border-color .2s, color .2s; }
+    .stepper-dot:hover { border-color: var(--primary); color: var(--primary); }
+    .stepper-dot.done { background: var(--soft); border-color: var(--primary); color: var(--primary); }
+    .stepper-dot.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 0 0 4px var(--soft); }
+    .stepper-dot.kurang { border-color: #f59e0b; }
+    .stepper-label { font-size: 12px; color: var(--muted); line-height: 1.2; overflow-wrap: anywhere; }
+    .stepper li:has(.active) .stepper-label { color: var(--text); font-weight: 600; }
+    .stepper-sub { display: block; font-size: 10.5px; font-weight: 400; color: var(--muted); }
+    @media (max-width: 640px) { .stepper-label { display: none; } .stepper-dot { width: 30px; height: 30px; font-size: 13px; } .stepper-track { top: 32px; } }
+    .step-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 16px; }
+
+    /* Modal preview form cetak. */
+    dialog.preview-modal { width: min(920px, calc(100% - 32px)); max-height: calc(100vh - 32px); }
+    .preview-frame { position: relative; height: min(70vh, 900px); border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; background: #e5e7eb; }
+    .preview-frame iframe { width: 100%; height: 100%; border: 0; }
+    .preview-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; background: #e5e7eb; }
     .penilai { display: grid; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; font-size: 13px; }
     .penilai > div { display: grid; grid-template-rows: 1fr auto; text-align: center; border-left: 1px solid var(--line-strong); min-height: 110px; }
     .penilai > div:first-child { border-left: 0; }
@@ -104,10 +127,40 @@
             </dl>
         </div>
 
-        <form method="POST" action="{{ route('hrms.penilaian.save', $karyawan) }}" id="penilaian-form">
+        {{-- Langkah pengisian: 1 Absen, 2-6 poin II-VI, terakhir Catatan & kirim. Satu langkah tampil sekaligus. --}}
+        @php
+            $langkah = [__('Absen')];
+            foreach (array_keys($form['butir']) as $kategoriLangkah) {
+                $langkah[] = Str::after(__(FormPenilaian::KATEGORI[$kategoriLangkah]), '. ');
+            }
+            $langkah[] = $readonly ? __('Catatan') : __('Catatan & Kirim');
+            // Mulai di langkah yang bermasalah setelah gagal validasi: butir kosong → langkah butir pertama yang kosong (dicari JS).
+            $langkahAwal = $errors->has('skor') ? 'kosong' : ($errors->any() ? count($langkah) : 1);
+        @endphp
+        <nav class="card stepper" aria-label="{{ __('Langkah penilaian') }}" style="--jumlah: {{ count($langkah) }};">
+            <div class="stepper-track"><span class="stepper-fill"></span></div>
+            <ol>
+                @foreach ($langkah as $nomor => $judulLangkah)
+                    <li>
+                        <button type="button" class="stepper-dot" data-step-dot="{{ $nomor + 1 }}" aria-label="{{ __('Langkah :nomor: :judul', ['nomor' => $nomor + 1, 'judul' => $judulLangkah]) }}">{{ $nomor + 1 }}</button>
+                        <span class="stepper-label">
+                            {{ $judulLangkah }}
+                            {{-- Absen diisi otomatis dari data absensi, penilai tidak perlu mengisi. --}}
+                            @if ($nomor === 0)
+                                <small class="stepper-sub">{{ __('(Auto by system)') }}</small>
+                            @endif
+                        </span>
+                    </li>
+                @endforeach
+            </ol>
+        </nav>
+
+        <form method="POST" action="{{ route('hrms.penilaian.save', $karyawan) }}" id="penilaian-form"
+              data-preview-url="{{ route('hrms.penilaian.preview', $karyawan) }}" data-step-awal="{{ $langkahAwal }}">
             @csrf
             <input type="hidden" name="tahun" value="{{ $tahun }}">
 
+            <div class="step" data-step="1">
             <div class="card sec">
                 <h2>{{ __('I. Absen') }} <span class="muted small" style="font-weight: 400;">{{ __('(otomatis dari data absensi)') }}</span></h2>
                 <div class="table-wrap">
@@ -138,21 +191,23 @@
                 </div>
                 <p class="muted small" style="margin: 8px 0 0;">{{ __('Nilai = (total poin / :maks) x :bobot.', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</p>
             </div>
-
-            @if ($legenda->isNotEmpty())
-                <div class="card sec legenda">
-                    <span class="muted small">{{ __('Warna centang penilai:') }}</span>
-                    @foreach ($legenda as $levelLegenda)
-                        <span><b class="centang" style="color: {{ JenjangPenilaian::warnaCentang($levelLegenda) }};">✓</b> {{ JenjangPenilaian::label($levelLegenda) }}</span>
-                    @endforeach
-                    <span class="muted small">{{ __('Nilai tiap butir = rata-rata skor semua penilai.') }}</span>
-                </div>
-            @endif
+            @include('hrms.penilaian.partials.step-nav', ['nomor' => 1, 'jumlah' => count($langkah)])
+            </div>
 
             @foreach ($form['butir'] as $kategori => $butirs)
+                <div class="step" data-step="{{ $loop->iteration + 1 }}" hidden>
                 <div class="card sec" data-kategori="{{ $kategori }}" data-maks="{{ count($butirs) * 5 }}">
                     <h2>{{ __(FormPenilaian::KATEGORI[$kategori]) }}</h2>
                     <p class="sub">{{ __('Nilai max :maks · bobot :bobot%', ['maks' => count($butirs) * 5, 'bobot' => $form['bobot_kategori']]) }}</p>
+                    @if ($legenda->isNotEmpty())
+                        <div class="legenda">
+                            <span class="muted small">{{ __('Warna centang penilai:') }}</span>
+                            @foreach ($legenda as $levelLegenda)
+                                <span><b class="centang" style="color: {{ JenjangPenilaian::warnaCentang($levelLegenda) }};">✓</b> {{ JenjangPenilaian::label($levelLegenda) }}</span>
+                            @endforeach
+                            <span class="muted small">{{ __('Nilai tiap butir = rata-rata skor semua penilai.') }}</span>
+                        </div>
+                    @endif
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -206,8 +261,11 @@
                         </table>
                     </div>
                 </div>
+                @include('hrms.penilaian.partials.step-nav', ['nomor' => $loop->iteration + 1, 'jumlah' => count($langkah)])
+                </div>
             @endforeach
 
+            <div class="step" data-step="{{ count($langkah) }}" hidden>
             <div class="card sec">
                 <h2>{{ __('Catatan Atasan') }}</h2>
                 <textarea name="catatan" rows="3" maxlength="2000" @disabled($readonly) placeholder="{{ __('Catatan untuk karyawan / HRD (opsional)') }}">{{ old('catatan', $penilaian->catatan) }}</textarea>
@@ -254,7 +312,30 @@
                     @include('hrms.penilaian.partials.sisa-token')
                 </div>
             @endif
+            @include('hrms.penilaian.partials.step-nav', ['nomor' => count($langkah), 'jumlah' => count($langkah)])
+            </div>
         </form>
+
+        {{-- Preview form cetak sebelum Kirim / Setujui: isian belum disimpan sampai dikonfirmasi di sini. --}}
+        @unless ($readonly)
+            <dialog class="modal preview-modal" id="preview-modal" aria-labelledby="preview-title">
+                <div class="modal-head">
+                    <h2 id="preview-title">{{ __('Preview Form Penilaian') }}</h2>
+                    <button type="button" class="modal-close" data-preview-tutup aria-label="{{ __('Tutup') }}">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="muted small" data-preview-pesan style="margin: 0 0 10px;"></p>
+                    <div class="preview-frame">
+                        <div class="preview-loading" data-preview-loading>{{ __('Memuat preview...') }}</div>
+                        <iframe title="{{ __('Preview Form Penilaian') }}" data-preview-iframe></iframe>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn btn-ghost" data-preview-tutup>{{ __('Kembali ke isian') }}</button>
+                    <button type="button" class="btn" data-preview-konfirmasi>{{ __('Konfirmasi') }}</button>
+                </div>
+            </dialog>
+        @endunless
     </div>
 
     <div class="side">
@@ -335,19 +416,122 @@
         var form = document.getElementById('penilaian-form');
         if (!form) return;
 
-        // Kirim / Setujui: semua butir wajib terisi. Baris yang kosong ditandai dan di-scroll ke yang pertama.
+        // ===== Stepper: satu langkah tampil, bulatan bernomor + garis progres. =====
+        var steps = Array.prototype.slice.call(form.querySelectorAll('[data-step]'));
+        var dots = Array.prototype.slice.call(document.querySelectorAll('[data-step-dot]'));
+        var stepper = document.querySelector('.stepper');
+        var aktif = 1;
+
+        function butirKosong(step) {
+            return Array.prototype.filter.call(step.querySelectorAll('[data-kategori] tbody tr'), function (row) {
+                return row.querySelector('input[type=radio]') && !row.querySelector('input:checked');
+            });
+        }
+
+        function perbaruiDots() {
+            dots.forEach(function (dot, index) {
+                var nomor = index + 1;
+                var step = steps[index];
+                var kurang = step && butirKosong(step).length > 0;
+                dot.classList.toggle('active', nomor === aktif);
+                dot.classList.toggle('done', nomor !== aktif && (nomor < aktif || (step.querySelector('[data-kategori]') && !kurang)));
+                dot.classList.toggle('kurang', nomor !== aktif && nomor < aktif && kurang);
+                dot.setAttribute('aria-current', nomor === aktif ? 'step' : 'false');
+            });
+            stepper.style.setProperty('--progress', (steps.length > 1 ? (aktif - 1) / (steps.length - 1) * 100 : 100) + '%');
+        }
+
+        function tampil(nomor, gulir) {
+            aktif = Math.min(Math.max(nomor, 1), steps.length);
+            steps.forEach(function (step) { step.hidden = Number(step.dataset.step) !== aktif; });
+            perbaruiDots();
+            if (gulir !== false && stepper.getBoundingClientRect().top < 0) {
+                stepper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        dots.forEach(function (dot) {
+            dot.addEventListener('click', function () { tampil(Number(dot.dataset.stepDot)); });
+        });
+        form.addEventListener('click', function (event) {
+            var go = event.target.closest('[data-step-go]');
+            if (go) tampil(aktif + Number(go.dataset.stepGo));
+        });
+
+        // Langkah awal: setelah gagal validasi butir kosong, langsung ke langkah butir kosong pertama.
+        var awal = form.dataset.stepAwal;
+        var stepKosong = steps.find(function (step) { return butirKosong(step).length > 0; });
+        tampil(awal === 'kosong' && stepKosong ? Number(stepKosong.dataset.step) : Number(awal) || 1, false);
+
+        // ===== Kirim / Setujui: cek semua butir terisi, lalu tampilkan preview form cetak sebelum benar-benar dikirim. =====
+        var modal = document.getElementById('preview-modal');
+        var iframe = modal && modal.querySelector('[data-preview-iframe]');
+        var loading = modal && modal.querySelector('[data-preview-loading]');
+        var tombolKonfirmasi = modal && modal.querySelector('[data-preview-konfirmasi]');
+        var tombolAsal = null;
+
+        function bukaPreview(button) {
+            tombolAsal = button;
+            modal.querySelector('[data-preview-pesan]').textContent = button.dataset.confirm || '';
+            tombolKonfirmasi.textContent = button.textContent.trim();
+            tombolKonfirmasi.className = button.className;
+            tombolKonfirmasi.disabled = true;
+            loading.textContent = __t('Memuat preview...');
+            loading.hidden = false;
+            iframe.removeAttribute('srcdoc');
+            modal.showModal();
+
+            var data = new FormData(form);
+            data.set('aksi', button.value);
+            fetch(form.dataset.previewUrl, { method: 'POST', body: data, headers: { 'Accept': 'text/html' } })
+                .then(function (response) {
+                    if (!response.ok) throw new Error(response.status);
+                    return response.text();
+                })
+                .then(function (html) {
+                    iframe.srcdoc = html;
+                    loading.hidden = true;
+                    tombolKonfirmasi.disabled = false;
+                })
+                .catch(function () {
+                    loading.textContent = __t('Preview gagal dimuat. Tutup lalu coba lagi.');
+                });
+        }
+
+        if (modal) {
+            modal.querySelectorAll('[data-preview-tutup]').forEach(function (tombol) {
+                tombol.addEventListener('click', function () { modal.close(); });
+            });
+            tombolKonfirmasi.addEventListener('click', function () {
+                if (!tombolAsal) return;
+                form.dataset.terkonfirmasi = '1';
+                modal.close();
+                form.requestSubmit(tombolAsal);
+            });
+        }
+
         form.addEventListener('submit', function (event) {
             var button = event.submitter;
             if (!button) return;
 
+            if (form.dataset.terkonfirmasi === '1') {
+                delete form.dataset.terkonfirmasi;
+                return;
+            }
+
             if (button.hasAttribute('data-lengkap')) {
-                var kosong = Array.prototype.filter.call(form.querySelectorAll('[data-kategori] tbody tr'), function (row) {
-                    return !row.querySelector('input:checked');
-                });
+                var kosong = butirKosong(form);
                 if (kosong.length) {
                     event.preventDefault();
+                    tampil(Number(kosong[0].closest('[data-step]').dataset.step), false);
                     kosong[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
                     window.alert(__t('Masih ada :count butir penilaian yang belum diisi (ditandai warna oranye). Semua butir wajib diisi.', { count: kosong.length }));
+                    return;
+                }
+
+                if (modal) {
+                    event.preventDefault();
+                    bukaPreview(button);
                     return;
                 }
             }
@@ -386,7 +570,10 @@
             document.getElementById('huruf').textContent = ranges.find(function (range) { return bulat >= range[1]; })[0];
         }
 
-        form.addEventListener('change', hitung);
+        form.addEventListener('change', function () {
+            hitung();
+            perbaruiDots();
+        });
     })();
 </script>
 @endpush

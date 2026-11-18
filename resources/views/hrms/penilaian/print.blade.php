@@ -94,6 +94,7 @@
         .ttd td.isi { height: 17mm; text-align: center; vertical-align: middle; padding: 1mm 1px .5mm; }
         .ttd .qr svg { display: block; width: 11.5mm; height: 11.5mm; margin: 0 auto; }
         .ttd .qr-tgl { margin-top: .4mm; font-size: 5pt; color: #333; }
+        .ttd .ttd-preview { margin: 0 1mm; padding: 2mm 1mm; border: 1px dashed #2563eb; border-radius: 2px; color: #2563eb; font-size: 5.5pt; line-height: 1.3; }
         .ttd td.nama { height: 4mm; text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 6pt; line-height: 1.05; padding: .3mm 1px; overflow-wrap: anywhere; }
         .nilai-akhir th { font-family: 'Times New Roman', Times, serif; font-weight: 700; font-size: 8pt; height: 4.5mm; }
         .nilai-akhir td { font-size: 6.5pt; height: 3.8mm; }
@@ -113,10 +114,12 @@
     </style>
 </head>
 <body>
-<div class="toolbar">
-    <button type="button" onclick="window.print()">{{ __('Print / Simpan PDF') }}</button>
-    <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
-</div>
+@empty($preview)
+    <div class="toolbar">
+        <button type="button" onclick="window.print()">{{ __('Print / Simpan PDF') }}</button>
+        <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
+    </div>
+@endempty
 
 <div class="sheet">
 <div class="frame">
@@ -346,7 +349,9 @@
                     <tr>
                         @foreach ($kotakPenilai as $tahap)
                             <td class="isi">
-                                @if (($tahap['log'] ?? null)?->kode_verifikasi)
+                                @if (! empty($preview) && ($tahap['tahap'] ?? null) === $preview['tahap'])
+                                    <div class="ttd-preview">{{ __('Akan ditandatangani') }}<br>{{ $preview['nama'] }}</div>
+                                @elseif (($tahap['log'] ?? null)?->kode_verifikasi)
                                     <div class="qr">{!! QrCode::svg(route('verifikasi.penilaian', $tahap['log']->kode_verifikasi)) !!}</div>
                                     <div class="qr-tgl">{{ $tahap['log']->created_at->translatedFormat('d M Y H:i') }}</div>
                                 @endif
@@ -398,7 +403,9 @@
     }
     window.addEventListener('load', function () {
         pasSatuHalaman();
-        setTimeout(function () { window.print(); }, 300);
+        @empty($preview)
+            setTimeout(function () { window.print(); }, 300);
+        @endempty
     });
 </script>
 </body>

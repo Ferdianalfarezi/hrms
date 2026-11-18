@@ -66,6 +66,8 @@ Route::get('penilaian', [PenilaianTahunanController::class, 'index'])->name('pen
 Route::get('penilaian/karyawan/{karyawan}', [PenilaianTahunanController::class, 'show'])->name('penilaian.show');
 Route::get('penilaian/karyawan/{karyawan}/print', [PenilaianTahunanController::class, 'print'])->name('penilaian.print');
 Route::post('penilaian/karyawan/{karyawan}', [PenilaianTahunanController::class, 'save'])->name('penilaian.save');
+// Preview form cetak dari isian yang belum disimpan (modal sebelum Kirim / Setujui).
+Route::post('penilaian/karyawan/{karyawan}/preview', [PenilaianTahunanController::class, 'preview'])->name('penilaian.preview');
 
 // Token penilaian: penilai mengajukan penambahan token (dari modal profil), Admin HRMS memutuskan.
 Route::post('penilaian/token', [PenilaianTokenController::class, 'store'])->name('penilaian.token.store');
