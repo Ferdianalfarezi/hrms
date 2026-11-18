@@ -277,11 +277,14 @@
                 <td class="nb"></td>
             </tr>
             @foreach ($butirs as $index => $butir)
+                {{-- Centang tiap penilai; kalau semua penilai memilih huruf yang sama, cukup centang penilai terakhir. --}}
+                @php($centang = collect($skorPenilai)->map(fn (array $isian) => ['level' => $isian['level'], 'huruf' => $isian['skor'][$kategori][$index] ?? null])->filter(fn (array $pilihan) => $pilihan['huruf'] !== null)->values())
+                @php($centang = $centang->pluck('huruf')->unique()->count() === 1 ? $centang->slice(-1) : $centang)
                 <tr>
                     <td class="no">{{ $index + 1 }}</td>
                     <td>{{ __($butir) }}</td>
                     @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
-                        <td class="skor">@foreach ($skorPenilai as $isian)@if (($isian['skor'][$kategori][$index] ?? null) === $huruf)<span style="color: {{ JenjangPenilaian::warnaCentang($isian['level']) }};">✓</span>@endif @endforeach</td>
+                        <td class="skor">@foreach ($centang->where('huruf', $huruf) as $pilihan)<span style="color: {{ JenjangPenilaian::warnaCentang($pilihan['level']) }};">✓</span>@endforeach</td>
                     @endforeach
                     <td class="nb"></td>
                 </tr>

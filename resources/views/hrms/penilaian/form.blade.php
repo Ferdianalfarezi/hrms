@@ -174,8 +174,13 @@
                                         $pilihanLain = $penilaiLain
                                             ->map(fn (array $isian) => ['level' => $isian['level'], 'huruf' => $isian['skor'][$kategori][$index] ?? null])
                                             ->filter(fn (array $pilihan) => isset(FormPenilaian::NILAI_HURUF[$pilihan['huruf']]));
+                                        $nilaiLain = $pilihanLain->map(fn (array $pilihan) => FormPenilaian::NILAI_HURUF[$pilihan['huruf']])->values()->toJson();
+                                        // Saat hanya dilihat: kalau semua penilai memilih huruf yang sama, cukup centang penilai terakhir.
+                                        if ($readonly && $pilihanLain->pluck('huruf')->unique()->count() === 1) {
+                                            $pilihanLain = $pilihanLain->slice(-1);
+                                        }
                                     @endphp
-                                    <tr @class(['kosong' => ! $readonly && ! $terpilih]) data-lain="{{ $pilihanLain->map(fn (array $pilihan) => FormPenilaian::NILAI_HURUF[$pilihan['huruf']])->values()->toJson() }}">
+                                    <tr @class(['kosong' => ! $readonly && ! $terpilih]) data-lain="{{ $nilaiLain }}">
                                         <td class="muted">{{ $index + 1 }}</td>
                                         <td class="butir">{{ __($butir) }}</td>
                                         @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)

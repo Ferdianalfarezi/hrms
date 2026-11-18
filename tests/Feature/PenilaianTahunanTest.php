@@ -348,6 +348,25 @@ class PenilaianTahunanTest extends TestCase
         $this->get(route('verifikasi.penilaian', 'kode-palsu'))->assertNotFound()->assertSee('Tanda tangan tidak dikenali');
     }
 
+    public function test_print_shows_only_the_last_check_when_all_assessors_agree(): void
+    {
+        $url = route('hrms.penilaian.save', $this->operator);
+        $sama = $this->skorSemua('operator', 'B');
+        $beda = $sama;
+        $beda['kemampuan'][0] = 'A';
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $sama]);
+        $this->actingAs($this->leader)->post($url, ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $sama]);
+        $this->actingAs($this->section)->post($url, ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $beda]);
+
+        $html = $this->actingAs($this->leader)->get(route('hrms.penilaian.print', [$this->operator, 'tahun' => 2026]))->assertOk()->getContent();
+
+        // Baris pertama beda (hitam, biru di B; hijau di A); baris lain sama → hanya centang hijau (Section Chief).
+        $hitam = substr_count($html, 'color: #111111;">✓');
+        $biru = substr_count($html, 'color: #1d4ed8;">✓');
+        $hijau = substr_count($html, 'color: #15803d;">✓');
+        $this->assertSame([1, 1, count(array_merge(...array_values($sama)))], [$hitam, $biru, $hijau]);
+    }
+
     public function test_print_signature_boxes_fill_from_the_right_by_level(): void
     {
         $setuju = ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'B')];
