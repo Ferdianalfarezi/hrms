@@ -32,6 +32,22 @@
     .centang { font-size: 16px; line-height: 1; margin: 0 1px; vertical-align: middle; }
     .legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 13px; margin: 0 0 10px; }
 
+    /* I. Absen: tampilan seperti form cetak. */
+    .absen-ringkas, .absen-matriks { border-collapse: collapse; }
+    .absen-ringkas { width: auto; min-width: 420px; }
+    .absen-ringkas th, .absen-ringkas td, .absen-matriks th, .absen-matriks td { border: 1px solid var(--line-strong); padding: 6px 8px; text-align: center; font-size: 13px; }
+    /* Layout menghapus garis bawah baris terakhir tabel (tbody tr:last-child td); tabel absen tetap berbingkai penuh. */
+    .absen-ringkas tbody tr:last-child td, .absen-matriks tbody tr:last-child td { border-bottom: 1px solid var(--line-strong); }
+    .absen-ringkas th, .absen-matriks th { background: var(--soft-2); color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+    .absen-ringkas td { font-weight: 700; font-size: 15px; }
+    .absen-matriks { width: 100%; }
+    .absen-matriks th.kat, .absen-matriks td.kat { text-align: left; white-space: nowrap; }
+    .absen-matriks td.on span { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 4px; border: 2px solid var(--primary); border-radius: 999px; color: var(--primary); font-weight: 700; }
+    .absen-matriks .total-kolom { background: var(--soft-2); font-weight: 700; }
+    .absen-matriks tr.baris-total td { font-weight: 700; }
+    .absen-rumus { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .absen-nilai { padding: 6px 14px; border: 2px solid var(--primary); border-radius: 10px; font-size: 18px; font-weight: 700; }
+
     /* Stepper: bulatan bernomor + garis progres. */
     .stepper { position: relative; margin-top: 16px; padding: 18px 12px 12px; }
     .stepper ol { position: relative; display: grid; grid-template-columns: repeat(var(--jumlah), minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
@@ -85,6 +101,9 @@
 @php
     $angka = fn (float $value) => number_format($value, 2, ',', '.');
     $ringkas = fn (float $value) => rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
+    // Langkah I. Absen ditampilkan seperti form cetak.
+    $kolomAbsen = ['0', '1 x', '2 x', '3 x', '4 x', '5 x', '6 x', '7 ~ 10', '11~15', '≥ 16'];
+    $singkatanAbsen = ['A' => 'A', 'I' => 'I', 'S' => 'S', 'DT' => 'DT', 'DT30' => 'DT > 30 mnt', 'PC' => 'PC', 'PC30' => 'PC > 30 mnt', 'SD' => 'SD'];
     $readonly = $tahapSaya === null;
     // Skor milik user ini (pilihan awal approver = skor penilai sebelumnya) dan skor penilai lain (centang berwarna).
     $skor = old('skor', $readonly ? [] : $penilaian->skorUntukTahap($tahapSaya));
@@ -163,33 +182,57 @@
             <div class="step" data-step="1">
             <div class="card sec">
                 <h2>{{ __('I. Absen') }} <span class="muted small" style="font-weight: 400;">{{ __('(otomatis dari data absensi)') }}</span></h2>
+                {{-- Tampilan seperti form cetak: ringkasan jumlah absen + matriks konversi, poin yang dipakai dilingkari. --}}
                 <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>{{ __('Kategori Absen') }}</th>
-                                <th class="num">{{ __('Banyaknya') }}</th>
-                                <th class="num">{{ __('Poin') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (FormPenilaian::KONVERSI_ABSEN as $kategori => $konversi)
-                                <tr>
-                                    <td>{{ __($konversi['label']) }}</td>
-                                    <td class="num">{{ $absen['rincian'][$kategori]['jumlah'] ?? 0 }}x</td>
-                                    <td class="num">{{ $absen['rincian'][$kategori]['poin'] ?? 5 }}</td>
-                                </tr>
+                    <table class="absen-ringkas">
+                        <tr>
+                            @foreach ($singkatanAbsen as $singkatan)
+                                <th>{{ $singkatan }}</th>
                             @endforeach
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="2">{{ __('Total poin (maks :maks) · bobot :bobot%', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</td>
-                                <td class="num">{{ $absen['total_poin'] }} → {{ $angka($absen['nilai']) }}</td>
-                            </tr>
-                        </tfoot>
+                        </tr>
+                        <tr>
+                            @foreach (array_keys($singkatanAbsen) as $kategori)
+                                <td>{{ $absen['rincian'][$kategori]['jumlah'] ?? 0 }}</td>
+                            @endforeach
+                        </tr>
                     </table>
                 </div>
-                <p class="muted small" style="margin: 8px 0 0;">{{ __('Nilai = (total poin / :maks) x :bobot.', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</p>
+                <div class="table-wrap" style="margin-top: 12px;">
+                    <table class="absen-matriks">
+                        <tr>
+                            <th rowspan="2" class="kat">{{ __('Kategori Absen') }}</th>
+                            <th colspan="{{ count($kolomAbsen) }}">{{ __('Banyaknya Absen') }}</th>
+                            <th rowspan="2" class="total-kolom">{{ __('Poin') }}</th>
+                        </tr>
+                        <tr>
+                            @foreach ($kolomAbsen as $kolom)
+                                <th>{{ $kolom }}</th>
+                            @endforeach
+                        </tr>
+                        @foreach (FormPenilaian::KONVERSI_ABSEN as $kategori => $konversi)
+                            <tr>
+                                <td class="kat">{{ __($konversi['label']) }}</td>
+                                @foreach ($konversi['poin'] as $index => $poin)
+                                    <td @class(['on' => $index === FormPenilaian::kolomAbsen($absen['rincian'][$kategori]['jumlah'] ?? 0)])><span>{{ $poin }}</span></td>
+                                @endforeach
+                                <td class="total-kolom">{{ $absen['rincian'][$kategori]['poin'] ?? 5 }}</td>
+                            </tr>
+                        @endforeach
+                        <tr class="baris-total">
+                            <td class="kat">{{ __('TOTAL') }}</td>
+                            <td colspan="{{ count($kolomAbsen) }}"></td>
+                            <td class="total-kolom">{{ $absen['total_poin'] }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="absen-rumus">
+                    <span class="muted small">
+                        {{ __('Nilai Maksimum = :maks (a)', ['maks' => FormPenilaian::MAKS_ABSEN]) }} ·
+                        {{ __('Bobot Absen = :bobot% (b)', ['bobot' => $form['bobot_absen']]) }} ·
+                        {{ __('Nilai akhir = (Total nilai / a ) x ( b% x 100)') }}
+                    </span>
+                    <span class="absen-nilai">{{ $angka($absen['nilai']) }}</span>
+                </div>
             </div>
             @include('hrms.penilaian.partials.step-nav', ['nomor' => 1, 'jumlah' => count($langkah)])
             </div>
@@ -289,7 +332,7 @@
                         <button type="submit" name="aksi" value="draft" class="btn btn-ghost">{{ __('Simpan draft') }}</button>
                         <button type="submit" name="aksi" value="kirim" class="btn" data-lengkap
                             data-confirm="{{ $adaApprover ? __('Kirim penilaian :nama ke :tahap untuk approval? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama, 'tahap' => JenjangPenilaian::label($penilaian->tahapan[$tahapKirim])]) : __('Kirim penilaian :nama? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama]) }}">
-                            {{ $adaApprover ? __('Kirim untuk approval') : __('Kirim') }}
+                            {{ __('Submit Penilaian') }}
                         </button>
                     </div>
                     @include('hrms.penilaian.partials.sisa-token')
@@ -332,7 +375,7 @@
                 </div>
                 <div class="modal-foot">
                     <button type="button" class="btn btn-ghost" data-preview-tutup>{{ __('Kembali ke isian') }}</button>
-                    <button type="button" class="btn" data-preview-konfirmasi>{{ __('Konfirmasi') }}</button>
+                    <button type="button" class="btn" data-preview-konfirmasi>{{ __('Submit Penilaian') }}</button>
                 </div>
             </dialog>
         @endunless
@@ -473,7 +516,6 @@
         function bukaPreview(button) {
             tombolAsal = button;
             modal.querySelector('[data-preview-pesan]').textContent = button.dataset.confirm || '';
-            tombolKonfirmasi.textContent = button.textContent.trim();
             tombolKonfirmasi.className = button.className;
             tombolKonfirmasi.disabled = true;
             loading.textContent = __t('Memuat preview...');

@@ -230,11 +230,31 @@ class PenilaianTahunanTest extends TestCase
         $this->actingAs($this->leader)->post($url, $setuju);
         $this->actingAs($this->section)->post($url, $setuju);
 
+        // Default hanya centang: angka nilai & huruf tidak dicetak.
         $this->actingAs($this->leader)->get($print)
             ->assertOk()
             ->assertSee('HRD / FMR / 7')
             ->assertSee('Operator HRD')
-            ->assertSee('84,00');
+            ->assertSee('color: #15803d;">✓', false)
+            ->assertDontSee('84,00')
+            ->assertDontSee('= 12,80');
+
+        // Toggle "Tampilkan nilai" di modal Print → ?nilai=1.
+        $this->actingAs($this->leader)->get($print.'&nilai=1')
+            ->assertOk()
+            ->assertSee('84,00')
+            ->assertSee('= 12,80')
+            ->assertSee('Print / Simpan PDF');
+
+        // Preview di modal Print (?modal=1): tanpa toolbar & tanpa dialog print otomatis.
+        $this->actingAs($this->leader)->get($print.'&modal=1')
+            ->assertOk()
+            ->assertDontSee('Print / Simpan PDF')
+            ->assertDontSee('window.print(); }, 300', false);
+
+        $this->actingAs($this->leader)->get(route('hrms.penilaian.index', ['tahun' => 2026]))
+            ->assertOk()
+            ->assertSee('data-print-url="'.e($print).'"', false);
     }
 
     public function test_leader_can_take_over_filling_from_asst_leader_and_skips_own_approval(): void

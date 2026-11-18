@@ -4,6 +4,10 @@
 @use('App\Modules\Hrms\Support\QrCode')
 @php
     // Tata letak mengikuti form kertas HRD (contoh: FORM PENILAIAN AST. LEADER, HRD / FMR / 34).
+    // $tampilNilai = false: hanya centang yang tampil, semua angka nilai (total, nilai akhir, huruf) dikosongkan.
+    $tampilNilai ??= true;
+    // Ditampilkan di dalam modal (preview isian / preview sebelum print): tanpa toolbar & tanpa langsung membuka dialog print.
+    $tanpaToolbar = ! empty($preview) || ! empty($dalamModal);
     $angka = fn (float $value) => number_format($value, 2, ',', '.');
     $absen = $penilaian->absen;
     // Setiap penilai punya centang sendiri dengan warna jenjangnya; nilai butir = rata-rata semua penilai.
@@ -114,12 +118,12 @@
     </style>
 </head>
 <body>
-@empty($preview)
+@unless ($tanpaToolbar)
     <div class="toolbar">
         <button type="button" onclick="window.print()">{{ __('Print / Simpan PDF') }}</button>
         <button type="button" class="ghost" onclick="window.close()">{{ __('Tutup') }}</button>
     </div>
-@endempty
+@endunless
 
 <div class="sheet">
 <div class="frame">
@@ -211,7 +215,7 @@
                         <tr>
                             <td class="kat">{{ __($konversi['label']) }}</td>
                             @foreach ($konversi['poin'] as $index => $poin)
-                                <td @class(['on' => $index === $terpakai])><span>{{ $poin }}</span></td>
+                                <td @class(['on' => $tampilNilai && $index === $terpakai])><span>{{ $poin }}</span></td>
                             @endforeach
                             <td class="nb"></td>
                         </tr>
@@ -222,12 +226,12 @@
                         @foreach ($kolomAbsen as $kolom)
                             <td></td>
                         @endforeach
-                        <td class="b">{{ $absen['total_poin'] }}</td>
+                        <td class="b">{{ $tampilNilai ? $absen['total_poin'] : '' }}</td>
                     </tr>
                     <tr>
                         <td class="rumus">{{ __('Nilai Maksimum = :maks (a)', ['maks' => FormPenilaian::MAKS_ABSEN]) }}</td>
                         <td class="rumus" colspan="{{ count($kolomAbsen) }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai akhir = (Total nilai / a ) x ( b% x 100)') }}</td>
-                        <td class="akhir">{{ $angka($penilaian->nilai_absen) }}</td>
+                        <td class="akhir">{{ $tampilNilai ? $angka($penilaian->nilai_absen) : '' }}</td>
                     </tr>
                 </table>
                 <div class="bobot-absen">{{ __('Bobot Absen :level = :bobot% (b)', ['level' => __($levelForm[$penilaian->form] ?? ''), 'bobot' => $form['bobot_absen']]) }}</div>
@@ -238,7 +242,7 @@
                     <tr><th colspan="2">{{ __('RANGE NILAI AKHIR') }}</th></tr>
                     <tr><th>{{ __('ANGKA') }}</th><th>{{ __('HURUF') }}</th></tr>
                     @foreach (['91 ~ 100' => 'A', '80 ~ 90' => 'B', '60 ~ 79' => 'C', '39 ~ 59' => 'D', '16 ~ 38' => 'E'] as $range => $huruf)
-                        <tr @class(['on' => $penilaian->huruf === $huruf])><td>{{ $range }}</td><td>{{ $huruf }}</td></tr>
+                        <tr @class(['on' => $tampilNilai && $penilaian->huruf === $huruf])><td>{{ $range }}</td><td>{{ $huruf }}</td></tr>
                     @endforeach
                 </table>
             </td>
@@ -297,16 +301,16 @@
                 {{-- Subtotal tiap kolom A - E, lalu total nilai di kolom paling kanan (seperti form kertas). --}}
                 @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
                     @php($subtotal = $performance['kategori'][$kategori]['kolom'][$huruf])
-                    <td class="total">{{ $subtotal > 0 ? $ringkas($subtotal) : '' }}</td>
+                    <td class="total">{{ $tampilNilai && $subtotal > 0 ? $ringkas($subtotal) : '' }}</td>
                 @endforeach
-                <td class="total">{{ $ringkas($performance['kategori'][$kategori]['total']) }}</td>
+                <td class="total">{{ $tampilNilai ? $ringkas($performance['kategori'][$kategori]['total']) : '' }}</td>
             </tr>
             <tr>
                 <td class="nb"></td>
                 <td class="rumus" style="padding-left: 52%;">{{ __('Bobot = :bobot % (b)', ['bobot' => $form['bobot_kategori']]) }}</td>
                 <td class="rumus" colspan="{{ count(FormPenilaian::NILAI_HURUF) }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai Akhir = (Total nilai/a) x ( b %x 100)') }}</td>
                 {{-- Kotak "=" selebar kotak total di atasnya (kolom paling kanan). --}}
-                <td class="sama">= {{ $angka($performance['kategori'][$kategori]['nilai']) }}</td>
+                <td class="sama">= {{ $tampilNilai ? $angka($performance['kategori'][$kategori]['nilai']) : '' }}</td>
             </tr>
         @endforeach
     </table>
@@ -375,13 +379,13 @@
                         <td class="lbl" colspan="2">{{ __('NILAI ABSEN') }}</td>
                     </tr>
                     <tr><td class="lbl">{{ __('ANGKA') }}</td><td class="lbl">{{ __('HURUF') }}</td></tr>
-                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_absen) }}</td></tr>
+                    <tr><td class="val" colspan="2">{{ $tampilNilai ? $angka($penilaian->nilai_absen) : '' }}</td></tr>
                     <tr><td class="lbl" colspan="2">{{ __('PERFORMANCE') }}</td></tr>
-                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_performance) }}</td></tr>
+                    <tr><td class="val" colspan="2">{{ $tampilNilai ? $angka($penilaian->nilai_performance) : '' }}</td></tr>
                     <tr>
                         <td class="total">{{ __('TOTAL NILAI AKHIR **') }}</td>
-                        <td class="val">{{ $angka($penilaian->nilai_akhir) }}</td>
-                        <td class="val">{{ $penilaian->huruf }}</td>
+                        <td class="val">{{ $tampilNilai ? $angka($penilaian->nilai_akhir) : '' }}</td>
+                        <td class="val">{{ $tampilNilai ? $penilaian->huruf : '' }}</td>
                     </tr>
                 </table>
                 <div class="rekom" style="margin-top: 3mm;">{{ __('Rekomendasi Akhir HRD :') }}</div>
@@ -403,9 +407,9 @@
     }
     window.addEventListener('load', function () {
         pasSatuHalaman();
-        @empty($preview)
+        @unless ($tanpaToolbar)
             setTimeout(function () { window.print(); }, 300);
-        @endempty
+        @endunless
     });
 </script>
 </body>

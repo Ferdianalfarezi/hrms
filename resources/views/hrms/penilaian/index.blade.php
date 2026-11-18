@@ -26,6 +26,17 @@
     .flow { font-size: 12px; color: var(--muted); white-space: nowrap; }
     .flow b { color: var(--text); font-weight: 600; }
     tr.todo td { background: #fffbeb; }
+    dialog.print-modal { width: min(920px, calc(100% - 32px)); max-height: calc(100vh - 32px); }
+    .print-preview { position: relative; height: min(62vh, 820px); margin-top: 14px; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; background: #e5e7eb; }
+    .print-preview iframe { width: 100%; height: 100%; border: 0; }
+    .print-preview-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; background: #e5e7eb; }    .switch-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--soft-2); cursor: pointer; font-weight: 400; }
+    .switch { position: relative; flex: none; width: 46px; height: 26px; }
+    .switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .switch-slider { position: absolute; inset: 0; border-radius: 999px; background: var(--line-strong); transition: background .2s; pointer-events: none; }
+    .switch-slider::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+    .switch input:checked + .switch-slider { background: var(--primary); }
+    .switch input:checked + .switch-slider::after { transform: translateX(20px); }
+    .switch input:focus-visible + .switch-slider { outline: 2px solid var(--primary); outline-offset: 2px; }
 @endsection
 
 @section('content')
@@ -140,7 +151,8 @@
                             @endif
                             {{-- Bisa dicetak setelah dikirim (minimal satu tanda tangan). --}}
                             @if (in_array($row['status'], ['menunggu', 'disetujui'], true))
-                                <a class="btn btn-ghost btn-sm" href="{{ route('hrms.penilaian.print', [$karyawan, 'tahun' => $tahun]) }}" target="_blank" rel="noopener" title="{{ __('Cetak form penilaian (A4)') }}">{{ __('Print') }}</a>
+                                <button type="button" class="btn btn-ghost btn-sm" title="{{ __('Cetak form penilaian (A4)') }}"
+                                        data-print-url="{{ route('hrms.penilaian.print', [$karyawan, 'tahun' => $tahun]) }}" data-print-nama="{{ $karyawan->nik }} - {{ $karyawan->nama }}">{{ __('Print') }}</button>
                             @endif
                         </td>
                     </tr>
@@ -157,4 +169,83 @@
 <p class="muted small" style="margin-top: 12px;">
     {{ __('Nilai absen dihitung otomatis dari data absensi 1 Januari - 31 Desember :tahun. Selama penilaian belum dikirim, nilainya ikut berubah kalau data absensi berubah.', ['tahun' => $tahun]) }}
 </p>
+
+{{-- Pilihan sebelum cetak: default hanya centang, angka nilai baru tampil kalau toggle diaktifkan. --}}
+<dialog class="modal print-modal" id="print-modal" aria-labelledby="print-modal-title">
+    <div class="modal-head">
+        <h2 id="print-modal-title">{{ __('Print Form Penilaian') }}</h2>
+        <button type="button" class="modal-close" data-print-tutup aria-label="{{ __('Tutup') }}">&times;</button>
+    </div>
+    <div class="modal-body">
+        <p class="muted" style="margin: 0 0 16px;" data-print-target></p>
+        <label class="switch-row">
+            <span>
+                <b>{{ __('Tampilkan nilai') }}</b>
+                <span class="muted small" style="display: block;">{{ __('Nonaktif: hanya centang penilai yang dicetak, angka nilai & huruf dikosongkan.') }}</span>
+            </span>
+            <span class="switch">
+                <input type="checkbox" id="print-nilai" role="switch">
+                <span class="switch-slider" aria-hidden="true"></span>
+            </span>
+        </label>
+        {{-- Preview form cetak; ikut berubah saat toggle diubah, tombol Print mencetak isi preview ini. --}}
+        <div class="print-preview">
+            <div class="print-preview-loading" data-print-loading>{{ __('Memuat preview...') }}</div>
+            <iframe title="{{ __('Preview Form Penilaian') }}" data-print-iframe></iframe>
+        </div>
+    </div>
+    <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-print-tutup>{{ __('Batal') }}</button>
+        <button type="button" class="btn" data-print-buka>{{ __('Print') }}</button>
+    </div>
+</dialog>
 @endsection
+
+@push('scripts')
+<script>
+    (function () {
+        var modal = document.getElementById('print-modal');
+        if (!modal) return;
+        var toggle = document.getElementById('print-nilai');
+        var iframe = modal.querySelector('[data-print-iframe]');
+        var loading = modal.querySelector('[data-print-loading]');
+        var tombolPrint = modal.querySelector('[data-print-buka]');
+        var url = null;
+
+        function muatPreview() {
+            loading.hidden = false;
+            tombolPrint.disabled = true;
+            iframe.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'modal=1&nilai=' + (toggle.checked ? 1 : 0);
+        }
+
+        iframe.addEventListener('load', function () {
+            if (!iframe.getAttribute('src')) return;
+            loading.hidden = true;
+            tombolPrint.disabled = false;
+        });
+
+        document.querySelectorAll('[data-print-url]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                url = button.dataset.printUrl;
+                modal.querySelector('[data-print-target]').textContent = button.dataset.printNama;
+                toggle.checked = false;
+                modal.showModal();
+                muatPreview();
+            });
+        });
+
+        toggle.addEventListener('change', muatPreview);
+
+        modal.querySelectorAll('[data-print-tutup]').forEach(function (button) {
+            button.addEventListener('click', function () { modal.close(); });
+        });
+        modal.addEventListener('close', function () { iframe.removeAttribute('src'); });
+
+        // Cetak persis isi preview (dialog print browser untuk halaman di dalam preview).
+        tombolPrint.addEventListener('click', function () {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        });
+    })();
+</script>
+@endpush

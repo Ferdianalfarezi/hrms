@@ -179,6 +179,10 @@ class PenilaianTahunanController extends Controller
             'form' => FormPenilaian::form($penilaian->form),
             'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor()),
             'kotakPenilai' => $this->kotakPenilai($this->penilaiPerTahap($penilaian)),
+            // Default hanya centang; angka nilai baru tampil kalau dipilih di modal Print (?nilai=1).
+            'tampilNilai' => $request->boolean('nilai'),
+            // Preview di modal Print (?modal=1): dicetak dari modal, jadi tanpa toolbar & tanpa dialog print otomatis.
+            'dalamModal' => $request->boolean('modal'),
         ]);
     }
 
