@@ -1,11 +1,14 @@
 @use('App\Modules\Hrms\Models\PenilaianTahunan')
 @use('App\Modules\Hrms\Support\FormPenilaian')
+@use('App\Modules\Hrms\Support\JenjangPenilaian')
 @use('App\Modules\Hrms\Support\QrCode')
 @php
     // Tata letak mengikuti form kertas HRD (contoh: FORM PENILAIAN AST. LEADER, HRD / FMR / 34).
     $angka = fn (float $value) => number_format($value, 2, ',', '.');
     $absen = $penilaian->absen;
-    $skor = $penilaian->skor ?? [];
+    // Setiap penilai punya centang sendiri dengan warna jenjangnya; nilai butir = rata-rata semua penilai.
+    $skorPenilai = $penilaian->skorPerPenilai();
+    $ringkas = fn (float $value) => rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
     $kolomAbsen = ['0', '1 x', '2 x', '3 x', '4 x', '5 x', '6 x', '7 ~ 10', '11~15', '≥ 16'];
     $singkatanAbsen = ['A' => 'A', 'I' => 'I', 'S' => 'S', 'DT' => 'DT', 'DT30' => 'DT > 30 mnt', 'PC' => 'PC', 'PC30' => 'PC > 30 mnt', 'SD' => 'SD'];
     $levelForm = ['operator' => 'Operator', 'asst_leader' => 'Asst. Leader', 'leader' => 'Leader', 'section' => 'Section Chief & Ast. Manager', 'manager' => 'Manager'];
@@ -75,7 +78,7 @@
         .nilai { table-layout: fixed; }
         .nilai td { height: 3.4mm; padding: 0 2px; font-size: 6.5pt; }
         .nilai td.no { text-align: center; }
-        .nilai td.skor { text-align: center; font-weight: 700; font-size: 7.5pt; line-height: 1; }
+        .nilai td.skor { text-align: center; font-weight: 700; font-size: 7.5pt; line-height: 1; letter-spacing: -.5px; white-space: nowrap; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .nilai td.head { text-align: center; font-size: 6.5pt; }
         .nilai td.sec { border: 0; font-weight: 700; font-size: 7pt; padding: 1.6mm 0 .3mm; vertical-align: bottom; }
         .nilai td.rumus { border: 0; font-size: 5.5pt; font-weight: 700; white-space: nowrap; height: 3mm; }
@@ -278,7 +281,7 @@
                     <td class="no">{{ $index + 1 }}</td>
                     <td>{{ __($butir) }}</td>
                     @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
-                        <td class="skor">{{ ($skor[$kategori][$index] ?? null) === $huruf ? '✓' : '' }}</td>
+                        <td class="skor">@foreach ($skorPenilai as $isian)@if (($isian['skor'][$kategori][$index] ?? null) === $huruf)<span style="color: {{ JenjangPenilaian::warnaCentang($isian['level']) }};">✓</span>@endif @endforeach</td>
                     @endforeach
                     <td class="nb"></td>
                 </tr>
@@ -286,7 +289,12 @@
             <tr>
                 <td class="nb"></td>
                 <td class="rumus" style="padding-left: 52%;">{{ __('Nilai Max = :maks (a)', ['maks' => count($butirs) * 5]) }}</td>
-                <td class="total" colspan="{{ count(FormPenilaian::NILAI_HURUF) + 1 }}">{{ $performance['kategori'][$kategori]['total'] }}</td>
+                {{-- Subtotal tiap kolom A - E, lalu total nilai di kolom paling kanan (seperti form kertas). --}}
+                @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
+                    @php($subtotal = $performance['kategori'][$kategori]['kolom'][$huruf])
+                    <td class="total">{{ $subtotal > 0 ? $ringkas($subtotal) : '' }}</td>
+                @endforeach
+                <td class="total">{{ $ringkas($performance['kategori'][$kategori]['total']) }}</td>
             </tr>
             <tr>
                 <td class="nb"></td>

@@ -135,6 +135,8 @@ class PenilaianTahunanController extends Controller
             : $penilaian->absen;
 
         $penilaian->loadMissing(['logs.user', 'penilai']);
+        $canFill = $this->canFill($request->user(), $penilaian);
+        $canApprove = $this->canApprove($request->user(), $penilaian);
 
         return view('hrms.penilaian.form', [
             'karyawan' => $karyawan->loadMissing('department'),
@@ -142,10 +144,12 @@ class PenilaianTahunanController extends Controller
             'tahun' => $tahun,
             'form' => $form,
             'absen' => $absen,
-            'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->skor ?? []),
-            'canFill' => $this->canFill($request->user(), $penilaian),
+            'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor()),
+            'canFill' => $canFill,
             'tahapKirim' => $this->tahapSetelahKirim($request->user(), $penilaian),
-            'canApprove' => $this->canApprove($request->user(), $penilaian),
+            'canApprove' => $canApprove,
+            // Tahap yang sedang diisi user ini (null = hanya melihat); pilihan awalnya dari penilai sebelumnya.
+            'tahapSaya' => $canFill || $canApprove ? $this->tahapPengisian($request->user(), $penilaian) : null,
             'penilaiPerTahap' => $this->penilaiPerTahap($penilaian),
         ]);
     }
@@ -173,7 +177,7 @@ class PenilaianTahunanController extends Controller
             'penilaian' => $penilaian,
             'tahun' => $tahun,
             'form' => FormPenilaian::form($penilaian->form),
-            'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->skor ?? []),
+            'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor()),
             'kotakPenilai' => $this->kotakPenilai($this->penilaiPerTahap($penilaian)),
         ]);
     }
@@ -205,8 +209,9 @@ class PenilaianTahunanController extends Controller
     /**
      * Simpan isian penilaian.
      * - Penilai (tahap pertama): aksi=draft menyimpan sementara, aksi=kirim meneruskan ke approver pertama.
-     * - Approver yang sedang mendapat giliran boleh mengubah nilai: aksi=simpan menyimpan perubahan,
-     *   aksi=setuju menyimpan lalu meneruskan ke jenjang berikutnya (atau selesai).
+     * - Approver yang sedang mendapat giliran mengisi skornya sendiri (pilihan awal = skor penilai sebelumnya):
+     *   aksi=simpan menyimpan, aksi=setuju menyimpan lalu meneruskan ke jenjang berikutnya (atau selesai).
+     * Nilai tiap butir = rata-rata skor semua penilai yang sudah mengisi.
      * Kirim dan setuju mewajibkan semua butir terisi.
      */
     public function save(Request $request, Karyawan $karyawan): RedirectResponse
@@ -236,12 +241,17 @@ class PenilaianTahunanController extends Controller
         ]);
 
         $aksi = $data['aksi'];
-        $skor = $this->bersihkanSkor($penilaian->form, $data['skor'] ?? []);
-        $performance = FormPenilaian::hitungPerformance($penilaian->form, $skor);
+        $skorSaya = $this->bersihkanSkor($penilaian->form, $data['skor'] ?? []);
 
-        if (in_array($aksi, ['kirim', 'setuju'], true) && ! $performance['lengkap']) {
+        if (in_array($aksi, ['kirim', 'setuju'], true) && ! FormPenilaian::hitungPerformance($penilaian->form, [$skorSaya])['lengkap']) {
             throw ValidationException::withMessages(['skor' => $aksi === 'kirim' ? __('Semua butir penilaian (poin II s/d VI) wajib diisi sebelum dikirim.') : __('Semua butir penilaian (poin II s/d VI) wajib diisi sebelum disetujui.')]);
         }
+
+        // Setiap penilai menyimpan skornya sendiri; nilai butir = rata-rata skor semua penilai.
+        $tahapSaya = $this->tahapPengisian($user, $penilaian);
+        $skorSebelumnya = $penilaian->skorUntukTahap($tahapSaya);
+        $penilaian->isiSkorPenilai($tahapSaya, JenjangPenilaian::userLevel($user), $skorSaya);
+        $performance = FormPenilaian::hitungPerformance($penilaian->form, $penilaian->daftarSkor());
 
         // Nilai absen dikunci saat dikirim; approver hanya mengubah nilai performance.
         $absen = $sebagaiPenilai
@@ -254,7 +264,7 @@ class PenilaianTahunanController extends Controller
         // Setiap tanda tangan (kirim / setuju) memakai 1 token penilaian milik yang menandatangani.
         $tandaTangan = in_array($aksi, ['kirim', 'setuju'], true);
 
-        DB::transaction(function () use ($penilaian, $user, $data, $aksi, $skor, $absen, $performance, $nilaiAkhir, $sebagaiPenilai, $tahap, $level, $tandaTangan) {
+        DB::transaction(function () use ($penilaian, $user, $data, $aksi, $skorSaya, $skorSebelumnya, $absen, $performance, $nilaiAkhir, $sebagaiPenilai, $tahap, $level, $tandaTangan) {
             if ($tandaTangan && ! $user->pakaiTokenPenilaian()) {
                 throw ValidationException::withMessages(['token' => __('Token penilaian Anda habis. Ajukan penambahan token ke Admin HRMS lewat menu profil (klik foto Anda).')]);
             }
@@ -262,14 +272,14 @@ class PenilaianTahunanController extends Controller
             $penilaian->fill([
                 'absen' => $absen,
                 'nilai_absen' => $absen['nilai'],
-                'skor' => $skor,
                 'nilai_performance' => $performance['nilai'],
                 'nilai_akhir' => $nilaiAkhir,
                 'huruf' => FormPenilaian::huruf($nilaiAkhir),
                 'catatan' => $data['catatan'] ?? null,
                 'hasil' => $data['hasil'] ?? null,
             ]);
-            $diubahApprover = ! $sebagaiPenilai && $penilaian->isDirty(['skor', 'catatan', 'hasil']);
+            // Approver memberi skor berbeda dari penilai sebelumnya (atau mengubah catatan / hasil): tercatat di riwayat.
+            $diubahApprover = ! $sebagaiPenilai && ($skorSaya != $skorSebelumnya || $penilaian->isDirty(['catatan', 'hasil']));
 
             if ($sebagaiPenilai) {
                 $penilaian->penilai_id = $user->id;
@@ -358,6 +368,15 @@ class PenilaianTahunanController extends Controller
     {
         return $penilaian->isEditable()
             && JenjangPenilaian::canFillAs($user, $penilaian->tahapan[0] ?? null, $penilaian->department_id);
+    }
+
+    /**
+     * Tahap yang skornya diisi user: penilai pertama (termasuk yang mengambil alih) = tahap 0, approver = tahap yang
+     * sedang menunggu (termasuk override oleh jenjang lebih tinggi).
+     */
+    private function tahapPengisian(User $user, PenilaianTahunan $penilaian): int
+    {
+        return $this->canFill($user, $penilaian) ? 0 : (int) $penilaian->tahap;
     }
 
     /**

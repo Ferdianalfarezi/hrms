@@ -1246,5 +1246,9 @@
     "Nilai Akhir = (Total nilai/a) x ( b %x 100)": "最終点 = (合計点/a) x (b% x 100)",
     "Rekomendasi Akhir HRD :": "人事最終推薦：",
     "Operator": "オペレーター",
-    "Section Chief & Ast. Manager": "Section Chief & Ast. Manager"
+    "Section Chief & Ast. Manager": "Section Chief & Ast. Manager",
+    "Warna centang penilai:": "評価者のチェック色：",
+    "Nilai tiap butir = rata-rata skor semua penilai.": "各項目の点数 = 全評価者の平均。",
+    "Pilih skor Anda sendiri di atas (pilihan awal mengikuti penilai sebelumnya). Nilai tiap butir dirata-rata dengan skor penilai lain.": "上でご自身の評価を選んでください（初期値は前の評価者の選択）。各項目の点数は他の評価者と平均されます。",
+    "Diangkat menjadi karyawan tetap": "正社員に登用"
 }

@@ -28,6 +28,9 @@
     .pick:has(input:disabled) { cursor: default; }
     .pick:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 1px; }
     tr.kosong td.butir { color: #b45309; }
+    td.c { white-space: nowrap; }
+    .centang { font-size: 16px; line-height: 1; margin: 0 1px; vertical-align: middle; }
+    .legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 13px; padding-top: 12px; padding-bottom: 12px; }
     .penilai { display: grid; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; font-size: 13px; }
     .penilai > div { display: grid; grid-template-rows: 1fr auto; text-align: center; border-left: 1px solid var(--line-strong); min-height: 110px; }
     .penilai > div:first-child { border-left: 0; }
@@ -58,8 +61,13 @@
 @use('App\Modules\Hrms\Support\JenjangPenilaian')
 @php
     $angka = fn (float $value) => number_format($value, 2, ',', '.');
-    $skor = old('skor', $penilaian->skor ?? []);
-    $readonly = ! ($canFill || $canApprove);
+    $ringkas = fn (float $value) => rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
+    $readonly = $tahapSaya === null;
+    // Skor milik user ini (pilihan awal approver = skor penilai sebelumnya) dan skor penilai lain (centang berwarna).
+    $skor = old('skor', $readonly ? [] : $penilaian->skorUntukTahap($tahapSaya));
+    $penilaiLain = collect($penilaian->skorPerPenilai())->except($readonly ? [] : [$tahapSaya]);
+    $levelSayaSkor = JenjangPenilaian::userLevel(auth()->user());
+    $legenda = $penilaiLain->pluck('level')->when(! $readonly, fn ($levels) => $levels->push($levelSayaSkor))->filter()->unique()->values();
 @endphp
 
 <div class="pn-head">
@@ -131,6 +139,16 @@
                 <p class="muted small" style="margin: 8px 0 0;">{{ __('Nilai = (total poin / :maks) x :bobot.', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</p>
             </div>
 
+            @if ($legenda->isNotEmpty())
+                <div class="card sec legenda">
+                    <span class="muted small">{{ __('Warna centang penilai:') }}</span>
+                    @foreach ($legenda as $levelLegenda)
+                        <span><b class="centang" style="color: {{ JenjangPenilaian::warnaCentang($levelLegenda) }};">✓</b> {{ JenjangPenilaian::label($levelLegenda) }}</span>
+                    @endforeach
+                    <span class="muted small">{{ __('Nilai tiap butir = rata-rata skor semua penilai.') }}</span>
+                </div>
+            @endif
+
             @foreach ($form['butir'] as $kategori => $butirs)
                 <div class="card sec" data-kategori="{{ $kategori }}" data-maks="{{ count($butirs) * 5 }}">
                     <h2>{{ __(FormPenilaian::KATEGORI[$kategori]) }}</h2>
@@ -151,17 +169,26 @@
                             </thead>
                             <tbody>
                                 @foreach ($butirs as $index => $butir)
-                                    @php($terpilih = $skor[$kategori][$index] ?? null)
-                                    <tr class="{{ $terpilih ? '' : 'kosong' }}">
+                                    @php
+                                        $terpilih = $skor[$kategori][$index] ?? null;
+                                        $pilihanLain = $penilaiLain
+                                            ->map(fn (array $isian) => ['level' => $isian['level'], 'huruf' => $isian['skor'][$kategori][$index] ?? null])
+                                            ->filter(fn (array $pilihan) => isset(FormPenilaian::NILAI_HURUF[$pilihan['huruf']]));
+                                    @endphp
+                                    <tr @class(['kosong' => ! $readonly && ! $terpilih]) data-lain="{{ $pilihanLain->map(fn (array $pilihan) => FormPenilaian::NILAI_HURUF[$pilihan['huruf']])->values()->toJson() }}">
                                         <td class="muted">{{ $index + 1 }}</td>
                                         <td class="butir">{{ __($butir) }}</td>
                                         @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
                                             <td class="c">
-                                                <label class="pick" title="{{ $huruf }} = {{ $nilai }}">
-                                                    <input type="radio" name="skor[{{ $kategori }}][{{ $index }}]" value="{{ $huruf }}" data-nilai="{{ $nilai }}"
-                                                        @checked($terpilih === $huruf) @disabled($readonly)>
-                                                    {{ $huruf }}
-                                                </label>
+                                                @unless ($readonly)
+                                                    <label class="pick" title="{{ $huruf }} = {{ $nilai }}">
+                                                        <input type="radio" name="skor[{{ $kategori }}][{{ $index }}]" value="{{ $huruf }}" data-nilai="{{ $nilai }}" @checked($terpilih === $huruf)>
+                                                        {{ $huruf }}
+                                                    </label>
+                                                @endunless
+                                                @foreach ($pilihanLain->where('huruf', $huruf) as $pilihan)
+                                                    <b class="centang" style="color: {{ JenjangPenilaian::warnaCentang($pilihan['level']) }};" title="{{ JenjangPenilaian::label($pilihan['level']) }}">✓</b>
+                                                @endforeach
                                             </td>
                                         @endforeach
                                     </tr>
@@ -169,7 +196,7 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="2">{{ __('Total nilai') }} <span data-total>{{ $performance['kategori'][$kategori]['total'] }}</span> / {{ count($butirs) * 5 }}</td>
+                                    <td colspan="2">{{ __('Total nilai') }} <span data-total>{{ $ringkas($performance['kategori'][$kategori]['total']) }}</span> / {{ count($butirs) * 5 }}</td>
                                     <td colspan="5" class="num">{{ __('Nilai') }} <span data-nilai-kategori>{{ $angka($performance['kategori'][$kategori]['nilai']) }}</span></td>
                                 </tr>
                             </tfoot>
@@ -215,7 +242,7 @@
                     @if ($levelSaya !== $penilaian->posisi_level)
                         <p class="sub" style="color: #92400e;">{{ __('Anda menyetujui sebagai') }} <b>{{ JenjangPenilaian::label($levelSaya) }}</b> ({{ __('override tahap :tahap', ['tahap' => JenjangPenilaian::label($penilaian->posisi_level)]) }}).</p>
                     @endif
-                    <p class="sub">{{ __('Kalau tidak setuju dengan nilainya, ubah langsung di atas lalu setujui. Perubahan tercatat di riwayat.') }}</p>
+                    <p class="sub">{{ __('Pilih skor Anda sendiri di atas (pilihan awal mengikuti penilai sebelumnya). Nilai tiap butir dirata-rata dengan skor penilai lain.') }}</p>
                     <label for="catatan_review">{{ __('Catatan approval') }}</label>
                     <textarea id="catatan_review" name="catatan_review" rows="2" maxlength="255" placeholder="{{ __('Opsional, mis. alasan nilai diubah') }}">{{ old('catatan_review') }}</textarea>
                     <div class="actions" style="margin-top: 12px;">
@@ -336,14 +363,19 @@
             var performance = 0;
             form.querySelectorAll('[data-kategori]').forEach(function (card) {
                 var total = 0;
-                card.querySelectorAll('input[type=radio]:checked').forEach(function (input) { total += Number(input.dataset.nilai); });
+                // Nilai butir = rata-rata skor penilai lain (data-lain) dan pilihan user ini.
+                card.querySelectorAll('tbody tr').forEach(function (row) {
+                    var nilaiButir = JSON.parse(row.dataset.lain || '[]');
+                    var pilihan = row.querySelector('input:checked');
+                    if (pilihan) nilaiButir.push(Number(pilihan.dataset.nilai));
+                    if (nilaiButir.length) total += nilaiButir.reduce(function (a, b) { return a + b; }, 0) / nilaiButir.length;
+                    if (row.querySelector('input[type=radio]')) row.classList.toggle('kosong', !pilihan);
+                });
+                total = Math.round(total * 100) / 100;
                 var nilai = Math.round(total / Number(card.dataset.maks) * bobot * 100) / 100;
                 performance += nilai;
-                card.querySelector('[data-total]').textContent = total;
+                card.querySelector('[data-total]').textContent = String(total).replace('.', ',');
                 card.querySelector('[data-nilai-kategori]').textContent = format(nilai);
-                card.querySelectorAll('tbody tr').forEach(function (row) {
-                    row.classList.toggle('kosong', !row.querySelector('input:checked'));
-                });
             });
 
             var akhir = Math.round((nilaiAbsen + performance) * 100) / 100;

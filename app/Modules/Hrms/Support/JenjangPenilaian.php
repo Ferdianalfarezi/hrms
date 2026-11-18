@@ -39,6 +39,16 @@ class JenjangPenilaian
         'direktur' => 'Direktur',
     ];
 
+    /** Warna centang tiap penilai di form: Asst. Leader hitam, Leader biru, Section Chief hijau, Asst. Manager ke atas ungu. */
+    public const WARNA_CENTANG = [
+        'asst_leader' => '#111111',
+        'leader' => '#1d4ed8',
+        'section' => '#15803d',
+        'manager' => '#7e22ce',
+        'gm' => '#7e22ce',
+        'direktur' => '#7e22ce',
+    ];
+
     /** Jabatan di data karyawan => jenjang. */
     public const JABATAN = [
         'Karyawan' => 'karyawan',
@@ -86,6 +96,11 @@ class JenjangPenilaian
     public static function rank(?string $level): int
     {
         return self::RANK[$level] ?? 0;
+    }
+
+    public static function warnaCentang(?string $level): string
+    {
+        return self::WARNA_CENTANG[$level] ?? self::WARNA_CENTANG['asst_leader'];
     }
 
     public static function label(?string $level): string

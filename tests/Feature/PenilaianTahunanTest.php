@@ -153,7 +153,7 @@ class PenilaianTahunanTest extends TestCase
         $this->assertSame(['kirim', 'setuju', 'setuju'], $penilaian->logs()->pluck('aksi')->all());
     }
 
-    public function test_current_approver_can_change_scores_before_approving(): void
+    public function test_each_approver_gives_own_scores_and_items_are_averaged(): void
     {
         $url = route('hrms.penilaian.save', $this->operator);
         $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')]);
@@ -168,12 +168,28 @@ class PenilaianTahunanTest extends TestCase
         $this->actingAs($this->leader)->post($url, ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'A')])
             ->assertRedirect();
 
+        // Asst. Leader B (4) + Leader A (5): tiap butir 4,5 → performance 72, ditambah absen 20.
         $penilaian->refresh();
         $this->assertSame('section', $penilaian->posisi_level);
-        $this->assertSame(100.0, $penilaian->nilai_akhir);
+        $this->assertSame(92.0, $penilaian->nilai_akhir);
         $this->assertSame('A', $penilaian->huruf);
         $this->assertSame($this->asstLeader->id, $penilaian->penilai_id);
         $this->assertSame(['kirim', 'ubah', 'setuju'], $penilaian->logs()->pluck('aksi')->all());
+        $this->assertSame(['asst_leader', 'leader'], array_column($penilaian->skorPerPenilai(), 'level'));
+        $this->assertSame($this->skorSemua('operator', 'B'), $penilaian->skorPerPenilai()[0]['skor']);
+
+        // Section Chief C (3): (4 + 5 + 3) / 3 = 4 per butir → performance 64.
+        $this->actingAs($this->section)->post($url, ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'C')]);
+        $penilaian->refresh();
+        $this->assertSame(84.0, $penilaian->nilai_akhir);
+
+        $performance = $this->actingAs($this->leader)->get(route('hrms.penilaian.print', [$this->operator, 'tahun' => 2026]))
+            ->assertOk()
+            ->assertSee('color: #1d4ed8;', false)
+            ->viewData('performance');
+        // Kemampuan kerja (4 butir): kolom A = 4 x 5/3, B = 4 x 4/3, C = 4 x 3/3; jumlahnya = total 16.
+        $this->assertSame(['A' => 6.67, 'B' => 5.33, 'C' => 4.0, 'D' => 0.0, 'E' => 0.0], $performance['kategori']['kemampuan']['kolom']);
+        $this->assertSame(16.0, $performance['kategori']['kemampuan']['total']);
     }
 
     public function test_manager_can_override_a_pending_lower_approval(): void

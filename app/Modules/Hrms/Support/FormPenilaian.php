@@ -296,31 +296,48 @@ class FormPenilaian
     }
 
     /**
-     * Nilai tiap kategori performance dari huruf A-E per butir. Butir yang belum diisi dihitung 0.
+     * Nilai tiap kategori performance dari huruf A-E per butir, dirata-rata dari semua penilai yang mengisi butir itu
+     * (mis. Asst. Leader A = 5 dan Leader B = 4 → butir bernilai 4,5). Butir yang belum diisi siapa pun dihitung 0.
+     * "kolom" = sumbangan tiap kolom huruf ke total (baris subtotal A - E di form cetak); jumlahnya sama dengan total.
      *
-     * @param  array<string, array<int, string|null>>  $skor  kategori => [index butir => huruf]
-     * @return array{kategori: array<string, array{total: int, maks: int, nilai: float}>, nilai: float, lengkap: bool}
+     * @param  list<array<string, array<int, string|null>>>  $daftarSkor  per penilai: kategori => [index butir => huruf]
+     * @return array{kategori: array<string, array{total: float, maks: int, nilai: float, kolom: array<string, float>}>, nilai: float, lengkap: bool}
      */
-    public static function hitungPerformance(string $formKey, array $skor): array
+    public static function hitungPerformance(string $formKey, array $daftarSkor): array
     {
         $form = self::form($formKey);
         $hasil = [];
         $lengkap = true;
 
         foreach ($form['butir'] as $kategori => $butir) {
-            $total = 0;
+            $total = 0.0;
+            $kolom = array_fill_keys(array_keys(self::NILAI_HURUF), 0.0);
+
             foreach (array_keys($butir) as $index) {
-                $huruf = $skor[$kategori][$index] ?? null;
-                if (! isset(self::NILAI_HURUF[$huruf])) {
+                $pilihan = array_values(array_filter(
+                    array_map(fn (array $skor) => $skor[$kategori][$index] ?? null, $daftarSkor),
+                    fn (?string $huruf) => isset(self::NILAI_HURUF[$huruf]),
+                ));
+
+                if ($pilihan === []) {
                     $lengkap = false;
 
                     continue;
                 }
-                $total += self::NILAI_HURUF[$huruf];
+
+                foreach ($pilihan as $huruf) {
+                    $kolom[$huruf] += self::NILAI_HURUF[$huruf] / count($pilihan);
+                }
+                $total += array_sum(array_map(fn (string $huruf) => self::NILAI_HURUF[$huruf], $pilihan)) / count($pilihan);
             }
 
             $maks = count($butir) * 5;
-            $hasil[$kategori] = ['total' => $total, 'maks' => $maks, 'nilai' => round($total / $maks * $form['bobot_kategori'], 2)];
+            $hasil[$kategori] = [
+                'total' => round($total, 2),
+                'maks' => $maks,
+                'nilai' => round($total / $maks * $form['bobot_kategori'], 2),
+                'kolom' => array_map(fn (float $nilai) => round($nilai, 2), $kolom),
+            ];
         }
 
         return [
