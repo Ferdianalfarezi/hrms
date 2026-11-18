@@ -348,7 +348,7 @@ class PenilaianTahunanTest extends TestCase
         $this->get(route('verifikasi.penilaian', 'kode-palsu'))->assertNotFound()->assertSee('Tanda tangan tidak dikenali');
     }
 
-    public function test_print_shows_only_the_last_check_when_all_assessors_agree(): void
+    public function test_print_shows_one_check_per_box_from_the_highest_assessor(): void
     {
         $url = route('hrms.penilaian.save', $this->operator);
         $sama = $this->skorSemua('operator', 'B');
@@ -360,11 +360,12 @@ class PenilaianTahunanTest extends TestCase
 
         $html = $this->actingAs($this->leader)->get(route('hrms.penilaian.print', [$this->operator, 'tahun' => 2026]))->assertOk()->getContent();
 
-        // Baris pertama beda (hitam, biru di B; hijau di A); baris lain sama → hanya centang hijau (Section Chief).
+        // Baris pertama: Asst. Leader & Leader B → kotak B hanya biru (Leader), Section Chief A → hijau.
+        // Baris lain semua B → hanya hijau (Section Chief). Asst. Leader (hitam) tidak pernah tampil.
         $hitam = substr_count($html, 'color: #111111;">✓');
         $biru = substr_count($html, 'color: #1d4ed8;">✓');
         $hijau = substr_count($html, 'color: #15803d;">✓');
-        $this->assertSame([1, 1, count(array_merge(...array_values($sama)))], [$hitam, $biru, $hijau]);
+        $this->assertSame([0, 1, count(array_merge(...array_values($sama)))], [$hitam, $biru, $hijau]);
     }
 
     public function test_print_signature_boxes_fill_from_the_right_by_level(): void

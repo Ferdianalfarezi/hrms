@@ -277,9 +277,8 @@
                 <td class="nb"></td>
             </tr>
             @foreach ($butirs as $index => $butir)
-                {{-- Centang tiap penilai; kalau semua penilai memilih huruf yang sama, cukup centang penilai terakhir. --}}
-                @php($centang = collect($skorPenilai)->map(fn (array $isian) => ['level' => $isian['level'], 'huruf' => $isian['skor'][$kategori][$index] ?? null])->filter(fn (array $pilihan) => $pilihan['huruf'] !== null)->values())
-                @php($centang = $centang->pluck('huruf')->unique()->count() === 1 ? $centang->slice(-1) : $centang)
+                {{-- Satu kotak satu centang: kalau beberapa penilai memilih huruf yang sama, pakai penilai jenjang tertinggi (terakhir). --}}
+                @php($centang = collect($skorPenilai)->map(fn (array $isian) => ['level' => $isian['level'], 'huruf' => $isian['skor'][$kategori][$index] ?? null])->filter(fn (array $pilihan) => $pilihan['huruf'] !== null)->keyBy('huruf'))
                 <tr>
                     <td class="no">{{ $index + 1 }}</td>
                     <td>{{ __($butir) }}</td>
