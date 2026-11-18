@@ -1246,5 +1246,6 @@
     "Nilai Akhir = (Total nilai/a) x ( b %x 100)": "最終点 = (合計点/a) x (b% x 100)",
     "Rekomendasi Akhir HRD :": "人事最終推薦：",
     "Operator": "オペレーター",
-    "Section Chief & Ast. Manager": "Section Chief & Ast. Manager"
+    "Section Chief & Ast. Manager": "Section Chief & Ast. Manager",
+    "Masih dalam proses approval (menunggu :tahap) · ditandatangani elektronik melalui HR System.": "承認手続き中（:tahap 待ち）· HR Systemで電子署名済み。"
 }

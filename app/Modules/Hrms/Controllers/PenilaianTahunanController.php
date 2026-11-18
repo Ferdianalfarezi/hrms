@@ -151,7 +151,8 @@ class PenilaianTahunanController extends Controller
     }
 
     /**
-     * Evidence penilaian yang sudah disetujui semua tahap, dalam format form A4 untuk dicetak / disimpan PDF.
+     * Evidence penilaian yang sudah dikirim (minimal satu tanda tangan), dalam format form A4 untuk dicetak / disimpan PDF.
+     * Kotak Penilai yang belum tanda tangan dibiarkan kosong.
      */
     public function print(Request $request, Karyawan $karyawan): View
     {
@@ -162,7 +163,8 @@ class PenilaianTahunanController extends Controller
         $penilaian = PenilaianTahunan::query()
             ->where('karyawan_id', $karyawan->id)
             ->where('tahun', $tahun)
-            ->where('status', PenilaianTahunan::STATUS_DISETUJUI)
+            // Bisa dicetak begitu sudah ada tanda tangan pertama (dikirim), tidak perlu menunggu semua tahap disetujui.
+            ->whereIn('status', [PenilaianTahunan::STATUS_MENUNGGU, PenilaianTahunan::STATUS_DISETUJUI])
             ->with(['logs.user', 'department'])
             ->firstOrFail();
 

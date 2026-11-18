@@ -376,7 +376,13 @@
 </div>
 
     <div class="foot">
-        <span>{{ __('Disetujui secara elektronik melalui HR System.') }}</span>
+        <span>
+            @if ($penilaian->status === PenilaianTahunan::STATUS_DISETUJUI)
+                {{ __('Disetujui secara elektronik melalui HR System.') }}
+            @else
+                {{ __('Masih dalam proses approval (menunggu :tahap) · ditandatangani elektronik melalui HR System.', ['tahap' => \App\Modules\Hrms\Support\JenjangPenilaian::label($penilaian->posisi_level)]) }}
+            @endif
+        </span>
         <span>{{ __('Dicetak :waktu oleh :nama', ['waktu' => now()->translatedFormat('d M Y H:i'), 'nama' => auth()->user()->name]) }}</span>
     </div>
 </div>

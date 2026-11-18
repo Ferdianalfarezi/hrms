@@ -137,9 +137,10 @@
                                 <a class="btn btn-sm" href="{{ $url }}">{{ $row['status'] === 'menunggu' ? __('Review') : __('Nilai') }}</a>
                             @else
                                 <a class="btn btn-ghost btn-sm" href="{{ $url }}">{{ __('Lihat') }}</a>
-                                @if ($row['status'] === 'disetujui')
-                                    <a class="btn btn-ghost btn-sm" href="{{ route('hrms.penilaian.print', [$karyawan, 'tahun' => $tahun]) }}" target="_blank" rel="noopener" title="{{ __('Cetak form penilaian (A4)') }}">{{ __('Print') }}</a>
-                                @endif
+                            @endif
+                            {{-- Bisa dicetak setelah dikirim (minimal satu tanda tangan). --}}
+                            @if (in_array($row['status'], ['menunggu', 'disetujui'], true))
+                                <a class="btn btn-ghost btn-sm" href="{{ route('hrms.penilaian.print', [$karyawan, 'tahun' => $tahun]) }}" target="_blank" rel="noopener" title="{{ __('Cetak form penilaian (A4)') }}">{{ __('Print') }}</a>
                             @endif
                         </td>
                     </tr>

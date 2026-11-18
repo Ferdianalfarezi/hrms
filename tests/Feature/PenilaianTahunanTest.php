@@ -196,16 +196,24 @@ class PenilaianTahunanTest extends TestCase
         $this->assertSame('Section Chief', $kolomPenilai[2]['override']);
     }
 
-    public function test_print_evidence_is_only_available_after_final_approval(): void
+    public function test_print_evidence_is_available_once_the_first_signature_exists(): void
     {
         $url = route('hrms.penilaian.save', $this->operator);
         $print = route('hrms.penilaian.print', [$this->operator, 'tahun' => 2026]);
         $setuju = ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'B')];
-        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')]);
-        $this->actingAs($this->leader)->post($url, $setuju);
 
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'draft', 'skor' => $this->skorSemua('operator', 'B')]);
         $this->actingAs($this->leader)->get($print)->assertNotFound();
 
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')]);
+        $response = $this->actingAs($this->leader)->get($print)
+            ->assertOk()
+            ->assertSee('Masih dalam proses approval');
+        $this->assertSame([null, 'section', 'leader', 'asst_leader'], array_map(fn ($kotak) => $kotak['level'] ?? null, $response->viewData('kotakPenilai')));
+        $this->assertNotNull($response->viewData('kotakPenilai')[3]['log']);
+        $this->assertNull($response->viewData('kotakPenilai')[2]['log']);
+
+        $this->actingAs($this->leader)->post($url, $setuju);
         $this->actingAs($this->section)->post($url, $setuju);
 
         $this->actingAs($this->leader)->get($print)
