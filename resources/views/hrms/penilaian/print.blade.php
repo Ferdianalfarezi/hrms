@@ -379,7 +379,11 @@
                         <td class="lbl" colspan="2">{{ __('NILAI ABSEN') }}</td>
                     </tr>
                     <tr><td class="lbl">{{ __('ANGKA') }}</td><td class="lbl">{{ __('HURUF') }}</td></tr>
-                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_absen) }}</td></tr>
+                    <tr>
+                        <td class="val">{{ $angka($penilaian->nilai_absen) }}</td>
+                        {{-- Huruf absen: nilai absen dikonversi ke skala 100 (terhadap bobot absen), lalu pakai range nilai akhir. --}}
+                        <td class="val">{{ FormPenilaian::huruf($form['bobot_absen'] > 0 ? $penilaian->nilai_absen / $form['bobot_absen'] * 100 : 0) }}</td>
+                    </tr>
                     <tr><td class="lbl" colspan="2">{{ __('PERFORMANCE') }}</td></tr>
                     <tr><td class="val" colspan="2">{{ $tampilNilai ? $angka($penilaian->nilai_performance) : '' }}</td></tr>
                     <tr>

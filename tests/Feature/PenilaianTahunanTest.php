@@ -236,7 +236,7 @@ class PenilaianTahunanTest extends TestCase
             ->assertSee('HRD / FMR / 7')
             ->assertSee('Operator HRD')
             ->assertSee('color: #15803d;">✓', false)
-            ->assertSee('<td class="val" colspan="2">20,00</td>', false)
+            ->assertSeeInOrder(['<td class="val">20,00</td>', '<td class="val">A</td>'], false)
             ->assertDontSee('84,00')
             ->assertDontSee('= 12,80');
 
