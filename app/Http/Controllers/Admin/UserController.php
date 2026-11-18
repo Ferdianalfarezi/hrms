@@ -7,6 +7,7 @@ use App\Models\Application;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
+use App\Modules\Hrms\Support\JenjangPenilaian;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -137,6 +138,7 @@ class UserController extends Controller
             'nik' => ['required', 'string', 'max:30', Rule::unique('users', 'nik')->ignore($user)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
+            'jabatan' => ['nullable', 'string', Rule::in(array_keys(JenjangPenilaian::JABATAN))],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:5', 'confirmed'],
             'is_active' => ['boolean'],
             'is_superadmin' => ['boolean'],
@@ -182,6 +184,7 @@ class UserController extends Controller
             'nik' => $validated['nik'],
             'name' => $validated['name'],
             'email' => $validated['email'] ?? null,
+            'jabatan' => $validated['jabatan'] ?? $user?->jabatan ?? 'Karyawan',
             'is_active' => $request->boolean('is_active'),
             'is_superadmin' => $request->boolean('is_superadmin'),
         ];

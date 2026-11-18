@@ -105,6 +105,17 @@ class PenilaianTahunanTest extends TestCase
         $this->actingAs($operatorUser)->get(route('hrms.penilaian.index'))->assertForbidden();
     }
 
+    public function test_account_jabatan_grants_the_menu_without_employee_data(): void
+    {
+        $user = User::factory()->create(['nik' => '0007', 'jabatan' => 'Asst. Leader']);
+        $user->assignRole('hrms', 'dept_admin', $this->psd->id);
+        $operatorPsd = $this->karyawan('0008', 'Operator PSD', 'Karyawan', $this->psd);
+
+        $response = $this->actingAs($user)->get(route('hrms.penilaian.index'))->assertOk();
+
+        $this->assertSame([$operatorPsd->id], $response->viewData('rows')->pluck('karyawan.id')->all());
+    }
+
     public function test_assessment_is_filled_by_asst_leader_then_approved_by_leader_and_section(): void
     {
         $url = route('hrms.penilaian.save', $this->operator);

@@ -76,7 +76,17 @@
                         <input id="email" type="email" name="email" value="{{ old('email', $user->email) }}">
                         @error('email') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
-                    <div class="spacer"></div>
+                    <div>
+                        {{-- Menentukan jenjang penilaian (Asst. Leader ke atas bisa membuka menu Penilaian). --}}
+                        @php($currentJabatan = old('jabatan', $user->jabatan ?? $user->karyawan?->jabatan ?? 'Karyawan'))
+                        <label for="jabatan">{{ __('Jabatan') }}</label>
+                        <select id="jabatan" name="jabatan">
+                            @foreach (array_keys(\App\Modules\Hrms\Support\JenjangPenilaian::JABATAN) as $jabatan)
+                                <option value="{{ $jabatan }}" @selected($currentJabatan === $jabatan)>{{ __($jabatan) }}</option>
+                            @endforeach
+                        </select>
+                        @error('jabatan') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
                     <div>
                         <label for="password">PIN / Password @if ($user->exists)<span class="muted">{{ __('(kosongkan jika tidak diganti)') }}</span>@endif</label>
                         <input id="password" type="password" name="password" autocomplete="new-password" @required(! $user->exists)>

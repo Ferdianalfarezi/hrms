@@ -96,6 +96,25 @@ class UserManagementTest extends TestCase
         $this->assertTrue($user->canAccessApplication('sms'));
         $this->assertFalse($user->canAccessApplication('hrms'));
         $this->assertSame('staff', $user->roleFor('sms')->code);
+        $this->assertSame('Karyawan', $user->jabatan);
+    }
+
+    public function test_jabatan_is_saved_and_must_be_a_known_position(): void
+    {
+        $payload = [
+            'nik' => '3003',
+            'name' => 'Leader Baru',
+            'password' => 'rahasia1',
+            'password_confirmation' => 'rahasia1',
+        ];
+
+        $this->actingAs($this->admin)->post('/admin/users', [...$payload, 'jabatan' => 'Bos Besar'])
+            ->assertSessionHasErrors('jabatan');
+
+        $this->actingAs($this->admin)->post('/admin/users', [...$payload, 'jabatan' => 'Leader'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Leader', User::where('nik', '3003')->value('jabatan'));
     }
 
     public function test_pin_needs_at_least_five_characters(): void

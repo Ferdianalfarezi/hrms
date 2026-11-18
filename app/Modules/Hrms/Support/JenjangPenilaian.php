@@ -90,9 +90,17 @@ class JenjangPenilaian
         return __(self::LABEL[$level] ?? '-');
     }
 
+    /**
+     * Jenjang user: jabatan yang diset di akun (Kelola User), atau jabatan di data karyawan kalau belum diset.
+     */
     public static function userLevel(User $user): ?string
     {
-        return self::levelOf($user->karyawan?->jabatan);
+        return self::levelOf(self::userJabatan($user));
+    }
+
+    public static function userJabatan(User $user): ?string
+    {
+        return $user->jabatan ?? $user->karyawan?->jabatan;
     }
 
     /**
@@ -211,7 +219,7 @@ class JenjangPenilaian
             ->where('is_active', true)
             ->where(fn ($query) => $query->where('is_superadmin', true)
                 ->orWhereHas('applications', fn ($query) => $query->where('code', 'hrms')))
-            ->whereHas('karyawan')
+            ->where(fn ($query) => $query->whereNotNull('jabatan')->orWhereHas('karyawan'))
             ->with(['karyawan', 'managedDepartments'])
             ->get();
 
