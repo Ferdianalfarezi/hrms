@@ -233,11 +233,9 @@ class PenilaianTahunanController extends Controller
             'skor.*.*' => ['nullable', Rule::in(array_keys(FormPenilaian::NILAI_HURUF))],
             'catatan' => ['nullable', 'string', 'max:2000'],
             'hasil' => ['nullable', Rule::in(PenilaianTahunan::HASIL)],
-            'catatan_review' => ['nullable', 'string', 'max:255'],
         ], [
             'skor.*.*.in' => __('Nilai butir harus A, B, C, D, atau E.'),
             'catatan.max' => __('Catatan maksimal 2000 karakter.'),
-            'catatan_review.max' => __('Catatan approval maksimal 255 karakter.'),
         ]);
 
         $aksi = $data['aksi'];
@@ -300,7 +298,7 @@ class PenilaianTahunanController extends Controller
             }
             match ($aksi) {
                 'kirim' => $this->log($penilaian, 0, $penilaian->tahapan[0], PenilaianTahunanLog::AKSI_KIRIM, $user),
-                'setuju' => $this->log($penilaian, $tahap, $level, PenilaianTahunanLog::AKSI_SETUJU, $user, $data['catatan_review'] ?? null),
+                'setuju' => $this->log($penilaian, $tahap, $level, PenilaianTahunanLog::AKSI_SETUJU, $user),
                 default => null,
             };
             // Tahap approval milik pengisi yang mengambil alih (mis. tahap Leader) tercatat langsung disetujui.

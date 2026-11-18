@@ -242,9 +242,7 @@
                     @if ($levelSaya !== $penilaian->posisi_level)
                         <p class="sub" style="color: #92400e;">{{ __('Anda menyetujui sebagai') }} <b>{{ JenjangPenilaian::label($levelSaya) }}</b> ({{ __('override tahap :tahap', ['tahap' => JenjangPenilaian::label($penilaian->posisi_level)]) }}).</p>
                     @endif
-                    <p class="sub">{{ __('Pilih skor Anda sendiri di atas (pilihan awal mengikuti penilai sebelumnya). Nilai tiap butir dirata-rata dengan skor penilai lain.') }}</p>
-                    <label for="catatan_review">{{ __('Catatan approval') }}</label>
-                    <textarea id="catatan_review" name="catatan_review" rows="2" maxlength="255" placeholder="{{ __('Opsional, mis. alasan nilai diubah') }}">{{ old('catatan_review') }}</textarea>
+                    <p class="sub">{{ __('Kalau tidak setuju dengan nilainya, ubah langsung di atas lalu setujui. Perubahan tercatat di riwayat.') }}</p>
                     <div class="actions" style="margin-top: 12px;">
                         <button type="submit" name="aksi" value="simpan" class="btn btn-ghost">{{ __('Simpan perubahan') }}</button>
                         <button type="submit" name="aksi" value="setuju" class="btn btn-success" data-lengkap
