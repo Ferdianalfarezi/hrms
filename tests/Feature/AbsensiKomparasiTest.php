@@ -299,13 +299,14 @@ class AbsensiKomparasiTest extends TestCase
         $gmIzin = $this->karyawan('0004', 'Cici GM');
         $gmIzin->update(['jabatan' => 'GM']);
         $this->absen($gmIzin, '2026-10-15', 'I');
-        $this->mesin('2026-10-15', ['0001', '0002', '0003', '0004']);
+        $this->karyawan('0098', 'Pengecualian Khusus');
+        $this->mesin('2026-10-15', ['0001', '0002', '0003', '0004', '0098']);
         $admin = $this->hrmsAdmin();
 
         $this->actingAs($admin)
             ->get(route('hrms.absensi.komparasi', ['tanggal' => '2026-10-15']))
             ->assertOk()
-            ->assertViewHas('belum', fn ($rows) => $rows->pluck('karyawan.nik')->all() === ['0001', '0002', '0003'])
+            ->assertViewHas('belum', fn ($rows) => $rows->pluck('karyawan.nik')->all() === ['0001', '0002', '0003', '0098'])
             ->assertSee('Dianggap masuk');
 
         // Input manual admin tetap tampil apa adanya; yang dibebaskan hanya sel "belum ada keterangan".

@@ -21,6 +21,9 @@ class Karyawan extends Model
     /** Tempat lahir (huruf besar) yang membuat karyawan bebas absen mesin. */
     public const TEMPAT_LAHIR_BEBAS_ABSEN_MESIN = ['JAPAN', 'JEPANG'];
 
+    /** NIK yang dikecualikan khusus dari absen mesin, di luar aturan jabatan / tempat lahir. */
+    public const NIK_BEBAS_ABSEN_MESIN = ['0098'];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -49,7 +52,7 @@ class Karyawan extends Model
     }
 
     /**
-     * Karyawan yang tidak wajib tap mesin: jabatan Asst. Manager ke atas atau tempat lahir Jepang.
+     * Karyawan yang tidak wajib tap mesin: jabatan Asst. Manager ke atas, tempat lahir Jepang, atau NIK pengecualian khusus.
      * Mereka tetap tercatat "tidak absen" di Komparasi Mesin, tapi di Harian / laporan dianggap masuk
      * selama admin belum mengisi absensinya secara manual.
      */
@@ -57,7 +60,8 @@ class Karyawan extends Model
     {
         $query->where(fn (Builder $query) => $query
             ->whereIn('jabatan', self::jabatanBebasAbsenMesin())
-            ->orWhereIn(DB::raw('UPPER(TRIM(tempat_lahir))'), self::TEMPAT_LAHIR_BEBAS_ABSEN_MESIN));
+            ->orWhereIn(DB::raw('UPPER(TRIM(tempat_lahir))'), self::TEMPAT_LAHIR_BEBAS_ABSEN_MESIN)
+            ->orWhereIn('nik', self::NIK_BEBAS_ABSEN_MESIN));
     }
 
     /**
@@ -66,6 +70,7 @@ class Karyawan extends Model
     public function isBebasAbsenMesin(): bool
     {
         return in_array($this->jabatan, self::jabatanBebasAbsenMesin(), true)
+            || in_array((string) $this->nik, self::NIK_BEBAS_ABSEN_MESIN, true)
             || in_array(mb_strtoupper(trim((string) $this->tempat_lahir)), self::TEMPAT_LAHIR_BEBAS_ABSEN_MESIN, true);
     }
 
