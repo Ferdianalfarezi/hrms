@@ -172,8 +172,32 @@ class PenilaianTahunanController extends Controller
             'tahun' => $tahun,
             'form' => FormPenilaian::form($penilaian->form),
             'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->skor ?? []),
-            'penilaiPerTahap' => $this->penilaiPerTahap($penilaian),
+            'kotakPenilai' => $this->kotakPenilai($this->penilaiPerTahap($penilaian)),
         ]);
+    }
+
+    /**
+     * Kotak "Penilai" di form cetak: 4 kotak tetap, diisi dari kanan seperti cap persetujuan di form kertas.
+     * Kotak ke-1 (paling kanan) Asst. Leader, ke-2 Leader, ke-3 Section Chief, ke-4 (paling kiri) Manager / GM.
+     * Kalau jenjangnya dilewati (mis. langsung dinilai Leader), kotak jenjang itu dibiarkan kosong. Kalau dua tahap
+     * jatuh di kotak yang sama (Manager lalu GM), tahap sebelumnya digeser satu kotak ke kanan.
+     *
+     * @param  list<array{level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}>  $penilaiPerTahap
+     * @return list<array{level: string, label: string, log: ?PenilaianTahunanLog, override: ?string, aktif: bool}|null> urut dari kiri
+     */
+    private function kotakPenilai(array $penilaiPerTahap): array
+    {
+        $kotakJenjang = ['asst_leader' => 1, 'leader' => 2, 'section' => 3, 'manager' => 4, 'gm' => 4];
+        $kotak = array_fill(1, 4, null);
+        $batas = 5;
+
+        foreach (array_reverse($penilaiPerTahap) as $tahap) {
+            $nomor = max(1, min($kotakJenjang[$tahap['level']] ?? 4, $batas - 1));
+            $kotak[$nomor] = $tahap;
+            $batas = $nomor;
+        }
+
+        return array_values(array_reverse($kotak, true));
     }
 
     /**

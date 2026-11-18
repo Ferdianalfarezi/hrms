@@ -2,18 +2,17 @@
 @use('App\Modules\Hrms\Support\FormPenilaian')
 @use('App\Modules\Hrms\Support\QrCode')
 @php
+    // Tata letak mengikuti form kertas HRD (contoh: FORM PENILAIAN AST. LEADER, HRD / FMR / 34).
     $angka = fn (float $value) => number_format($value, 2, ',', '.');
     $absen = $penilaian->absen;
     $skor = $penilaian->skor ?? [];
     $kolomAbsen = ['0', '1 x', '2 x', '3 x', '4 x', '5 x', '6 x', '7 ~ 10', '11~15', '≥ 16'];
-    $singkatanAbsen = ['A' => 'A', 'I' => 'I', 'S' => 'S', 'DT' => 'DT', 'DT30' => __('DT > 30 mnt'), 'PC' => 'PC', 'PC30' => __('PC > 30 mnt'), 'SD' => 'SD'];
-    // Status karyawan di data (PKWT) => pilihan di form kertas (KKWT).
+    $singkatanAbsen = ['A' => 'A', 'I' => 'I', 'S' => 'S', 'DT' => 'DT', 'DT30' => 'DT > 30 mnt', 'PC' => 'PC', 'PC30' => 'PC > 30 mnt', 'SD' => 'SD'];
+    $levelForm = ['operator' => 'Operator', 'asst_leader' => 'Asst. Leader', 'leader' => 'Leader', 'section' => 'Section Chief & Ast. Manager', 'manager' => 'Manager'];
+    // Status karyawan di data (PKWT) => pilihan di form kertas Operator (KKWT).
     $statusForm = ['PKWT 1' => 'KKWT 1', 'PKWT 2' => 'KKWT 2', 'PKWT 3' => 'KKWT 2+', 'Tetap' => 'Tetap'];
     $statusTerpilih = $statusForm[$karyawan->status] ?? null;
     $bulat = fn (bool $isi) => $isi ? '●' : '○';
-    // Label pendek di kotak Penilai seperti form kertas; kolom yang di-override memakai jabatan yang meng-override.
-    $labelPendek = ['asst_leader' => 'Asst. Leader', 'leader' => 'Leader', 'section' => 'Sec. Chief', 'manager' => 'Manager', 'gm' => 'GM'];
-    $labelKolom = fn (array $tahap) => $labelPendek[$tahap['override'] ? $tahap['log']->level : $tahap['level']] ?? $tahap['label'];
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -24,62 +23,86 @@
     <style>
         @page { size: A4 portrait; margin: 8mm 9mm; }
         * { box-sizing: border-box; }
-        body { margin: 0; background: #e5e7eb; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 7.5pt; line-height: 1.2; }
+        body { margin: 0; background: #e5e7eb; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 7pt; line-height: 1.15; }
         .toolbar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: center; gap: 8px; padding: 10px; background: #1e3a8a; }
         .toolbar button { padding: 8px 18px; border: 0; border-radius: 999px; font: 600 13px Arial, sans-serif; cursor: pointer; background: #fff; color: #1e3a8a; }
         .toolbar button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); }
         .sheet { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 8mm 9mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+        .frame { border: 1px solid #000; padding: 1.5mm 2mm 4mm; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #000; padding: 1.5px 3px; vertical-align: middle; }
-        th { font-weight: 700; text-align: center; }
+        th, td { border: 1px solid #000; padding: 1px 3px; vertical-align: middle; font-weight: 400; }
         .c { text-align: center; }
-        .r { text-align: right; }
         .b { font-weight: 700; }
+        .times { font-family: 'Times New Roman', Times, serif; }
         .lay, .lay > tbody > tr > td, .lay > tr > td { border: 0; padding: 0; vertical-align: top; }
-        .gap { height: 5px; }
+        td.nb, th.nb { border: 0; }
+        .gap { height: 2.2mm; }
 
         /* Kop */
-        .kop td { border: 1px solid #000; }
-        .kop .logo { width: 30%; text-align: center; padding: 3px 4px; }
-        .kop .logo img { height: 13mm; display: block; margin: 0 auto 2px; }
-        .kop .logo span { font-size: 7.5pt; font-weight: 700; }
-        .kop .judul { text-align: center; font-family: 'Times New Roman', serif; font-size: 13pt; font-weight: 700; line-height: 1.15; }
-        .kop .dok { width: 31%; padding: 2px 5px; font-family: 'Times New Roman', serif; font-size: 9pt; }
-        .kop .dok table td { border: 0; padding: 0 2px; white-space: nowrap; }
-        .ident td { font-size: 7pt; height: 5.5mm; }
-        .ident td:first-child { width: 22%; }
-        .ringkas th, .ringkas td { width: 12.5%; text-align: center; font-size: 6.5pt; }
-        .ringkas td { height: 5mm; font-size: 8pt; font-weight: 700; }
-        .range th { background: #f8cbad; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Times New Roman', serif; font-size: 8pt; }
-        .range td { text-align: center; font-family: 'Times New Roman', serif; font-size: 8pt; }
+        .kop td { vertical-align: top; }
+        .kop .logo { width: 27%; height: 16mm; padding: 1mm 2mm; position: relative; }
+        .kop .logo img { height: 9mm; display: block; margin: 0 auto; }
+        .kop .logo span { position: absolute; left: 2mm; bottom: 1mm; font-size: 7pt; font-weight: 700; }
+        .kop .judul { text-align: center; font-size: 10pt; font-weight: 700; padding-top: 2.5mm; line-height: 1.25; }
+        .kop .dok { width: 26%; padding: 1mm 1.5mm; border-left: 1px solid #000; }
+        .kop .dok table td { border: 0; padding: 0 1px; font-size: 6.5pt; white-space: nowrap; line-height: 1.5; }
+
+        /* Identitas */
+        .ident td { height: 3.8mm; font-size: 7pt; padding: 0 2px; }
+        .ident td.lbl { width: 26%; }
+
+        /* I. Absen */
+        .absen-judul { font-weight: 700; font-size: 7pt; padding-top: 3.2mm !important; }
+        .ringkas th { font-family: 'Times New Roman', Times, serif; font-size: 7.5pt; height: 5.5mm; width: 12.5%; text-align: center; line-height: 1; }
+        .ringkas th small { font-size: 5.5pt; }
+        .ringkas td { height: 3.6mm; text-align: center; font-size: 7pt; font-weight: 700; }
+        .range { width: 100%; }
+        .range th { font-family: 'Times New Roman', Times, serif; font-weight: 700; font-size: 7.5pt; background: #f8cbad; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .range td { font-family: 'Times New Roman', Times, serif; font-size: 8pt; text-align: center; height: 3.6mm; padding: 0; }
         .range tr.on td { font-weight: 700; background: #fde9d9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .sec-title { font-weight: 700; font-size: 8.5pt; padding: 5px 0 2px; }
-        .matriks th { font-size: 6.5pt; }
-        .matriks td { text-align: center; }
-        .matriks td:first-child { text-align: left; }
-        .matriks td.on span { display: inline-block; min-width: 15px; padding: 0 2px; border: 1.3px solid #000; border-radius: 999px; font-weight: 700; }
-        .rumus { display: flex; justify-content: space-between; gap: 8px; font-size: 7pt; padding-top: 1px; }
+        .matriks { table-layout: fixed; }
+        .matriks th { font-size: 6pt; text-align: center; padding: 0 1px; }
+        .matriks th.kat { font-weight: 700; font-size: 7pt; }
+        .matriks th.banyak { font-weight: 700; font-size: 7pt; }
+        .matriks td { text-align: center; font-size: 6.5pt; padding: 0 1px; height: 3.3mm; }
+        .matriks td.kat { text-align: left; font-size: 6.5pt; padding-left: 2px; }
+        .matriks td.on span { display: inline-block; min-width: 13px; border: 1.2px solid #000; border-radius: 999px; font-weight: 700; }
+        .matriks td.rumus { border: 0; text-align: left; font-size: 5.5pt; height: 3mm; padding: 0 1px; white-space: nowrap; }
+        .matriks td.akhir { font-weight: 700; font-size: 7pt; }
+        .bobot-absen { font-size: 5.5pt; padding-top: .3mm; }
 
-        /* Performance */
-        .mark { font-size: 8pt; font-weight: 700; line-height: 1; }
+        /* II - VI. Performance */
+        .nilai { table-layout: fixed; }
+        .nilai td { height: 3.4mm; padding: 0 2px; font-size: 6.5pt; }
+        .nilai td.no { text-align: center; }
+        .nilai td.skor { text-align: center; font-weight: 700; font-size: 7.5pt; line-height: 1; }
+        .nilai td.head { text-align: center; font-size: 6.5pt; }
+        .nilai td.sec { border: 0; font-weight: 700; font-size: 7pt; padding: 1.6mm 0 .3mm; vertical-align: bottom; }
+        .nilai td.rumus { border: 0; font-size: 5.5pt; font-weight: 700; white-space: nowrap; height: 3mm; }
+        .nilai td.total { text-align: center; font-weight: 700; font-size: 7pt; }
+        .nilai td.sama { font-size: 7pt; font-weight: 700; padding-left: 2px; }
 
-        /* Footer */
-        .pilihan td { font-size: 8pt; }
-        .pilihan .o { width: 6mm; text-align: center; font-size: 10pt; line-height: 1; }
-        .rekom { border: 1px solid #000; height: 22mm; padding: 3px 5px; display: flex; flex-direction: column; justify-content: space-between; }
-        .rekom .note { font-size: 6.5pt; font-style: italic; }
-        .nilai-akhir th { font-family: 'Times New Roman', serif; font-size: 9pt; }
-        .nilai-akhir .lbl { text-align: center; font-size: 6.5pt; font-weight: 700; height: 5mm; }
-        .nilai-akhir .val { text-align: center; font-size: 9pt; font-weight: 700; height: 6mm; }
-        .nilai-akhir .catatan { vertical-align: top; font-size: 7pt; white-space: pre-line; width: 56%; }
-        .nilai-akhir .catatan u { display: block; margin-bottom: 2px; font-size: 8pt; }
+        /* Bagian bawah */
+        .hasil td { font-size: 7pt; height: 4mm; }
+        .hasil td.o { width: 7mm; text-align: center; font-size: 10pt; line-height: 1; border-right: 0; }
+        .hasil td.opsi { border-left: 0; }
         .ttd { table-layout: fixed; }
-        .ttd th { font-family: 'Times New Roman', serif; font-size: 8pt; }
-        .ttd td.isi { height: 17mm; text-align: center; vertical-align: middle; font-size: 6.5pt; padding: 1.5mm 2px 1mm; }
-        .ttd .qr svg { display: block; width: 13mm; height: 13mm; margin: 0 auto; }
-        .ttd .qr-tgl { margin-top: .5mm; font-size: 5.5pt; color: #333; }
-        .ttd td.jab { text-align: center; font-family: 'Times New Roman', serif; font-size: 8pt; }
-        .foot { margin-top: 4px; font-size: 6.5pt; color: #555; display: flex; justify-content: space-between; }
+        .ttd th { font-family: 'Times New Roman', Times, serif; font-weight: 700; font-size: 8pt; height: 4.5mm; }
+        .ttd td.isi { height: 17mm; text-align: center; vertical-align: middle; padding: 1mm 1px .5mm; }
+        .ttd .qr svg { display: block; width: 11.5mm; height: 11.5mm; margin: 0 auto; }
+        .ttd .qr-tgl { margin-top: .4mm; font-size: 5pt; color: #333; }
+        .ttd td.nama { height: 4mm; text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 6pt; line-height: 1.05; padding: .3mm 1px; overflow-wrap: anywhere; }
+        .nilai-akhir th { font-family: 'Times New Roman', Times, serif; font-weight: 700; font-size: 8pt; height: 4.5mm; }
+        .nilai-akhir td { font-size: 6.5pt; height: 3.8mm; }
+        .nilai-akhir td.catatan { width: 63%; vertical-align: top; font-family: 'Times New Roman', Times, serif; font-size: 7.5pt; white-space: pre-line; border-bottom: 0; }
+        .nilai-akhir td.catatan u { display: block; margin-bottom: 1px; }
+        .nilai-akhir td.lbl { text-align: center; font-weight: 700; font-size: 5.5pt; }
+        .nilai-akhir td.val { text-align: center; font-weight: 700; font-size: 7.5pt; }
+        .nilai-akhir td.total { font-family: 'Times New Roman', Times, serif; font-size: 8pt; }
+        .rekom { border: 1px solid #000; height: 10mm; padding: .6mm 1.5mm; font-size: 5.5pt; }
+        .status td { font-size: 6.5pt; height: 3.6mm; }
+        .status td.o { width: 6mm; text-align: center; font-size: 9pt; line-height: 1; }
+        .foot { margin-top: 3px; font-size: 6.5pt; color: #555; display: flex; justify-content: space-between; }
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }
@@ -94,18 +117,19 @@
 </div>
 
 <div class="sheet">
-    {{-- ===== HEADER ===== --}}
+<div class="frame">
+    {{-- ===== KOP ===== --}}
     <table class="kop">
         <tr>
             <td class="logo">
-                <img src="{{ asset('images/step-logo.jpeg') }}" alt="{{ __('STEP') }}">
+                <img src="{{ asset('images/step-logo.jpeg') }}" alt="STEP">
                 <span>{{ __('PT. SARI TAKAGI ELOK PRODUK') }}</span>
             </td>
             <td class="judul">{{ __('FORM PENILAIAN') }}<br>{{ __($form['judul']) }}</td>
             <td class="dok">
                 <table>
                     <tr><td>{{ __('No. Dokumen') }}</td><td>: {{ str_replace('/', ' / ', $form['dokumen']) }}</td></tr>
-                    <tr><td>{{ __('Tanggal efektif') }}</td><td>: {{ $form['tanggal_efektif'] }}</td></tr>
+                    <tr><td>{{ __('Tanggal Diterbitkan') }}</td><td>: {{ $form['tanggal_efektif'] }}</td></tr>
                     <tr><td>{{ __('No. Revisi') }}</td><td>: {{ $form['revisi'] }}</td></tr>
                     <tr><td>{{ __('Halaman') }}</td><td>{{ __(': 1 dari 1') }}</td></tr>
                 </table>
@@ -115,184 +139,204 @@
 
     <div class="gap"></div>
 
+    {{-- ===== IDENTITAS ===== --}}
     <table class="lay">
         <tr>
-            <td style="width: 42%;">
+            <td style="width: 33%;">
                 <table class="ident">
-                    <tr><td>{{ __('Nama') }}</td><td class="b">{{ $karyawan->nama }}</td></tr>
-                    <tr><td>{{ __('Bagian') }}</td><td class="b">{{ $penilaian->department?->name ?? '-' }} · {{ $penilaian->jabatan ?? $karyawan->jabatan }}</td></tr>
+                    <tr><td class="lbl">{{ __('Nama') }}</td><td class="b">{{ $karyawan->nama }}</td></tr>
+                    <tr><td class="lbl">{{ __('Bagian') }}</td><td class="b">{{ $penilaian->department?->name ?? '-' }}</td></tr>
                 </table>
             </td>
             <td></td>
-            <td style="width: 32%;">
+            <td style="width: 33%;">
                 <table class="ident">
-                    <tr><td>N.I.K</td><td class="b">{{ $karyawan->nik }}</td></tr>
-                    <tr><td>{{ __('Periode') }}</td><td class="b">{{ __('Januari - Desember :tahun', ['tahun' => $tahun]) }}</td></tr>
+                    <tr><td class="lbl" style="width: 24%;">N.I.K</td><td class="b">{{ $karyawan->nik }}</td></tr>
+                    <tr><td class="lbl" style="width: 24%;">{{ __('Periode') }}</td><td class="b">{{ __('Januari - Desember :tahun', ['tahun' => $tahun]) }}</td></tr>
                 </table>
             </td>
         </tr>
     </table>
 
-    <div class="gap"></div>
-
-    <table class="lay">
+    {{-- ===== I. ABSEN + RANGE NILAI AKHIR ===== --}}
+    <table class="lay" style="margin-top: 1.5mm;">
         <tr>
-            <td style="padding-right: 8px;">
-                <table class="ringkas" style="width: 72%; margin-left: auto;">
+            <td style="width: 71%;">
+                <table class="lay">
                     <tr>
-                        @foreach ($singkatanAbsen as $singkatan)
-                            <th>{{ $singkatan }}</th>
-                        @endforeach
-                    </tr>
-                    <tr>
-                        @foreach (array_keys($singkatanAbsen) as $kategori)
-                            <td>{{ $absen['rincian'][$kategori]['jumlah'] ?? 0 }}</td>
-                        @endforeach
+                        <td class="absen-judul" style="width: 30.5%;">{{ __('I. ABSEN (di isi oleh HRD )') }}</td>
+                        <td style="width: 53%;">
+                            <table class="ringkas">
+                                <tr>
+                                    @foreach ($singkatanAbsen as $kategori => $singkatan)
+                                        <th>@if (in_array($kategori, ['DT30', 'PC30'], true))<small>{{ Str::before($singkatan, ' > ') }} &gt;<br>30 mnt</small>@else{{ $singkatan }}@endif</th>
+                                    @endforeach
+                                </tr>
+                                <tr>
+                                    @foreach (array_keys($singkatanAbsen) as $kategori)
+                                        <td>{{ $absen['rincian'][$kategori]['jumlah'] ?? 0 }}</td>
+                                    @endforeach
+                                </tr>
+                            </table>
+                        </td>
+                        <td></td>
                     </tr>
                 </table>
 
-                <div class="sec-title">{{ __('I. ABSEN (di isi oleh HRD)') }}</div>
-                <table class="matriks">
+                <table class="matriks" style="margin-top: 2.2mm;">
+                    <colgroup>
+                        <col style="width: 27.5%;">
+                        @foreach ($kolomAbsen as $kolom)
+                            <col style="width: 6.5%;">
+                        @endforeach
+                        <col style="width: 7.5%;">
+                    </colgroup>
                     <tr>
-                        <th rowspan="2" style="width: 27%;">{{ __('Kategori Absen') }}</th>
-                        <th colspan="{{ count($kolomAbsen) }}">{{ __('Banyaknya Absen') }}</th>
-                        <th rowspan="2" style="width: 7%;">{{ __('Nilai') }}</th>
+                        <th rowspan="2" class="kat">{{ __('Kategori Absen') }}</th>
+                        <th colspan="{{ count($kolomAbsen) }}" class="banyak">{{ __('Banyaknya Absen') }}</th>
+                        <th class="nb" rowspan="2"></th>
                     </tr>
                     <tr>
                         @foreach ($kolomAbsen as $kolom)
-                            <th>{{ $kolom }}</th>
+                            <th class="b">{{ $kolom }}</th>
                         @endforeach
                     </tr>
                     @foreach (FormPenilaian::KONVERSI_ABSEN as $kategori => $konversi)
                         @php($terpakai = FormPenilaian::kolomAbsen($absen['rincian'][$kategori]['jumlah'] ?? 0))
                         <tr>
-                            <td>{{ __($konversi['label']) }}</td>
+                            <td class="kat">{{ __($konversi['label']) }}</td>
                             @foreach ($konversi['poin'] as $index => $poin)
-                                <td class="{{ $index === $terpakai ? 'on' : '' }}"><span>{{ $poin }}</span></td>
+                                <td @class(['on' => $index === $terpakai])><span>{{ $poin }}</span></td>
                             @endforeach
-                            <td class="b">{{ $absen['rincian'][$kategori]['poin'] ?? 5 }}</td>
+                            <td class="nb"></td>
                         </tr>
                     @endforeach
-                    <tr class="b">
-                        <td colspan="{{ count($kolomAbsen) + 1 }}">{{ __('TOTAL') }}</td>
-                        <td>{{ $absen['total_poin'] }}</td>
+                    {{-- Kolom tambahan setelah ≥ 16: total nilai di baris TOTAL, nilai akhir absen tepat di bawahnya. --}}
+                    <tr>
+                        <td class="kat">{{ __('TOTAL') }}</td>
+                        @foreach ($kolomAbsen as $kolom)
+                            <td></td>
+                        @endforeach
+                        <td class="b">{{ $absen['total_poin'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="rumus">{{ __('Nilai Maksimum = :maks (a)', ['maks' => FormPenilaian::MAKS_ABSEN]) }}</td>
+                        <td class="rumus" colspan="{{ count($kolomAbsen) }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai akhir = (Total nilai / a ) x ( b% x 100)') }}</td>
+                        <td class="akhir">{{ $angka($penilaian->nilai_absen) }}</td>
                     </tr>
                 </table>
-                <div class="rumus">
-                    <span>{{ __('Nilai Maksimum = :maks (a) · Bobot Absen = :bobot% (b)', ['maks' => FormPenilaian::MAKS_ABSEN, 'bobot' => $form['bobot_absen']]) }}</span>
-                    <span>{{ __('Nilai akhir = (Total nilai / a) x (b% x 100) =') }} <b>{{ $angka($penilaian->nilai_absen) }}</b></span>
-                </div>
+                <div class="bobot-absen">{{ __('Bobot Absen :level = :bobot% (b)', ['level' => __($levelForm[$penilaian->form] ?? ''), 'bobot' => $form['bobot_absen']]) }}</div>
             </td>
-            <td style="width: 24%;">
+            <td style="width: 10.5%;"></td>
+            <td style="width: 16%; padding-top: .5mm;">
                 <table class="range">
                     <tr><th colspan="2">{{ __('RANGE NILAI AKHIR') }}</th></tr>
                     <tr><th>{{ __('ANGKA') }}</th><th>{{ __('HURUF') }}</th></tr>
                     @foreach (['91 ~ 100' => 'A', '80 ~ 90' => 'B', '60 ~ 79' => 'C', '39 ~ 59' => 'D', '16 ~ 38' => 'E'] as $range => $huruf)
-                        <tr class="{{ $penilaian->huruf === $huruf ? 'on' : '' }}"><td>{{ $range }}</td><td>{{ $huruf }}</td></tr>
+                        <tr @class(['on' => $penilaian->huruf === $huruf])><td>{{ $range }}</td><td>{{ $huruf }}</td></tr>
                     @endforeach
                 </table>
             </td>
         </tr>
     </table>
 
-    {{-- ===== II - VI. PERFORMANCE ===== --}}
-    @foreach ($form['butir'] as $kategori => $butirs)
-        <div class="sec-title">{{ Str::upper(__(FormPenilaian::KATEGORI[$kategori])) }}</div>
-        <table>
+    {{-- ===== II - VI. PERFORMANCE (satu tabel supaya kolom nilai A - E sejajar dengan KOLOM NILAI) ===== --}}
+    <table class="nilai" style="width: 92%; margin-top: 2mm;">
+        <colgroup>
+            <col style="width: 2.4%;">
+            <col style="width: 64.6%;">
+            @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
+                <col style="width: 5.3%;">
+            @endforeach
+            <col style="width: 6.5%;">
+        </colgroup>
+        <tr>
+            <td class="nb" colspan="2"></td>
+            <td class="head" colspan="{{ count(FormPenilaian::NILAI_HURUF) }}">{{ __('KOLOM NILAI') }}</td>
+            <td class="nb"></td>
+        </tr>
+        <tr>
+            <td class="nb" colspan="2"></td>
+            @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
+                <td class="head">{{ $huruf }}</td>
+            @endforeach
+            <td class="nb"></td>
+        </tr>
+        @foreach ($form['butir'] as $kategori => $butirs)
             <tr>
-                <th style="width: 4%;">{{ __('No') }}</th>
-                <th style="text-align: left;">{{ __('Faktor Penilaian') }}</th>
+                <td class="sec" colspan="2">{{ Str::upper(__(FormPenilaian::KATEGORI[$kategori])) }}</td>
                 @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
-                    <th style="width: 5%; line-height: 1;">{{ $huruf }}<br><span style="font-weight: 400; font-size: 6pt;">{{ $nilai }}</span></th>
+                    @if ($loop->parent->first)
+                        <td class="head">{{ $nilai }}</td>
+                    @else
+                        <td class="nb"></td>
+                    @endif
                 @endforeach
+                <td class="nb"></td>
             </tr>
             @foreach ($butirs as $index => $butir)
                 <tr>
-                    <td class="c">{{ $index + 1 }}</td>
+                    <td class="no">{{ $index + 1 }}</td>
                     <td>{{ __($butir) }}</td>
                     @foreach (FormPenilaian::NILAI_HURUF as $huruf => $nilai)
-                        <td class="c mark">{{ ($skor[$kategori][$index] ?? null) === $huruf ? '✓' : '' }}</td>
+                        <td class="skor">{{ ($skor[$kategori][$index] ?? null) === $huruf ? '✓' : '' }}</td>
                     @endforeach
+                    <td class="nb"></td>
                 </tr>
             @endforeach
-        </table>
-        <div class="rumus">
-            <span>{{ __('Total nilai =') }} <b>{{ $performance['kategori'][$kategori]['total'] }}</b> · {{ __('Nilai Max = :maks (a) · Bobot = :bobot% (b)', ['maks' => count($butirs) * 5, 'bobot' => $form['bobot_kategori']]) }}</span>
-            <span>{{ __('Nilai Akhir = (Total nilai / a) x (b% x 100) =') }} <b>{{ $angka($performance['kategori'][$kategori]['nilai']) }}</b></span>
-        </div>
-    @endforeach
+            <tr>
+                <td class="nb"></td>
+                <td class="rumus" style="padding-left: 52%;">{{ __('Nilai Max = :maks (a)', ['maks' => count($butirs) * 5]) }}</td>
+                <td class="total" colspan="{{ count(FormPenilaian::NILAI_HURUF) + 1 }}">{{ $performance['kategori'][$kategori]['total'] }}</td>
+            </tr>
+            <tr>
+                <td class="nb"></td>
+                <td class="rumus" style="padding-left: 52%;">{{ __('Bobot = :bobot % (b)', ['bobot' => $form['bobot_kategori']]) }}</td>
+                <td class="rumus" colspan="{{ count(FormPenilaian::NILAI_HURUF) - 1 }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai Akhir = (Total nilai/a) x ( b %x 100)') }}</td>
+                <td class="sama" colspan="2">= {{ $angka($performance['kategori'][$kategori]['nilai']) }}</td>
+            </tr>
+        @endforeach
+    </table>
 
     <div class="gap"></div>
-    <div class="gap"></div>
 
-    {{-- ===== FOOTER ===== --}}
+    {{-- ===== BAGIAN BAWAH ===== --}}
     <table class="lay">
         <tr>
-            <td style="width: 41%; padding-right: 10px;">
-                <table class="pilihan" style="width: 92%;">
+            <td style="width: 34%;">
+                <table class="hasil">
                     @foreach (PenilaianTahunan::HASIL as $option)
                         <tr>
                             @if ($loop->first)
-                                <td rowspan="{{ count(PenilaianTahunan::HASIL) }}" style="width: 36%;">{{ __('Hasil Penilaian') }}</td>
+                                <td rowspan="{{ count(PenilaianTahunan::HASIL) }}" class="c" style="width: 37%; vertical-align: top;">{{ __('Hasil Penilaian') }}</td>
                             @endif
                             <td class="o">{{ $bulat($penilaian->hasil === $option) }}</td>
-                            <td>{{ __($option) }}</td>
+                            <td class="opsi">{{ __($option) }}</td>
                         </tr>
                     @endforeach
                 </table>
 
-                <div class="gap"></div>
+                @if ($penilaian->form === 'operator')
+                    <table class="status" style="margin-top: 1.5mm;">
+                        <tr>
+                            <td rowspan="3" class="c" style="width: 37%; vertical-align: top;">{{ __('Status Karyawan*') }}</td>
+                            <td class="o">{{ $bulat($statusTerpilih === 'KKWT 1') }}</td>
+                            <td>{{ __('KKWT 1*') }}</td>
+                            <td class="o">{{ $bulat($statusTerpilih === 'Tetap') }}</td>
+                            <td>{{ __('Tetap*') }}</td>
+                        </tr>
+                        <tr><td class="o">{{ $bulat($statusTerpilih === 'KKWT 2') }}</td><td colspan="3">{{ __('KKWT 2*') }}</td></tr>
+                        <tr><td class="o">{{ $bulat($statusTerpilih === 'KKWT 2+') }}</td><td colspan="3">{{ __('KKWT 2+*') }}</td></tr>
+                    </table>
+                @endif
 
-                <table class="pilihan" style="width: 92%;">
+                {{-- 4 kotak tetap, diisi dari kanan: Asst. Leader, Leader, Section Chief, Manager / GM (lihat kotakPenilai). --}}
+                <table class="ttd" style="margin-top: 7mm;">
+                    <tr><th colspan="4">{{ __('Penilai') }}</th></tr>
                     <tr>
-                        <td rowspan="3" style="width: 36%; vertical-align: top;">{{ __('Status Karyawan*') }}</td>
-                        <td class="o">{{ $bulat($statusTerpilih === 'KKWT 1') }}</td>
-                        <td>{{ __('KKWT 1*') }}</td>
-                        <td class="o">{{ $bulat($statusTerpilih === 'Tetap') }}</td>
-                        <td>{{ __('Tetap*') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="o">{{ $bulat($statusTerpilih === 'KKWT 2') }}</td>
-                        <td colspan="3">{{ __('KKWT 2*') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="o">{{ $bulat($statusTerpilih === 'KKWT 2+') }}</td>
-                        <td colspan="3">{{ __('KKWT 2+*') }}</td>
-                    </tr>
-                </table>
-
-                <div class="gap"></div>
-
-                <div class="rekom">
-                    <u>{{ __('Rekomendasi Akhir HRD*') }}</u>
-                    <span class="note">{{ __('Note : Tanda (**) diisi oleh HRD') }}</span>
-                </div>
-            </td>
-            <td>
-                <table class="nilai-akhir">
-                    <tr><th colspan="3">{{ __('NILAI AKHIR') }}</th></tr>
-                    <tr>
-                        <td class="catatan" rowspan="5"><u>{{ __('Catatan Atasan') }}</u>{{ $penilaian->catatan ?: '' }}</td>
-                        <td class="lbl" colspan="2">{{ __('NILAI ABSEN') }}</td>
-                    </tr>
-                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_absen) }}</td></tr>
-                    <tr><td class="lbl" colspan="2">{{ __('PERFORMANCE') }}</td></tr>
-                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_performance) }}</td></tr>
-                    <tr><td class="lbl">{{ __('ANGKA') }}</td><td class="lbl">{{ __('HURUF') }}</td></tr>
-                    <tr>
-                        <td style="font-family: 'Times New Roman', serif; font-size: 8.5pt;">{{ __('TOTAL NILAI AKHIR **') }}</td>
-                        <td class="val">{{ $angka($penilaian->nilai_akhir) }}</td>
-                        <td class="val">{{ $penilaian->huruf }}</td>
-                    </tr>
-                </table>
-
-                <table class="ttd" style="width: 84%; margin: -1px 0 0 auto;">
-                    <tr><th colspan="{{ count($penilaiPerTahap) }}">{{ __('Penilai') }}</th></tr>
-                    <tr>
-                        {{-- Tanda tangan elektronik: QR berisi link verifikasi (nama penandatangan, jabatan, tanggal). --}}
-                        @foreach (array_reverse($penilaiPerTahap) as $tahap)
-                            <td class="isi" style="width: {{ 100 / count($penilaiPerTahap) }}%;">
-                                @if ($tahap['log']?->kode_verifikasi)
+                        @foreach ($kotakPenilai as $tahap)
+                            <td class="isi">
+                                @if (($tahap['log'] ?? null)?->kode_verifikasi)
                                     <div class="qr">{!! QrCode::svg(route('verifikasi.penilaian', $tahap['log']->kode_verifikasi)) !!}</div>
                                     <div class="qr-tgl">{{ $tahap['log']->created_at->translatedFormat('d M Y H:i') }}</div>
                                 @endif
@@ -300,14 +344,36 @@
                         @endforeach
                     </tr>
                     <tr>
-                        @foreach (array_reverse($penilaiPerTahap) as $tahap)
-                            <td class="jab">{{ $tahap['log']?->user?->name ?? $labelKolom($tahap) }}</td>
+                        @foreach ($kotakPenilai as $tahap)
+                            @php($namaPenilai = ($tahap['log'] ?? null)?->user?->name)
+                            <td class="nama" title="{{ $namaPenilai }}">{{ $namaPenilai }}</td>
                         @endforeach
                     </tr>
                 </table>
             </td>
+            <td style="width: 9%;"></td>
+            <td>
+                <table class="nilai-akhir" style="width: 77%; margin-left: 11%;">
+                    <tr><th colspan="3">{{ __('NILAI AKHIR') }}</th></tr>
+                    <tr>
+                        <td class="catatan" rowspan="5"><u>{{ __('Catatan Atasan') }}</u>{{ $penilaian->catatan ?: '' }}</td>
+                        <td class="lbl" colspan="2">{{ __('NILAI ABSEN') }}</td>
+                    </tr>
+                    <tr><td class="lbl">{{ __('ANGKA') }}</td><td class="lbl">{{ __('HURUF') }}</td></tr>
+                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_absen) }}</td></tr>
+                    <tr><td class="lbl" colspan="2">{{ __('PERFORMANCE') }}</td></tr>
+                    <tr><td class="val" colspan="2">{{ $angka($penilaian->nilai_performance) }}</td></tr>
+                    <tr>
+                        <td class="total">{{ __('TOTAL NILAI AKHIR **') }}</td>
+                        <td class="val">{{ $angka($penilaian->nilai_akhir) }}</td>
+                        <td class="val">{{ $penilaian->huruf }}</td>
+                    </tr>
+                </table>
+                <div class="rekom" style="margin-top: 3mm;">{{ __('Rekomendasi Akhir HRD :') }}</div>
+            </td>
         </tr>
     </table>
+</div>
 
     <div class="foot">
         <span>{{ __('Disetujui secara elektronik melalui HR System.') }}</span>

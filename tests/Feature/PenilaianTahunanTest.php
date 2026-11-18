@@ -326,6 +326,31 @@ class PenilaianTahunanTest extends TestCase
         $this->get(route('verifikasi.penilaian', 'kode-palsu'))->assertNotFound()->assertSee('Tanda tangan tidak dikenali');
     }
 
+    public function test_print_signature_boxes_fill_from_the_right_by_level(): void
+    {
+        $setuju = ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'B')];
+        $kirim = ['aksi' => 'kirim'] + $setuju;
+        $levels = fn ($response) => array_map(fn ($kotak) => $kotak['level'] ?? null, $response->viewData('kotakPenilai'));
+
+        // Operator HRD: Asst. Leader, Leader, Section Chief di 3 kotak paling kanan.
+        $url = route('hrms.penilaian.save', $this->operator);
+        $this->actingAs($this->asstLeader)->post($url, $kirim);
+        $this->actingAs($this->leader)->post($url, $setuju);
+        $this->actingAs($this->section)->post($url, $setuju);
+        $response = $this->actingAs($this->leader)->get(route('hrms.penilaian.print', [$this->operator, 'tahun' => 2026]))->assertOk();
+        $this->assertSame([null, 'section', 'leader', 'asst_leader'], $levels($response));
+
+        // Departemen tanpa Asst. Leader: langsung Leader di kotak ke-2, Manager di kotak paling kiri.
+        $operatorPsd = $this->karyawan('0005', 'Operator PSD', 'Karyawan', $this->psd);
+        $leaderPsd = $this->penilai('0007', 'Leader', $this->psd);
+        $managerPsd = $this->penilai('0008', 'Manager', $this->psd);
+        $url = route('hrms.penilaian.save', $operatorPsd);
+        $this->actingAs($leaderPsd)->post($url, $kirim);
+        $this->actingAs($managerPsd)->post($url, $setuju);
+        $response = $this->actingAs($managerPsd)->get(route('hrms.penilaian.print', [$operatorPsd, 'tahun' => 2026]))->assertOk();
+        $this->assertSame(['manager', null, 'leader', null], $levels($response));
+    }
+
     public function test_leader_cannot_override_a_higher_pending_approval(): void
     {
         $url = route('hrms.penilaian.save', $this->operator);

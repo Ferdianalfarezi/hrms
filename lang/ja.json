@@ -1233,5 +1233,18 @@
     "Token diminta": "申請トークン数",
     "Penambahan token baru bisa diajukan setelah token Anda habis.": "トークン追加はトークンがなくなってから申請できます。",
     "Dianggap masuk": "出勤扱い",
-    "Manager ke atas / lahir di Jepang: di Harian dan laporan tetap dianggap masuk sampai admin mengisi absensinya.": "マネージャー以上／日本出身：管理者が勤怠を入力するまで、日次や各レポートでは出勤扱いになります。"
+    "Manager ke atas / lahir di Jepang: di Harian dan laporan tetap dianggap masuk sampai admin mengisi absensinya.": "マネージャー以上／日本出身：管理者が勤怠を入力するまで、日次や各レポートでは出勤扱いになります。",
+    "AST. LEADER": "Ast. Leader",
+    "Tanggal Diterbitkan": "発行日",
+    "I. ABSEN (di isi oleh HRD )": "I. 勤怠（人事が記入）",
+    "Nilai Maksimum = :maks (a)": "最大点 = :maks (a)",
+    "Nilai akhir = (Total nilai / a ) x ( b% x 100)": "最終点 = (合計点 / a) x (b% x 100)",
+    "Bobot Absen :level = :bobot% (b)": ":level 勤怠ウェイト = :bobot% (b)",
+    "KOLOM NILAI": "評価欄",
+    "Nilai Max = :maks (a)": "最大点 = :maks (a)",
+    "Bobot = :bobot % (b)": "ウェイト = :bobot % (b)",
+    "Nilai Akhir = (Total nilai/a) x ( b %x 100)": "最終点 = (合計点/a) x (b% x 100)",
+    "Rekomendasi Akhir HRD :": "人事最終推薦：",
+    "Operator": "オペレーター",
+    "Section Chief & Ast. Manager": "Section Chief & Ast. Manager"
 }

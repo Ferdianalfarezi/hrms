@@ -166,7 +166,7 @@ class FormPenilaian
             'asst_leader' => [
                 'label' => 'Penilaian Asst. Leader',
                 'dokumen' => 'HRD/FMR/34',
-                'judul' => 'KARYAWAN LEVEL AST. LEADER',
+                'judul' => 'AST. LEADER',
                 'tanggal_efektif' => '28 Maret 2016',
                 'revisi' => '01',
                 'bobot_absen' => 20,
