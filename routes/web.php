@@ -5,10 +5,16 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PortalController;
+use App\Modules\Hrms\Controllers\VerifikasiPenilaianController;
 use Illuminate\Support\Facades\Route;
 
 // Ganti bahasa tampilan (ID / JP); bisa dipakai sebelum maupun sesudah login.
 Route::get('/locale/{locale}', LocaleController::class)->name('locale.switch');
+
+// Verifikasi tanda tangan elektronik penilaian (isi QR di form cetak); publik supaya bisa dipindai dari HP mana pun.
+Route::get('/verifikasi/penilaian/{kode}', VerifikasiPenilaianController::class)
+    ->middleware('throttle:60,1')
+    ->name('verifikasi.penilaian');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

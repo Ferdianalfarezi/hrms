@@ -144,6 +144,7 @@ class PenilaianTahunanController extends Controller
             'absen' => $absen,
             'performance' => FormPenilaian::hitungPerformance($penilaian->form, $penilaian->skor ?? []),
             'canFill' => $this->canFill($request->user(), $penilaian),
+            'tahapKirim' => $this->tahapSetelahKirim($request->user(), $penilaian),
             'canApprove' => $this->canApprove($request->user(), $penilaian),
             'penilaiPerTahap' => $this->penilaiPerTahap($penilaian),
         ]);
@@ -224,7 +225,14 @@ class PenilaianTahunanController extends Controller
         $tahap = $penilaian->tahap;
         $level = $penilaian->posisi_level;
 
-        DB::transaction(function () use ($penilaian, $user, $data, $aksi, $skor, $absen, $performance, $nilaiAkhir, $sebagaiPenilai, $tahap, $level) {
+        // Setiap tanda tangan (kirim / setuju) memakai 1 token penilaian milik yang menandatangani.
+        $tandaTangan = in_array($aksi, ['kirim', 'setuju'], true);
+
+        DB::transaction(function () use ($penilaian, $user, $data, $aksi, $skor, $absen, $performance, $nilaiAkhir, $sebagaiPenilai, $tahap, $level, $tandaTangan) {
+            if ($tandaTangan && ! $user->pakaiTokenPenilaian()) {
+                throw ValidationException::withMessages(['token' => __('Token penilaian Anda habis. Ajukan penambahan token ke Admin HRMS lewat menu profil (klik foto Anda).')]);
+            }
+
             $penilaian->fill([
                 'absen' => $absen,
                 'nilai_absen' => $absen['nilai'],
@@ -241,9 +249,10 @@ class PenilaianTahunanController extends Controller
                 $penilaian->penilai_id = $user->id;
             }
 
+            $tahapKirim = $this->tahapSetelahKirim($user, $penilaian);
             if ($aksi === 'kirim') {
                 $penilaian->submitted_at = now();
-                $this->majukanTahap($penilaian, 1);
+                $this->majukanTahap($penilaian, $tahapKirim);
             } elseif ($aksi === 'setuju') {
                 $this->majukanTahap($penilaian, $tahap + 1);
             }
@@ -258,6 +267,10 @@ class PenilaianTahunanController extends Controller
                 'setuju' => $this->log($penilaian, $tahap, $level, PenilaianTahunanLog::AKSI_SETUJU, $user, $data['catatan_review'] ?? null),
                 default => null,
             };
+            // Tahap approval milik pengisi yang mengambil alih (mis. tahap Leader) tercatat langsung disetujui.
+            for ($dilewati = 1; $aksi === 'kirim' && $dilewati < $tahapKirim; $dilewati++) {
+                $this->log($penilaian, $dilewati, $penilaian->tahapan[$dilewati], PenilaianTahunanLog::AKSI_SETUJU, $user);
+            }
         });
 
         $nama = "{$karyawan->nik} - {$karyawan->nama}";
@@ -318,7 +331,18 @@ class PenilaianTahunanController extends Controller
     private function canFill(User $user, PenilaianTahunan $penilaian): bool
     {
         return $penilaian->isEditable()
-            && JenjangPenilaian::actsAs($user, $penilaian->tahapan[0] ?? null, $penilaian->department_id);
+            && JenjangPenilaian::canFillAs($user, $penilaian->tahapan[0] ?? null, $penilaian->department_id);
+    }
+
+    /**
+     * Tahap tujuan saat penilaian dikirim. Biasanya tahap 1; kalau pengisian diambil alih jenjang yang juga punya tahap
+     * approval (mis. Leader menggantikan Asst. Leader), tahap miliknya dianggap sudah disetujui dan langsung dilewati.
+     */
+    private function tahapSetelahKirim(User $user, PenilaianTahunan $penilaian): int
+    {
+        $tahapSendiri = array_search(JenjangPenilaian::userLevel($user), $penilaian->tahapan, true);
+
+        return $tahapSendiri === false ? 1 : max(1, $tahapSendiri + 1);
     }
 
     private function canApprove(User $user, PenilaianTahunan $penilaian): bool

@@ -17,12 +17,49 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-#[Fillable(['nik', 'name', 'email', 'jabatan', 'photo', 'password', 'is_active', 'is_superadmin'])]
+#[Fillable(['nik', 'name', 'email', 'jabatan', 'token_penilaian', 'photo', 'password', 'is_active', 'is_superadmin'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /** Jatah token penilaian awal untuk user baru. */
+    public const TOKEN_PENILAIAN_AWAL = 100;
+
+    /**
+     * Setiap user mendapat kode token unik (identitas penilai di verifikasi tanda tangan penilaian).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            $user->token_kode ??= self::kodeTokenBaru();
+            $user->token_penilaian ??= self::TOKEN_PENILAIAN_AWAL;
+        });
+    }
+
+    public static function kodeTokenBaru(): string
+    {
+        do {
+            $kode = 'PNL-'.Str::upper(Str::random(8));
+        } while (self::where('token_kode', $kode)->exists());
+
+        return $kode;
+    }
+
+    /**
+     * Pakai 1 token penilaian secara atomik. False kalau token sudah habis.
+     */
+    public function pakaiTokenPenilaian(): bool
+    {
+        $terpakai = self::whereKey($this->id)->where('token_penilaian', '>', 0)->decrement('token_penilaian') > 0;
+
+        if ($terpakai) {
+            $this->token_penilaian = (int) self::whereKey($this->id)->value('token_penilaian');
+        }
+
+        return $terpakai;
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -37,6 +74,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'is_superadmin' => 'boolean',
             'last_login_at' => 'datetime',
+            'token_penilaian' => 'integer',
         ];
     }
 

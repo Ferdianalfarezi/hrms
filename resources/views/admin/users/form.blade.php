@@ -88,6 +88,14 @@
                         @error('jabatan') <div class="field-error">{{ $message }}</div> @enderror
                     </div>
                     <div>
+                        {{-- Setiap tanda tangan penilaian (kirim / setuju) memakai 1 token. --}}
+                        <label for="token_penilaian">{{ __('Token penilaian') }} @if ($user->token_kode)<span class="muted small">· {{ $user->token_kode }}</span>@endif</label>
+                        <input id="token_penilaian" type="number" name="token_penilaian" min="0" max="100000"
+                               value="{{ old('token_penilaian', $user->token_penilaian ?? \App\Models\User::TOKEN_PENILAIAN_AWAL) }}">
+                        @error('token_penilaian') <div class="field-error">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="spacer"></div>
+                    <div>
                         <label for="password">PIN / Password @if ($user->exists)<span class="muted">{{ __('(kosongkan jika tidak diganti)') }}</span>@endif</label>
                         <input id="password" type="password" name="password" autocomplete="new-password" @required(! $user->exists)>
                         @error('password') <div class="field-error">{{ $message }}</div> @enderror

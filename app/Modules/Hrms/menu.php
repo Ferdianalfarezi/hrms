@@ -6,6 +6,7 @@
 
 use App\Modules\Hrms\Models\AbsensiApproval;
 use App\Modules\Hrms\Models\PenilaianTahunan;
+use App\Modules\Hrms\Models\PenilaianTokenRequest;
 
 return [
     ['label' => 'Dashboard', 'route' => 'hrms.dashboard', 'active' => 'hrms.dashboard'],
@@ -24,7 +25,12 @@ return [
             'badge' => fn (): int => AbsensiApproval::where('status', AbsensiApproval::STATUS_PENDING)->count()],
     ]],
     // Penilaian akhir tahun: badge = penilaian yang menunggu approval / revisi dari user ini.
-    ['label' => 'Penilaian', 'route' => 'hrms.penilaian.index', 'active' => 'hrms.penilaian.*', 'can' => ['penilaian-tahunan'],
-        'badge' => fn (): int => PenilaianTahunan::perluTindakan(auth()->user())->count()],
+    // Admin HRMS juga melihat "Approval Token" (pengajuan penambahan token penilaian) di dropdown-nya.
+    ['label' => 'Penilaian', 'active' => 'hrms.penilaian.*', 'can' => ['penilaian-tahunan'], 'children' => [
+        ['label' => 'Penilaian', 'route' => 'hrms.penilaian.index', 'active' => ['hrms.penilaian.index', 'hrms.penilaian.show', 'hrms.penilaian.print'],
+            'badge' => fn (): int => PenilaianTahunan::perluTindakan(auth()->user())->count()],
+        ['label' => 'Approval Token', 'route' => 'hrms.penilaian.token.approval', 'active' => 'hrms.penilaian.token.*', 'can' => ['manage-module', 'hrms'],
+            'badge' => fn (): int => PenilaianTokenRequest::where('status', PenilaianTokenRequest::STATUS_PENDING)->count()],
+    ]],
     ['label' => 'Departemen', 'route' => 'hrms.departments.index', 'active' => 'hrms.departments.*', 'can' => ['manage-module', 'hrms']],
 ];

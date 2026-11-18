@@ -97,6 +97,8 @@ class UserManagementTest extends TestCase
         $this->assertFalse($user->canAccessApplication('hrms'));
         $this->assertSame('staff', $user->roleFor('sms')->code);
         $this->assertSame('Karyawan', $user->jabatan);
+        $this->assertSame(User::TOKEN_PENILAIAN_AWAL, $user->token_penilaian);
+        $this->assertMatchesRegularExpression('/^PNL-[A-Z0-9]{8}$/', $user->token_kode);
     }
 
     public function test_jabatan_is_saved_and_must_be_a_known_position(): void

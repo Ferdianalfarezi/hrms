@@ -192,13 +192,19 @@
                 </div>
 
                 @if ($canFill)
+                    @php($levelPengisi = JenjangPenilaian::userLevel(auth()->user()))
+                    @php($adaApprover = isset($penilaian->tahapan[$tahapKirim]))
+                    @if ($levelPengisi !== ($penilaian->tahapan[0] ?? null))
+                        <p class="sub" style="color: #92400e; margin-top: 16px;">{{ __('Anda mengisi sebagai') }} <b>{{ JenjangPenilaian::label($levelPengisi) }}</b> ({{ __('ambil alih tahap :tahap', ['tahap' => JenjangPenilaian::label($penilaian->tahapan[0])]) }}).</p>
+                    @endif
                     <div class="actions" style="margin-top: 16px;">
                         <button type="submit" name="aksi" value="draft" class="btn btn-ghost">{{ __('Simpan draft') }}</button>
                         <button type="submit" name="aksi" value="kirim" class="btn" data-lengkap
-                            data-confirm="{{ count($penilaian->tahapan) > 1 ? __('Kirim penilaian :nama ke :tahap untuk approval? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama, 'tahap' => JenjangPenilaian::label($penilaian->tahapan[1])]) : __('Kirim penilaian :nama? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama]) }}">
-                            {{ count($penilaian->tahapan) > 1 ? __('Kirim untuk approval') : __('Kirim') }}
+                            data-confirm="{{ $adaApprover ? __('Kirim penilaian :nama ke :tahap untuk approval? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama, 'tahap' => JenjangPenilaian::label($penilaian->tahapan[$tahapKirim])]) : __('Kirim penilaian :nama? Setelah dikirim, isian hanya bisa diubah oleh approver.', ['nama' => $karyawan->nama]) }}">
+                            {{ $adaApprover ? __('Kirim untuk approval') : __('Kirim') }}
                         </button>
                     </div>
+                    @include('hrms.penilaian.partials.sisa-token')
                 @endif
             </div>
 
@@ -217,6 +223,7 @@
                         <button type="submit" name="aksi" value="setuju" class="btn btn-success" data-lengkap
                             data-confirm="{{ isset($penilaian->tahapan[$penilaian->tahap + 1]) ? __('Setujui penilaian :nama dan teruskan ke :tahap?', ['nama' => $karyawan->nama, 'tahap' => JenjangPenilaian::label($penilaian->tahapan[$penilaian->tahap + 1])]) : __('Setujui penilaian :nama?', ['nama' => $karyawan->nama]) }}">{{ __('Simpan & Setujui') }}</button>
                     </div>
+                    @include('hrms.penilaian.partials.sisa-token')
                 </div>
             @endif
         </form>

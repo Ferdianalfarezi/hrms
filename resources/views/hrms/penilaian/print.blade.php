@@ -1,5 +1,6 @@
 @use('App\Modules\Hrms\Models\PenilaianTahunan')
 @use('App\Modules\Hrms\Support\FormPenilaian')
+@use('App\Modules\Hrms\Support\QrCode')
 @php
     $angka = fn (float $value) => number_format($value, 2, ',', '.');
     $absen = $penilaian->absen;
@@ -74,7 +75,9 @@
         .nilai-akhir .catatan u { display: block; margin-bottom: 2px; font-size: 8pt; }
         .ttd { table-layout: fixed; }
         .ttd th { font-family: 'Times New Roman', serif; font-size: 8pt; }
-        .ttd td.isi { height: 17mm; text-align: center; vertical-align: middle; font-size: 6.5pt; }
+        .ttd td.isi { height: 17mm; text-align: center; vertical-align: middle; font-size: 6.5pt; padding: 1.5mm 2px 1mm; }
+        .ttd .qr svg { display: block; width: 13mm; height: 13mm; margin: 0 auto; }
+        .ttd .qr-tgl { margin-top: .5mm; font-size: 5.5pt; color: #333; }
         .ttd td.jab { text-align: center; font-family: 'Times New Roman', serif; font-size: 8pt; }
         .foot { margin-top: 4px; font-size: 6.5pt; color: #555; display: flex; justify-content: space-between; }
         @media print {
@@ -286,8 +289,14 @@
                 <table class="ttd" style="width: 84%; margin: -1px 0 0 auto;">
                     <tr><th colspan="{{ count($penilaiPerTahap) }}">{{ __('Penilai') }}</th></tr>
                     <tr>
+                        {{-- Tanda tangan elektronik: QR berisi link verifikasi (nama penandatangan, jabatan, tanggal). --}}
                         @foreach (array_reverse($penilaiPerTahap) as $tahap)
-                            <td class="isi" style="width: {{ 100 / count($penilaiPerTahap) }}%;"></td>
+                            <td class="isi" style="width: {{ 100 / count($penilaiPerTahap) }}%;">
+                                @if ($tahap['log']?->kode_verifikasi)
+                                    <div class="qr">{!! QrCode::svg(route('verifikasi.penilaian', $tahap['log']->kode_verifikasi)) !!}</div>
+                                    <div class="qr-tgl">{{ $tahap['log']->created_at->translatedFormat('d M Y H:i') }}</div>
+                                @endif
+                            </td>
                         @endforeach
                     </tr>
                     <tr>

@@ -72,6 +72,9 @@ class JenjangPenilaian
     /** Jenjang terendah yang boleh meng-override approval jenjang di bawahnya. */
     private const LEVEL_OVERRIDE = 'manager';
 
+    /** Jenjang penilai tahap pertama => jenjang yang boleh mengambil alih pengisiannya selama masih draft. */
+    private const AMBIL_ALIH_PENGISIAN = ['asst_leader' => 'leader'];
+
     /** @var array<string, array<string, true>>|null departemen ("id" / "none") => jenjang yang punya akun */
     private ?array $jenjangPerDepartemen = null;
 
@@ -162,6 +165,16 @@ class JenjangPenilaian
             && self::userLevel($user) === $level
             && $departmentId !== null
             && in_array($departmentId, self::departmentIds($user), true);
+    }
+
+    /**
+     * Boleh mengisi penilaian tahap pertama jenjang $level: jenjang itu sendiri, atau jenjang yang boleh
+     * mengambil alih (lihat AMBIL_ALIH_PENGISIAN, mis. Leader mengisi menggantikan Asst. Leader).
+     */
+    public static function canFillAs(User $user, ?string $level, ?int $departmentId): bool
+    {
+        return self::actsAs($user, $level, $departmentId)
+            || (isset(self::AMBIL_ALIH_PENGISIAN[$level]) && self::actsAs($user, self::AMBIL_ALIH_PENGISIAN[$level], $departmentId));
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Modules\Hrms\Controllers\DashboardController;
 use App\Modules\Hrms\Controllers\DepartmentController;
 use App\Modules\Hrms\Controllers\KaryawanController;
 use App\Modules\Hrms\Controllers\PenilaianTahunanController;
+use App\Modules\Hrms\Controllers\PenilaianTokenController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class)->name('dashboard');
@@ -65,3 +66,9 @@ Route::get('penilaian', [PenilaianTahunanController::class, 'index'])->name('pen
 Route::get('penilaian/karyawan/{karyawan}', [PenilaianTahunanController::class, 'show'])->name('penilaian.show');
 Route::get('penilaian/karyawan/{karyawan}/print', [PenilaianTahunanController::class, 'print'])->name('penilaian.print');
 Route::post('penilaian/karyawan/{karyawan}', [PenilaianTahunanController::class, 'save'])->name('penilaian.save');
+
+// Token penilaian: penilai mengajukan penambahan token (dari modal profil), Admin HRMS memutuskan.
+Route::post('penilaian/token', [PenilaianTokenController::class, 'store'])->name('penilaian.token.store');
+Route::get('penilaian/token/approval', [PenilaianTokenController::class, 'index'])->name('penilaian.token.approval');
+Route::post('penilaian/token/{tokenRequest}/approve', [PenilaianTokenController::class, 'approve'])->name('penilaian.token.approve');
+Route::post('penilaian/token/{tokenRequest}/reject', [PenilaianTokenController::class, 'reject'])->name('penilaian.token.reject');

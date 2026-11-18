@@ -7,6 +7,7 @@ use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Models\PenilaianTahunan;
+use App\Modules\Hrms\Models\PenilaianTokenRequest;
 use App\Modules\Hrms\Support\FormPenilaian;
 use Database\Seeders\ApplicationSeeder;
 use Database\Seeders\PenilaiAccountSeeder;
@@ -122,7 +123,7 @@ class PenilaianTahunanTest extends TestCase
 
         $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => []])
             ->assertSessionHasErrors(['skor' => 'Semua butir penilaian (poin II s/d VI) wajib diisi sebelum dikirim.']);
-        $this->actingAs($this->leader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')])
+        $this->actingAs($this->section)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')])
             ->assertForbidden();
 
         $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')])
@@ -212,6 +213,117 @@ class PenilaianTahunanTest extends TestCase
             ->assertSee('HRD / FMR / 7')
             ->assertSee('Operator HRD')
             ->assertSee('84,00');
+    }
+
+    public function test_leader_can_take_over_filling_from_asst_leader_and_skips_own_approval(): void
+    {
+        $url = route('hrms.penilaian.save', $this->operator);
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'draft', 'skor' => $this->skorSemua('operator', 'C')]);
+
+        $this->actingAs($this->section)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')])
+            ->assertForbidden();
+        $this->actingAs($this->leader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')])
+            ->assertRedirect();
+
+        $penilaian = PenilaianTahunan::sole();
+        $this->assertSame('section', $penilaian->posisi_level);
+        $this->assertSame($this->leader->id, $penilaian->penilai_id);
+        $this->assertSame([['kirim', 0, 'leader'], ['setuju', 1, 'leader']], $penilaian->logs()->get()
+            ->map(fn ($log) => [$log->aksi, $log->tahap, $log->level])->all());
+    }
+
+    public function test_every_signature_uses_one_token_of_the_signer(): void
+    {
+        $url = route('hrms.penilaian.save', $this->operator);
+        $skor = $this->skorSemua('operator', 'B');
+
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'draft', 'skor' => $skor]);
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $skor]);
+        $this->actingAs($this->leader)->post($url, ['tahun' => 2026, 'aksi' => 'simpan', 'skor' => $skor]);
+        $this->actingAs($this->leader)->post($url, ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $skor]);
+        $this->actingAs($this->section)->post($url, ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $skor]);
+
+        $this->assertSame(PenilaianTahunan::STATUS_DISETUJUI, PenilaianTahunan::sole()->status);
+        foreach ([$this->asstLeader, $this->leader, $this->section] as $penilai) {
+            $this->assertSame(User::TOKEN_PENILAIAN_AWAL - 1, $penilai->fresh()->token_penilaian);
+        }
+    }
+
+    public function test_signing_is_blocked_when_tokens_run_out(): void
+    {
+        $this->asstLeader->update(['token_penilaian' => 0]);
+
+        $this->actingAs($this->asstLeader)->post(route('hrms.penilaian.save', $this->operator), ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')])
+            ->assertSessionHasErrors('token');
+
+        $this->assertDatabaseCount('penilaian_tahunans', 0);
+        $this->assertSame(0, $this->asstLeader->fresh()->token_penilaian);
+    }
+
+    public function test_assessor_requests_tokens_and_hrms_admin_approves(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('hrms', 'admin');
+
+        $this->actingAs($this->leader)->post(route('hrms.penilaian.token.store'), ['jumlah' => 20, 'alasan' => 'Masih ada token'])
+            ->assertSessionHasErrors('jumlah', null, 'token');
+        $this->assertDatabaseCount('penilaian_token_requests', 0);
+
+        $this->leader->update(['token_penilaian' => 0]);
+        $this->actingAs($this->leader)->post(route('hrms.penilaian.token.store'), ['jumlah' => 20, 'alasan' => 'Masih banyak yang belum dinilai'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->leader)->post(route('hrms.penilaian.token.store'), ['jumlah' => 5, 'alasan' => 'Lagi'])
+            ->assertSessionHasErrors('jumlah', null, 'token');
+        $tokenRequest = PenilaianTokenRequest::sole();
+
+        $this->actingAs($this->leader)->get(route('hrms.penilaian.token.approval'))->assertForbidden();
+        $this->actingAs($this->leader)->post(route('hrms.penilaian.token.approve', $tokenRequest))->assertForbidden();
+
+        $this->actingAs($admin)->get(route('hrms.penilaian.token.approval'))->assertOk()->assertSee($this->leader->name);
+        $this->actingAs($admin)->post(route('hrms.penilaian.token.approve', $tokenRequest))->assertRedirect();
+        $this->actingAs($admin)->post(route('hrms.penilaian.token.approve', $tokenRequest))->assertSessionHasErrors('approval');
+
+        $this->assertSame(20, $this->leader->fresh()->token_penilaian);
+        $this->assertSame(PenilaianTokenRequest::STATUS_APPROVED, $tokenRequest->fresh()->status);
+    }
+
+    public function test_profile_modal_shows_token_code_and_balance(): void
+    {
+        $this->actingAs($this->leader)->get(route('hrms.penilaian.index'))
+            ->assertOk()
+            ->assertSee('Sisa token penilaian')
+            ->assertSee($this->leader->token_kode)
+            ->assertSee('Leader')
+            ->assertDontSee('Ajukan penambahan token');
+
+        $this->leader->update(['token_penilaian' => 0]);
+        $this->actingAs($this->leader)->get(route('hrms.penilaian.index'))->assertSee('Ajukan penambahan token');
+    }
+
+    public function test_printed_signature_qr_links_to_public_verification(): void
+    {
+        $url = route('hrms.penilaian.save', $this->operator);
+        $setuju = ['tahun' => 2026, 'aksi' => 'setuju', 'skor' => $this->skorSemua('operator', 'B')];
+        $this->actingAs($this->asstLeader)->post($url, ['tahun' => 2026, 'aksi' => 'kirim', 'skor' => $this->skorSemua('operator', 'B')]);
+        $this->actingAs($this->leader)->post($url, $setuju);
+        $this->actingAs($this->section)->post($url, $setuju);
+
+        $this->actingAs($this->leader)->get(route('hrms.penilaian.print', [$this->operator, 'tahun' => 2026]))
+            ->assertOk()
+            ->assertSee('<svg', false);
+
+        $kode = PenilaianTahunan::sole()->logs()->where('aksi', 'kirim')->value('kode_verifikasi');
+        $this->assertNotNull($kode);
+
+        auth()->logout();
+        $this->get(route('verifikasi.penilaian', $kode))
+            ->assertOk()
+            ->assertSee('Tanda tangan elektronik sah')
+            ->assertSee($this->asstLeader->name)
+            ->assertSee('Operator HRD')
+            ->assertSee($this->asstLeader->token_kode);
+
+        $this->get(route('verifikasi.penilaian', 'kode-palsu'))->assertNotFound()->assertSee('Tanda tangan tidak dikenali');
     }
 
     public function test_leader_cannot_override_a_higher_pending_approval(): void

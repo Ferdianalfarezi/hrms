@@ -139,6 +139,7 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
             'jabatan' => ['nullable', 'string', Rule::in(array_keys(JenjangPenilaian::JABATAN))],
+            'token_penilaian' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:5', 'confirmed'],
             'is_active' => ['boolean'],
             'is_superadmin' => ['boolean'],
@@ -188,6 +189,10 @@ class UserController extends Controller
             'is_active' => $request->boolean('is_active'),
             'is_superadmin' => $request->boolean('is_superadmin'),
         ];
+
+        if (isset($validated['token_penilaian'])) {
+            $attributes['token_penilaian'] = (int) $validated['token_penilaian'];
+        }
 
         if (! empty($validated['password'])) {
             $attributes['password'] = $validated['password'];
