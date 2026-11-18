@@ -299,8 +299,9 @@
             <tr>
                 <td class="nb"></td>
                 <td class="rumus" style="padding-left: 52%;">{{ __('Bobot = :bobot % (b)', ['bobot' => $form['bobot_kategori']]) }}</td>
-                <td class="rumus" colspan="{{ count(FormPenilaian::NILAI_HURUF) - 1 }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai Akhir = (Total nilai/a) x ( b %x 100)') }}</td>
-                <td class="sama" colspan="2">= {{ $angka($performance['kategori'][$kategori]['nilai']) }}</td>
+                <td class="rumus" colspan="{{ count(FormPenilaian::NILAI_HURUF) }}" style="text-align: right; padding-right: 3px;">{{ __('Nilai Akhir = (Total nilai/a) x ( b %x 100)') }}</td>
+                {{-- Kotak "=" selebar kotak total di atasnya (kolom paling kanan). --}}
+                <td class="sama">= {{ $angka($performance['kategori'][$kategori]['nilai']) }}</td>
             </tr>
         @endforeach
     </table>
