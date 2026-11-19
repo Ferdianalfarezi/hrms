@@ -199,6 +199,7 @@ class HrmsDashboardTest extends TestCase
             ->assertDontSee('Status Data Hari Ini')
             ->assertDontSee('Kehadiran per Plant')
             ->assertDontSee('Man Power per Kelompok')
+            ->assertDontSee('Kehadiran per Shift')                        // rinciannya pindah ke kartu absensi
             ->assertDontSee('Karyawan Terbaru')
             ->assertDontSee('Data Diri');
 
@@ -233,6 +234,33 @@ class HrmsDashboardTest extends TestCase
 
         $this->assertSame(['Shift 1 · Pagi' => 2, 'Shift 2 · Malam' => 1, 'Tanpa grup' => 1], array_column($hariIni['perShift'], 'total', 'label'));
         $this->assertSame([1, 1, 0], array_column($hariIni['perShift'], 'hadir'));
+    }
+
+    public function test_kartu_absensi_hari_ini_dirinci_per_shift(): void
+    {
+        // Minggu 12 - 18 Okt: B pagi, A malam.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-05', 'grup_pagi' => 'A']);
+        foreach (['0001' => 'B', '0002' => 'NS', '0003' => 'A', '0004' => 'B'] as $nik => $grup) {
+            Karyawan::where('nik', $nik)->update(['group' => $grup]);
+        }
+        $id = fn (string $nik) => Karyawan::where('nik', $nik)->value('id');
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-15', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $id('0003'), 'tanggal' => '2026-10-15', 'kode' => 'CT']);
+        AbsensiMesin::create(['tanggal' => '2026-10-15', 'nik' => '0004']);                                      // tidak absen, belum ada keterangan
+
+        $shifts = HrmsDashboard::build($this->hrmsAdmin())['composition']['shifts'];
+
+        $this->assertSame(['Shift 1 · Pagi', 'Shift 2 · Malam'], array_column($shifts, 'label'));
+        $this->assertSame(['33,3%', '0%'], array_column($shifts, 'value'));
+        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 2, 'Sakit' => 1, 'Izin' => 0, 'Cuti' => 0, 'WFH' => 0, 'Alpa' => 0, 'Tanpa keterangan' => 1],
+            array_column($shifts[0]['segments'], 'count', 'label'));
+        $this->assertSame(['1 orang · 33,3%', '2 orang · 66,7%'], array_column(array_slice($shifts[0]['segments'], 0, 2), 'text'));
+        $this->assertSame(['Hadir' => 0, 'Tidak hadir' => 1, 'Sakit' => 0, 'Izin' => 0, 'Cuti' => 1, 'WFH' => 0, 'Alpa' => 0, 'Tanpa keterangan' => 0],
+            array_column($shifts[1]['segments'], 'count', 'label'));
+
+        // Shift 1 di atas Shift 2; ulang tahun pindah ke baris bawah, tidak lagi di kolom kanan.
+        $this->actingAs($this->hrmsAdmin())->get('/hrms')->assertOk()
+            ->assertSeeInOrder(['Man-hour Hari Ini', 'Absensi 15 Okt', 'Shift 1 · Pagi', 'Shift 2 · Malam', 'Keterlambatan Hari Ini', 'Ulang Tahun Minggu Ini']);
     }
 
     public function test_tren_kehadiran_tujuh_hari_kerja_sampai_hari_ini_per_jenis(): void

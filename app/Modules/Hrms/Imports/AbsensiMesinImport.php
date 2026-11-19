@@ -24,7 +24,7 @@ use Throwable;
  * Karyawan terdaftar yang tidak ditemukan dianggap tidak absen dan disimpan ke absensi_mesins.
  * Upload ulang hari kerja yang sama mengganti seluruh data hari itu.
  *
- * Time In juga dipakai mencatat keterlambatan (kode DT< / DT>) ke tabel absensi: acuan shift pagi 07:00, shift malam 20:00.
+ * Time In juga dipakai mencatat keterlambatan (kode DT< / DT>) ke tabel absensi: acuan shift pagi 07:00, shift malam 20:05.
  * DT otomatis ditandai keterangan "Mesin absen: ..."; upload ulang memperbarui / menghapusnya. Kode lain atau DT yang
  * diisi manual tidak ditimpa.
  *
@@ -39,13 +39,13 @@ class AbsensiMesinImport
         'masuk' => ['timein', 'jammasuk'],
     ];
 
-    /** Time In mulai jam ini dianggap shift malam (shift pagi masuk 05.00 - 08.00, shift malam 16.00 - 20.00). */
+    /** Time In mulai jam ini dianggap shift malam (shift pagi masuk 05.00 - 08.00, shift malam 16.00 - 20.05). */
     private const JAM_MULAI_MALAM = 12;
 
     /** Jam masuk acuan keterlambatan, dalam menit sejak 00:00. */
     private const ACUAN_PAGI = 7 * 60;
 
-    private const ACUAN_MALAM = 20 * 60;
+    private const ACUAN_MALAM = 20 * 60 + 5;
 
     /** Penanda keterangan DT yang dibuat otomatis dari upload ini. */
     public const PENANDA_DT = 'Mesin absen';

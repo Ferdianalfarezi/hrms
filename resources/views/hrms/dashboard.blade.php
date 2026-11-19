@@ -7,25 +7,37 @@
     .dash-grid {
         grid-template-areas:
             "profile progress progress side"
-            "manhour telat shift side";
+            "manhour telat ultah side";
     }
-    .a-manhour { grid-area: manhour; } .a-telat { grid-area: telat; } .a-shift { grid-area: shift; }
+    .a-manhour { grid-area: manhour; } .a-telat { grid-area: telat; } .a-ultah { grid-area: ultah; }
     .profile-card { min-height: 0; }
     @media (max-width: 1100px) {
-        .dash-grid { grid-template-areas: "profile side" "progress progress" "manhour telat" "shift shift"; }
+        .dash-grid { grid-template-areas: "profile side" "progress progress" "manhour telat" "ultah ultah"; }
         .profile-card { min-height: 280px; }
     }
     @media (max-width: 640px) {
-        .dash-grid { grid-template-areas: "profile" "side" "progress" "manhour" "telat" "shift"; }
+        .dash-grid { grid-template-areas: "profile" "side" "progress" "manhour" "telat" "ultah"; }
     }
     .dash-grid > .card { min-width: 0; }
-    /* Kolom kanan dibagi dua: absensi (lebih besar, 3 bagian) dan ulang tahun minggu ini (2 bagian).
-       Layar lebar: tinggi kolom mengikuti dua baris di kirinya; daftar ulang tahun yang panjang di-scroll di dalam kartu. */
-    .a-side > .card:first-child { flex: 3 1 0; }
-    .a-side .team-card { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
-    .a-side .team-list { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 6px; }
+    /* Kolom kanan hanya kartu absensi (Shift 1 di atas, Shift 2 di bawah). Layar lebar: tingginya mengikuti dua baris di kirinya,
+       isi yang lebih panjang di-scroll di dalam kartu. */
+    .a-side > .card { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
     @media (min-width: 1101px) { .a-side { contain: size; } }
-    @media (max-width: 1100px) { .a-side .team-list { max-height: 240px; } }
+    .shift-list { flex: 1 1 0; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 12px; margin-top: 12px; padding-right: 4px; }
+    .shift-block + .shift-block { padding-top: 12px; border-top: 1px solid var(--line); }
+    .shift-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .shift-head b { display: block; font-size: 13px; }
+    .shift-head small { display: block; font-size: 11px; color: var(--faint); }
+    .shift-head .shift-val { font-size: 20px; font-weight: 500; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .shift-block .stackbar { height: 8px; margin: 8px 0; }
+    .shift-block .legend { gap: 4px; }
+    .shift-block .legend-row, .shift-block .legend-value { font-size: 12px; }
+    .shift-block .legend-row .dot { width: 8px; height: 8px; }
+    /* Ulang tahun minggu ini (baris bawah): daftar yang panjang di-scroll di dalam kartu. */
+    .a-ultah { display: flex; flex-direction: column; }
+    .a-ultah .team-list { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 6px; }
+    @media (min-width: 1101px) { .a-ultah { contain: size; } }
+    @media (max-width: 1100px) { .a-ultah .team-list { max-height: 240px; } }
     .card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
     .card-head.top { align-items: flex-start; }
 
@@ -47,20 +59,6 @@
     .mini-row .val { margin-left: auto; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .card-foot { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
     .card-foot b { color: var(--text); }
-
-    /* Rekap kehadiran per shift: label, bar persen hadir, angka. */
-    .rk-rows { display: grid; gap: 12px; }
-    .rk-row { display: grid; grid-template-columns: minmax(0, 92px) 1fr auto; align-items: center; gap: 10px; }
-    .rk-label b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rk-label small { display: block; font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rk-track { height: 10px; border-radius: 999px; background: var(--soft); overflow: hidden; }
-    .rk-track span { display: block; height: 100%; border-radius: 999px; background: #22c55e; transform-origin: left center;
-                     animation: dash-grow-x .9s cubic-bezier(.22, 1, .36, 1) backwards; animation-delay: calc(var(--d) + .3s + var(--j, 0) * 70ms); }
-    .rk-track span.over { background: #ef4444; }
-    .rk-val { text-align: right; }
-    .rk-val b { display: block; font-size: 13px; font-variant-numeric: tabular-nums; }
-    .rk-val b.over { color: #dc2626; }
-    .rk-val small { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 
     /* Tren kehadiran 7 hari (gabungan tren + produktivitas mingguan): tombol pilihan tampilan (garis / batang / pie / tabel). */
     .tren-card .card-head { flex-wrap: wrap; margin-bottom: 10px; }
@@ -142,7 +140,7 @@
     .tren-card[data-aktif="batang"] .tren-legend .hadir { display: none; }
     .empty-note { color: var(--faint); font-size: 13px; padding: 12px 0; }
 
-    @media (prefers-reduced-motion: reduce) { .rk-track span, .mh-bar span, .tren-plot svg, .tren-bars .stack, .tren-donut { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .mh-bar span, .tren-plot svg, .tren-bars .stack, .tren-donut { animation: none; } }
 @endsection
 
 @php
@@ -330,6 +328,48 @@
 @endsection
 @endif
 
+{{-- Admin HRMS: absensi hari ini dirinci per shift, Shift 1 di atas dan Shift 2 di bawah. Admin Departemen tetap memakai kartu bawaan. --}}
+@if (! empty($composition['shifts']))
+@section('side-top')
+    <div class="card" style="--i: 3;">
+        <div class="status-top">
+            <h2 class="card-title">{{ $composition['title'] }}</h2>
+            <b data-count>{{ $composition['value'] }}</b>
+        </div>
+        <div class="shift-list">
+            @foreach ($composition['shifts'] as $shift)
+                <section class="shift-block">
+                    <div class="shift-head">
+                        <div style="min-width: 0;">
+                            <b>{{ $shift['label'] }}</b>
+                            @if ($shift['sub'])<small>{{ $shift['sub'] }}</small>@endif
+                        </div>
+                        <span class="shift-val">{{ $shift['value'] }}</span>
+                    </div>
+                    <div class="stackbar">
+                        @foreach (collect($shift['segments'])->where('count', '>', 0)->reject(fn ($segment) => ($segment['stack'] ?? true) === false) as $segment)
+                            <span class="tone-{{ $segment['tone'] }}" style="flex: {{ $segment['count'] }}; --j: {{ $loop->index }};" title="{{ __($segment['label']) }}: {{ $segment['count'] }}"></span>
+                        @endforeach
+                    </div>
+                    <div class="legend">
+                        @foreach ($shift['segments'] as $segment)
+                            <div class="legend-row" style="--j: {{ min($loop->index, 10) }};">
+                                <i class="dot tone-{{ $segment['tone'] }}"></i>
+                                <span class="legend-label">{{ __($segment['label']) }}</span>
+                                <span class="legend-value">{{ $segment['text'] }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endforeach
+        </div>
+        @if ($composition['note'])
+            <div class="muted small" style="margin-top: 10px;">{{ $composition['note'] }}</div>
+        @endif
+    </div>
+@endsection
+@endif
+
 @section('clock')
     {{-- Kartu "Jam Kerja" diganti man-hour hari ini: jam kerja efektif dibanding jam tersedia. --}}
     @php($manHour = $hariIni['manHour'])
@@ -397,29 +437,8 @@
         @endif
     </div>
 
-    {{-- Kehadiran per shift --}}
-    <div class="card a-shift" style="--i: 6;">
-        <div class="card-head top">
-            <div style="min-width: 0;">
-                <h2 class="card-title">{{ __('Kehadiran per Shift') }}</h2>
-                <div class="card-sub">{{ __('Hari ini menurut rotasi shift') }}</div>
-            </div>
-        </div>
-        <div class="rk-rows">
-            @forelse ($hariIni['perShift'] as $row)
-                <div class="rk-row" style="--j: {{ $loop->index }};" title="{{ __('Hadir :hadir dari :total, tidak hadir :tidak', ['hadir' => $row['hadir'], 'total' => $row['total'], 'tidak' => $row['tidakHadir']]) }}">
-                    <div class="rk-label"><b>{{ __($row['label']) }}</b>@if ($row['sub'])<small>{{ __($row['sub']) }}</small>@endif</div>
-                    <div class="rk-track"><span @class(['over' => $row['diAtasTarget']]) style="width: {{ $row['total'] > 0 ? round($row['hadir'] / $row['total'] * 100, 1) : 0 }}%;"></span></div>
-                    <div class="rk-val">
-                        <b @class(['over' => $row['diAtasTarget']])>{{ $row['persen'] !== null ? $row['persen'].'%' : '-' }}</b>
-                        <small>{{ $angka($row['hadir']) }}/{{ $angka($row['total']) }}</small>
-                    </div>
-                </div>
-            @empty
-                <div class="empty-note">{{ __('Belum ada data karyawan.') }}</div>
-            @endforelse
-        </div>
-    </div>
+    {{-- Ulang tahun minggu ini (menggantikan kartu kehadiran per shift; rincian per shift ada di kartu absensi). --}}
+    @include('dashboard.partials.people-card', ['class' => 'a-ultah', 'urutan' => 6])
 @endsection
 
 @push('scripts')

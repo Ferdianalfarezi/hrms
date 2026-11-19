@@ -178,11 +178,11 @@ class AbsensiKomparasiTest extends TestCase
             ->all();
         $this->assertSame([
             [$agus->id, '2026-10-15', 'DT<', 12],
-            [$bayu->id, '2026-10-14', 'DT>', 45],
+            [$bayu->id, '2026-10-14', 'DT>', 40],
             [$dedi->id, '2026-10-15', 'DT<', 10],
         ], $dt);
         $this->assertSame('I', Absensi::where('karyawan_id', $eka->id)->value('kode'));
-        $this->assertSame('Mesin absen: Time In 20:45 (shift malam, acuan 20:00)', Absensi::where('karyawan_id', $bayu->id)->value('keterangan'));
+        $this->assertSame('Mesin absen: Time In 20:45 (shift malam, acuan 20:05)', Absensi::where('karyawan_id', $bayu->id)->value('keterangan'));
     }
 
     public function test_upload_tidak_mencatat_terlambat_untuk_manager_ke_atas_dan_lahir_di_jepang(): void

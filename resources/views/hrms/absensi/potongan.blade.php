@@ -190,7 +190,7 @@
     </div>
 </div>
 <p class="muted small" style="margin-top: 12px;">
-    {{ __('Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. telat 1 - 30 menit = 1x (30 menit), 31 - 60 menit = 2x (1 jam). DT< yang diinput manual otomatis 30 menit. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:00).') }}
+    {{ __('Kelipatan 30 menit dibulatkan ke atas per kejadian, mis. telat 1 - 30 menit = 1x (30 menit), 31 - 60 menit = 2x (1 jam). DT< yang diinput manual otomatis 30 menit. DT dari upload Komparasi Mesin dihitung dari Time In (acuan pagi 07:00, malam 20:05).') }}
 </p>
 
 <dialog class="modal wide" id="detail-modal">

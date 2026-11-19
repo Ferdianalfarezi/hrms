@@ -61,7 +61,7 @@
                 {{ __('Upload Attendance Report') }}
                 <span @class(['up-state', 'done' => $uploaded])>{{ $uploaded ? __('Sudah diupload') : __('Belum diupload') }}</span>
             </div>
-            <div class="up-desc">{{ __('Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00) dan hari ini. Laporan untuk tanggal terakhir di file. Time In lewat 07:00 (pagi) / 20:00 (malam) otomatis dicatat DT.') }}</div>
+            <div class="up-desc">{{ __('Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00) dan hari ini. Laporan untuk tanggal terakhir di file. Time In lewat 07:00 (pagi) / 20:05 (malam) otomatis dicatat DT.') }}</div>
         </div>
     </div>
 

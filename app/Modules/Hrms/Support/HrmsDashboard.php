@@ -54,6 +54,7 @@ class HrmsDashboard
         $pkwt = (int) $statusCounts->only(['PKWT 1', 'PKWT 2', 'PKWT 3'])->sum();
         $magang = (int) ($statusCounts['Pemagangan'] ?? 0);
         $perempuan = $visible()->where('jenis_kelamin', 'Perempuan')->count();
+        $hariIni = ProduktivitasHariIni::build($visible);
 
         return [
             'application' => $application,
@@ -82,10 +83,10 @@ class HrmsDashboard
             // Admin Departemen: persentase kehadiran tiap karyawan di departemennya bulan ini.
             'composition' => $viewer->isDepartmentAdmin()
                 ? self::kehadiranKaryawan($visible, $departmentLabel)
-                : self::absensiHariIni($visible),
-            // Kolom kanan bawah (di bawah kartu absensi): karyawan yang berulang tahun minggu ini.
-            'people' => self::ulangTahunMingguIni($visible),
-            'hariIni' => ProduktivitasHariIni::build($visible),
+                : self::absensiHariIni($visible, $hariIni['perShift']),
+            // Karyawan yang berulang tahun minggu ini: kartu di baris bawah (bukan di kolom kanan), jadi kartu absensi memakai seluruh kolom kanan.
+            'people' => [...self::ulangTahunMingguIni($visible), 'side' => false],
+            'hariIni' => $hariIni,
         ];
     }
 
@@ -208,8 +209,11 @@ class HrmsDashboard
 
     /**
      * Ringkasan absensi hari ini seperti di halaman Absensi Harian, ditambah hasil komparasi mesin absen.
+     * Rinciannya ditampilkan per shift (Shift 1 di atas, Shift 2 di bawah).
+     *
+     * @param  list<array{label: string, sub: ?string, total: int, hadir: int, perKategori: array<string, int>}>  $perShift  dari ProduktivitasHariIni
      */
-    private static function absensiHariIni(\Closure $visible): array
+    private static function absensiHariIni(\Closure $visible, array $perShift): array
     {
         $today = Carbon::today();
         $karyawans = $visible()->get(['id', 'nik', 'group']);
@@ -225,7 +229,6 @@ class HrmsDashboard
         $cekUlang = collect(KomparasiAbsensi::selHadirDiMesin($karyawans, $today, $today))
             ->keys()->filter(fn ($id) => isset($kodes[$id]))->count();
         $hadir = max($total - $kodes->count() - $tanpaKeterangan, 0);
-        $keterangan = fn (int $jumlah, string $persen) => number_format($jumlah, 0, ',', '.').' '.__('orang').' · '.$persen.'%';
 
         $note = AbsensiMesin::whereDate('tanggal', $today->toDateString())->exists()
             ? ($cekUlang > 0 ? __(':count kode tidak hadir perlu dicek ulang (hadir di mesin absen).', ['count' => $cekUlang]) : __('Data mesin absen hari ini sudah diupload.'))
@@ -235,16 +238,34 @@ class HrmsDashboard
             'title' => __('Absensi').' '.$today->translatedFormat('d M'),
             'value' => self::persenHadir($hadir, $total).'%',
             'unit' => 'orang',
-            // Semua kategori selalu tampil (walau 0) supaya rinciannya lengkap. "Tidak hadir" = jumlah rincian di bawahnya,
-            // jadi tidak ikut bar ("stack" => false). Persen tidak hadir = sisa persen hadir, supaya jumlahnya 100%.
-            'segments' => [
-                ['label' => 'Hadir', 'count' => $hadir, 'tone' => 'success', 'always' => true, 'text' => $keterangan($hadir, self::persenHadir($hadir, $total))],
-                ['label' => 'Tidak hadir', 'count' => $total - $hadir, 'tone' => 'outline', 'always' => true, 'stack' => false,
-                    'text' => $keterangan($total - $hadir, self::persenSisa($hadir, $total))],
-                ...self::rincianTidakHadir([...$kodes->countBy(fn (string $kode) => Absensi::kategori($kode))->all(), 'tanpa' => $tanpaKeterangan])
-                    ->map(fn (array $kategori) => [...$kategori, 'always' => true, 'text' => $keterangan($kategori['count'], self::persen($kategori['count'], $total))])->all(),
-            ],
+            'segments' => self::segmenAbsensi($total, $hadir, [...$kodes->countBy(fn (string $kode) => Absensi::kategori($kode))->all(), 'tanpa' => $tanpaKeterangan]),
+            'shifts' => collect($perShift)->map(fn (array $shift) => [
+                'label' => $shift['label'],
+                'sub' => $shift['sub'],
+                'value' => $shift['total'] > 0 ? self::persenHadir($shift['hadir'], $shift['total']).'%' : '-',
+                'segments' => self::segmenAbsensi($shift['total'], $shift['hadir'], $shift['perKategori']),
+            ])->all(),
             'note' => $note,
+        ];
+    }
+
+    /**
+     * Baris absensi: Hadir, Tidak hadir, lalu rincian per kategori. Semua kategori selalu tampil (walau 0) supaya rinciannya lengkap.
+     * "Tidak hadir" = jumlah rincian di bawahnya, jadi tidak ikut bar ("stack" => false). Persen tidak hadir = sisa persen hadir, supaya jumlahnya 100%.
+     *
+     * @param  array<string, int>  $perKategori  kategori KATEGORI_TIDAK_HADIR => jumlah
+     * @return list<array{label: string, count: int, tone: string, always: bool, text: string, stack?: bool}>
+     */
+    private static function segmenAbsensi(int $total, int $hadir, array $perKategori): array
+    {
+        $keterangan = fn (int $jumlah, string $persen) => number_format($jumlah, 0, ',', '.').' '.__('orang').' · '.$persen.'%';
+
+        return [
+            ['label' => 'Hadir', 'count' => $hadir, 'tone' => 'success', 'always' => true, 'text' => $keterangan($hadir, self::persenHadir($hadir, $total))],
+            ['label' => 'Tidak hadir', 'count' => $total - $hadir, 'tone' => 'outline', 'always' => true, 'stack' => false,
+                'text' => $keterangan($total - $hadir, self::persenSisa($hadir, $total))],
+            ...self::rincianTidakHadir($perKategori)
+                ->map(fn (array $kategori) => [...$kategori, 'always' => true, 'text' => $keterangan($kategori['count'], self::persen($kategori['count'], $total))])->all(),
         ];
     }
 

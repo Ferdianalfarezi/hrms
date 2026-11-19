@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Kartu "produktivitas hari ini" di dashboard HRMS: man-hour, keterlambatan, dan kehadiran per shift.
+ * Kartu "produktivitas hari ini" di dashboard HRMS: man-hour, keterlambatan, dan kehadiran per shift (dipakai kartu Absensi hari ini).
  * Semua kartu memakai satu potret absensi hari ini untuk karyawan yang boleh dilihat user,
  * sama seperti kartu Absensi hari ini: tidak hadir = kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan.
  */
@@ -132,7 +132,7 @@ class ProduktivitasHariIni
             },
             [
                 'pagi' => ['label' => __('Shift 1 · Pagi'), 'sub' => __('Grup :grup + NS · 07.00 - 16.00', ['grup' => $grupPagi])],
-                'malam' => ['label' => __('Shift 2 · Malam'), 'sub' => __('Grup :grup · 20.00 - 05.00', ['grup' => $grupMalam])],
+                'malam' => ['label' => __('Shift 2 · Malam'), 'sub' => __('Grup :grup · 20.05 - 05.00', ['grup' => $grupMalam])],
                 'lain' => ['label' => __('Tanpa grup')],
             ],
         );
@@ -144,7 +144,7 @@ class ProduktivitasHariIni
      * Kehadiran hari ini per kelompok. $kunci memetakan karyawan ke kunci di $labels; karyawan dengan kunci lain diabaikan.
      *
      * @param  array<string, array{label: string, sub?: string}>  $labels
-     * @return list<array{kunci: string, label: string, sub: ?string, total: int, hadir: int, tidakHadir: int, persen: ?string, diAtasTarget: bool}>
+     * @return list<array{kunci: string, label: string, sub: ?string, total: int, hadir: int, tidakHadir: int, perKategori: array<string, int>, persen: ?string, diAtasTarget: bool}>
      */
     private function rekap(Closure $kunci, array $labels): array
     {
@@ -153,7 +153,8 @@ class ProduktivitasHariIni
         return collect($labels)->map(function (array $info, string $key) use ($anggota) {
             $karyawans = $anggota->get($key, collect());
             $total = $karyawans->count();
-            $tidakHadir = $karyawans->filter(fn (Karyawan $karyawan) => isset($this->tidakHadir[$karyawan->id]))->count();
+            $perKategori = $karyawans->map(fn (Karyawan $karyawan) => $this->tidakHadir[$karyawan->id] ?? null)->filter()->countBy()->all();
+            $tidakHadir = array_sum($perKategori);
 
             return [
                 'kunci' => $key,
@@ -162,6 +163,7 @@ class ProduktivitasHariIni
                 'total' => $total,
                 'hadir' => $total - $tidakHadir,
                 'tidakHadir' => $tidakHadir,
+                'perKategori' => $perKategori,
                 'persen' => $total > 0 ? HrmsDashboard::persenHadir($total - $tidakHadir, $total) : null,
                 'diAtasTarget' => $total > 0 && $tidakHadir / $total * 100 > LaporanAbsensiShift::TARGET_PERSEN,
             ];
