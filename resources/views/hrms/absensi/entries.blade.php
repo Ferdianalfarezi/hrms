@@ -316,7 +316,7 @@
                 <div data-menit-field hidden>
                     <label for="f-menit_terlambat" data-menit-label>{{ __('Terlambat berapa menit?') }}</label>
                     <input id="f-menit_terlambat" type="number" name="menit_terlambat" min="1" max="720" placeholder="{{ __('Mis. 45') }}" inputmode="numeric">
-                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< dan PC< tidak perlu diisi, otomatis 30 menit.') }}</div>
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. DT< / PC< (maks. 30 menit) boleh dikosongkan, otomatis 30 menit. Potongan dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst.') }}</div>
                     @error('menit_terlambat') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
@@ -394,22 +394,31 @@
         var hint = document.getElementById('combo-hint');
         var hidden = form.elements.karyawan_id;
         var MAX_RESULTS = 50;
-        // Hanya DT> / PC> yang wajib isi menit; DT< / PC< otomatis 30 menit.
-        var kodeTerlambat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_WAJIB_MENIT) }};
+        // Kolom menit muncul untuk semua kode DT / PC: wajib untuk DT> / PC>; DT< / PC< opsional (maks. 30, kosong = 30 menit).
+        var kodeWajibMenit = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_WAJIB_MENIT) }};
+        var kodeMenitOtomatis = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_MENIT_OTOMATIS) }};
         // Label kolom menit mengikuti jenis kodenya: datang terlambat (DT) atau pulang cepat (PC).
         var kodePulangCepat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_PULANG_CEPAT) }};
-        var labelMenit = { terlambat: @json(__('Terlambat berapa menit?')), pulangCepat: @json(__('Pulang cepat berapa menit?')) };
+        var labelMenit = { terlambat: @json(__('Terlambat berapa menit?')), pulangCepat: @json(__('Pulang cepat berapa menit?')), opsional: @json(__('(opsional, kosong = 30 menit)')), contoh: @json(__('Mis. 45')) };
+
+        // Atur kolom menit untuk kode yang dipilih; mengembalikan true kalau kolomnya tampil.
+        function aturKolomMenit(kode, label, input) {
+            var wajib = kodeWajibMenit.indexOf(kode) !== -1;
+            var otomatis = kodeMenitOtomatis.indexOf(kode) !== -1;
+            label.textContent = (kodePulangCepat.indexOf(kode) !== -1 ? labelMenit.pulangCepat : labelMenit.terlambat) + (otomatis ? ' ' + labelMenit.opsional : '');
+            input.disabled = !(wajib || otomatis);
+            input.required = wajib;
+            input.max = otomatis ? 30 : 720;
+            input.placeholder = otomatis ? '30' : labelMenit.contoh;
+            return wajib || otomatis;
+        }
         var kodeSakit = {{ Js::from($kodeSakit) }};
         var editing = false;
 
-        // Kolom menit hanya untuk DT> / PC>; surat dokter wajib saat mengajukan perubahan ke kode sakit.
+        // Kolom menit untuk DT / PC; surat dokter wajib saat mengajukan perubahan ke kode sakit.
         function syncKode() {
             var kode = form.elements.kode.value;
-            var terlambat = kodeTerlambat.indexOf(kode) !== -1;
-            modal.querySelector('[data-menit-label]').textContent = kodePulangCepat.indexOf(kode) !== -1 ? labelMenit.pulangCepat : labelMenit.terlambat;
-            modal.querySelector('[data-menit-field]').hidden = !terlambat;
-            form.elements.menit_terlambat.disabled = !terlambat;
-            form.elements.menit_terlambat.required = terlambat;
+            modal.querySelector('[data-menit-field]').hidden = !aturKolomMenit(kode, modal.querySelector('[data-menit-label]'), form.elements.menit_terlambat);
             var sakit = editing && kodeSakit.indexOf(kode) !== -1;
             form.elements.evidence.required = sakit;
             modal.querySelector('[data-evidence-hint]').textContent = sakit

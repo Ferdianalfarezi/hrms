@@ -130,7 +130,7 @@ class Absensi extends Model
     /** Kode yang menitnya wajib diisi manual (DT> / PC>). */
     public const KODE_WAJIB_MENIT = ['DT>', 'PC>'];
 
-    /** Kode yang menitnya otomatis MENIT_PER_POTONGAN menit (DT< / PC<). */
+    /** Kode yang menitnya boleh dikosongkan (maks. MENIT_PER_POTONGAN, kosong = MENIT_PER_POTONGAN menit): DT< / PC<. */
     public const KODE_MENIT_OTOMATIS = ['DT<', 'PC<'];
 
     /**
@@ -176,12 +176,12 @@ class Absensi extends Model
     }
 
     /**
-     * Menit dari input manual: DT< / PC< selalu 30 menit, DT> / PC> memakai isian, kode lain tidak punya menit.
+     * Menit dari input manual: DT< / PC< memakai isian (kosong = 30 menit), DT> / PC> memakai isian, kode lain tidak punya menit.
      */
     public static function menitUntuk(?string $kode, mixed $menit): ?int
     {
         return match (true) {
-            in_array($kode, self::KODE_MENIT_OTOMATIS, true) => self::MENIT_PER_POTONGAN,
+            in_array($kode, self::KODE_MENIT_OTOMATIS, true) => $menit ? (int) $menit : self::MENIT_PER_POTONGAN,
             self::punyaMenit($kode) => $menit ? (int) $menit : null,
             default => null,
         };

@@ -49,9 +49,10 @@ class AbsensiPotonganTest extends TestCase
             'karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => $kode, 'menit_terlambat' => $menit,
         ]);
 
-        // DT< tidak perlu isi menit: selalu dihitung 30 menit.
+        // DT< boleh isi menit sebenarnya (maks. 30); kosong = 30 menit.
         $save('DT<', null)->assertOk()->assertJson(['kode' => 'DT<', 'menit_terlambat' => 30]);
-        $save('DT<', 5)->assertOk()->assertJson(['menit_terlambat' => 30]);
+        $save('DT<', 5)->assertOk()->assertJson(['menit_terlambat' => 5]);
+        $save('DT<', 31)->assertJsonValidationErrors(['menit_terlambat' => 'DT< maksimal 30 menit. Lebih dari 30 menit pilih DT>.']);
 
         // DT> wajib isi menit sebenarnya, tanpa batas minimal 30.
         $save('DT>', null)->assertJsonValidationErrors('menit_terlambat');
@@ -73,7 +74,8 @@ class AbsensiPotonganTest extends TestCase
         ]);
 
         $save('PC<', null)->assertOk()->assertJson(['kode' => 'PC<', 'menit_terlambat' => 30]);
-        $save('PC<', 5)->assertOk()->assertJson(['menit_terlambat' => 30]);
+        $save('PC<', 15)->assertOk()->assertJson(['menit_terlambat' => 15]);
+        $save('PC<', 45)->assertJsonValidationErrors(['menit_terlambat' => 'PC< maksimal 30 menit. Lebih dari 30 menit pilih PC>.']);
 
         $save('PC>', null)->assertJsonValidationErrors(['menit_terlambat' => 'Isi berapa menit karyawan pulang cepat.']);
         $save('PC>', 75)->assertOk()->assertJson(['kode' => 'PC>', 'menit_terlambat' => 75]);

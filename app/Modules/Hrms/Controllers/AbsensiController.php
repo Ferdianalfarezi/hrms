@@ -388,7 +388,7 @@ class AbsensiController extends Controller
             ...$this->menitMessages($request),
         ]);
 
-        // Menit hanya disimpan untuk kode datang terlambat / pulang cepat; DT< dan PC< otomatis 30 menit.
+        // Menit hanya disimpan untuk kode datang terlambat / pulang cepat; DT< dan PC< kosong = 30 menit.
         $data['menit_terlambat'] = Absensi::menitUntuk($data['kode'], $data['menit_terlambat'] ?? null);
 
         return $data;
@@ -396,7 +396,7 @@ class AbsensiController extends Controller
 
     /**
      * Menit wajib untuk DT> / PC> (menit sebenarnya, dihitung dibulatkan ke atas per 30 menit).
-     * DT< / PC< tidak perlu diisi, otomatis 30 menit.
+     * DT< / PC< boleh dikosongkan (otomatis 30 menit) dan maksimal 30 menit.
      *
      * @return list<mixed>
      */
@@ -404,7 +404,8 @@ class AbsensiController extends Controller
     {
         return [
             Rule::requiredIf(fn () => Absensi::wajibIsiMenit($request->input('kode'))),
-            'nullable', 'integer', 'min:1', 'max:720',
+            'nullable', 'integer', 'min:1',
+            'max:'.(in_array($request->input('kode'), Absensi::KODE_MENIT_OTOMATIS, true) ? Absensi::MENIT_PER_POTONGAN : 720),
         ];
     }
 
@@ -413,6 +414,17 @@ class AbsensiController extends Controller
      */
     private function menitMessages(Request $request): array
     {
+        if (in_array($request->input('kode'), Absensi::KODE_MENIT_OTOMATIS, true)) {
+            return [
+                'menit_terlambat.integer' => __('Menit harus berupa angka.'),
+                'menit_terlambat.min' => __('Menit minimal 1 menit.'),
+                'menit_terlambat.max' => __(':kode maksimal 30 menit. Lebih dari 30 menit pilih :besar.', [
+                    'kode' => $request->input('kode'),
+                    'besar' => str_replace('<', '>', (string) $request->input('kode')),
+                ]),
+            ];
+        }
+
         if (Absensi::isPulangCepat($request->input('kode'))) {
             return [
                 'menit_terlambat.required' => __('Isi berapa menit karyawan pulang cepat.'),
