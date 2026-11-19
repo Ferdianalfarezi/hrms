@@ -106,7 +106,8 @@
         .icon-btn:hover { color: var(--primary); background: #fff; }
         /* Pilihan bahasa ID / JP di navbar dan halaman login. */
         .lang-switch { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(255,255,255,.9); }
-        .lang-switch a { padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.25; color: var(--muted); }
+        .lang-switch a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.25; color: var(--muted); }
+        .lang-switch .flag { width: 18px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(15, 35, 80, .18); }
         .lang-switch a:hover { color: var(--text); }
         .lang-switch a.active { background: var(--navy); color: #fff; }
         .app-nav .lang-switch { background: rgba(255, 255, 255, .5); border-color: rgba(255, 255, 255, .8); }
