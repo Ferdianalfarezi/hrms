@@ -122,7 +122,8 @@
     $next = $tanggal->copy()->addWeekday()->toDateString();
     $tidakHadir = $absensis->filter(fn ($absensi) => ! ($kodes[$absensi->kode]['hadir'] ?? false))->count();
     $fields = ['karyawan_id', 'tanggal', 'sampai', 'kode', 'menit_terlambat', 'pilihan_alasan', 'keterangan', 'alasan'];
-    $kodeTerlambat = \App\Modules\Hrms\Models\Absensi::KODE_TERLAMBAT;
+    // Kode yang seharusnya punya menit (DT / PC): ditandai kalau menitnya belum diisi.
+    $kodeTerlambat = [...\App\Modules\Hrms\Models\Absensi::KODE_TERLAMBAT, ...\App\Modules\Hrms\Models\Absensi::KODE_PULANG_CEPAT];
     $kodeSakit = \App\Modules\Hrms\Models\Absensi::KODE_SAKIT;
 @endphp
 
@@ -201,7 +202,7 @@
                             @if ($absensi->menit_terlambat)
                                 <span class="badge" style="margin-left: 4px;">{{ __(':menit menit', ['menit' => $absensi->menit_terlambat]) }}</span>
                             @elseif (in_array($absensi->kode, $kodeTerlambat, true))
-                                <span class="badge badge-off" style="margin-left: 4px;" title="{{ __('Edit untuk mengisi menit terlambat') }}">{{ __('menit belum diisi') }}</span>
+                                <span class="badge badge-off" style="margin-left: 4px;" title="{{ __('Edit untuk mengisi menit') }}">{{ __('menit belum diisi') }}</span>
                             @endif
                         </td>
                         <td>{{ $absensi->keterangan ?: '-' }}</td>
@@ -313,9 +314,9 @@
                     @error('kode') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div data-menit-field hidden>
-                    <label for="f-menit_terlambat">{{ __('Terlambat berapa menit?') }}</label>
+                    <label for="f-menit_terlambat" data-menit-label>{{ __('Terlambat berapa menit?') }}</label>
                     <input id="f-menit_terlambat" type="number" name="menit_terlambat" min="1" max="720" placeholder="{{ __('Mis. 45') }}" inputmode="numeric">
-                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< tidak perlu diisi, otomatis 30 menit.') }}</div>
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< dan PC< tidak perlu diisi, otomatis 30 menit.') }}</div>
                     @error('menit_terlambat') <div class="field-error">{{ $message }}</div> @enderror
                 </div>
                 <div>
@@ -393,15 +394,19 @@
         var hint = document.getElementById('combo-hint');
         var hidden = form.elements.karyawan_id;
         var MAX_RESULTS = 50;
-        // Hanya DT> yang wajib isi menit; DT< otomatis 30 menit.
+        // Hanya DT> / PC> yang wajib isi menit; DT< / PC< otomatis 30 menit.
         var kodeTerlambat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_WAJIB_MENIT) }};
+        // Label kolom menit mengikuti jenis kodenya: datang terlambat (DT) atau pulang cepat (PC).
+        var kodePulangCepat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_PULANG_CEPAT) }};
+        var labelMenit = { terlambat: @json(__('Terlambat berapa menit?')), pulangCepat: @json(__('Pulang cepat berapa menit?')) };
         var kodeSakit = {{ Js::from($kodeSakit) }};
         var editing = false;
 
-        // Kolom menit hanya untuk DT; surat dokter wajib saat mengajukan perubahan ke kode sakit.
+        // Kolom menit hanya untuk DT> / PC>; surat dokter wajib saat mengajukan perubahan ke kode sakit.
         function syncKode() {
             var kode = form.elements.kode.value;
             var terlambat = kodeTerlambat.indexOf(kode) !== -1;
+            modal.querySelector('[data-menit-label]').textContent = kodePulangCepat.indexOf(kode) !== -1 ? labelMenit.pulangCepat : labelMenit.terlambat;
             modal.querySelector('[data-menit-field]').hidden = !terlambat;
             form.elements.menit_terlambat.disabled = !terlambat;
             form.elements.menit_terlambat.required = terlambat;

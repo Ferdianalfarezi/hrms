@@ -68,14 +68,9 @@ class HrmsDashboardTest extends TestCase
         $this->assertSame(['-', 4, 2, 2], array_column($data['bigStats'], 'value'));   // rotasi belum diatur, total, tetap, masuk 2026
         $this->assertSame(['Tetap' => 2, 'PKWT' => 1, 'Pemagangan' => 1], array_column($data['pills'], 'count', 'label'));
         $this->assertSame(['Laki-laki' => 2, 'Perempuan' => 2], array_column($data['pillOutlines'], 'count', 'label'));
-        $this->assertSame(2, $data['growth']['total']);                                // Agt & Okt 2026
-        $this->assertSame(['Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt'], array_column($data['growth']['bars'], 'label'));
+        $this->assertNull($data['growth']);                                            // kartu Karyawan Masuk diganti tren kehadiran
         $this->assertSame('Absensi 15 Okt', $data['composition']['title']);
         $this->assertSame('Data mesin absen hari ini belum diupload.', $data['composition']['note']);
-        $this->assertSame('Andi Saputra', $data['people']['items'][0]['name']);        // masuk paling baru
-
-        $birthdays = collect($data['calendar']['days'])->flatMap(fn ($day) => array_column($day['events'], 'title'))->all();
-        $this->assertSame(['Citra Dewi ulang tahun ke-25', 'Andi Saputra ulang tahun ke-36'], $birthdays);
     }
 
     public function test_shift_aktif_mengikuti_jadwal_rotasi(): void
@@ -100,8 +95,11 @@ class HrmsDashboardTest extends TestCase
 
         $composition = HrmsDashboard::build($this->hrmsAdmin())['composition'];
 
-        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 2, 'Tidak hadir tanpa keterangan' => 1],
+        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 3, 'Sakit' => 1, 'Izin' => 1, 'Cuti' => 0, 'WFH' => 0, 'Alpa' => 0, 'Tanpa keterangan' => 1],
             array_column($composition['segments'], 'count', 'label'));
+        $this->assertSame(['1 orang · 25%', '3 orang · 75%', '1 orang · 25%', '1 orang · 25%', '0 orang · 0%'],
+            array_slice(array_column($composition['segments'], 'text'), 0, 5));
+        $this->assertSame(false, $composition['segments'][1]['stack']);                   // tidak hadir hanya ringkasan, tidak ikut bar
         $this->assertSame('25%', $composition['value']);
         $this->assertSame('1 kode tidak hadir perlu dicek ulang (hadir di mesin absen).', $composition['note']);
     }
@@ -113,8 +111,12 @@ class HrmsDashboardTest extends TestCase
         Absensi::create(['karyawan_id' => Karyawan::where('nik', '0001')->value('id'), 'tanggal' => '2026-10-15', 'kode' => 'S']);
         Absensi::create(['karyawan_id' => Karyawan::where('nik', '0002')->value('id'), 'tanggal' => '2026-10-15', 'kode' => 'I']);
 
+        $composition = HrmsDashboard::build($this->hrmsAdmin())['composition'];
+
         // 4 dari 6 = 66,67% → tampil 66,6 (bukan dibulatkan ke atas, jadi tidak pernah 100% selama ada yang tidak hadir).
-        $this->assertSame('66,6%', HrmsDashboard::build($this->hrmsAdmin())['composition']['value']);
+        $this->assertSame('66,6%', $composition['value']);
+        // Tidak hadir = sisa dari persen hadir (66,6 + 33,4 = 100); per kategori dibulatkan biasa (1/6 = 16,7).
+        $this->assertSame(['4 orang · 66,6%', '2 orang · 33,4%', '1 orang · 16,7%'], array_slice(array_column($composition['segments'], 'text'), 0, 3));
     }
 
     public function test_department_admin_dashboard_is_scoped(): void
@@ -128,13 +130,12 @@ class HrmsDashboardTest extends TestCase
         $this->assertSame('Departemen PSD', $data['subtitle']);
         $this->assertSame('Kehadiran Okt', $data['composition']['title']);
         $this->assertSame('Departemen PSD', $data['composition']['subtitle']);
-        $this->assertSame(['Andi Saputra', 'Bunga Lestari'], array_column($data['people']['items'], 'name'));
 
         $this->actingAs($deptAdmin)->get('/hrms')
             ->assertOk()
             ->assertSee('Departemen PSD')
             ->assertSee('Andi Saputra')
-            ->assertDontSee('Citra Dewi')        // PWD, termasuk dari kalender ulang tahun
+            ->assertDontSee('Citra Dewi')        // PWD
             ->assertDontSee('Dodi Tanpa Dept');
     }
 
@@ -189,15 +190,123 @@ class HrmsDashboardTest extends TestCase
     {
         $this->actingAs($this->hrmsAdmin())->get('/hrms')
             ->assertOk()
-            ->assertSee('Karyawan Masuk')
+            ->assertSee('Tren Kehadiran (7 Hari)')
             ->assertSee('Absensi 15 Okt')
-            ->assertSee('Citra Dewi')
-            ->assertSee('Andi Saputra');
+            ->assertSee('Man-hour Hari Ini')
+            ->assertDontSee('Produktivitas Mingguan')                     // digabung ke tren kehadiran
+            ->assertDontSee('Karyawan Masuk')
+            ->assertDontSee('Watchlist Ketidakhadiran')
+            ->assertDontSee('Status Data Hari Ini')
+            ->assertDontSee('Kehadiran per Plant')
+            ->assertDontSee('Man Power per Kelompok')
+            ->assertDontSee('Karyawan Terbaru')
+            ->assertDontSee('Data Diri');
 
         Karyawan::query()->delete();
-        $this->actingAs($this->hrmsAdmin())->get('/hrms')
-            ->assertOk()
-            ->assertSee('Belum ada data karyawan.')
-            ->assertSee('Tidak ada karyawan yang berulang tahun minggu ini.');
+        $this->actingAs($this->hrmsAdmin())->get('/hrms')->assertOk()->assertSee('Tren Kehadiran (7 Hari)');
+    }
+
+    public function test_produktivitas_hari_ini_dari_satu_potret_absensi(): void
+    {
+        // Minggu 12 - 18 Okt: B pagi, A malam.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-05', 'grup_pagi' => 'A']);
+        foreach (['0001' => 'B', '0002' => 'NS', '0003' => 'A'] as $nik => $grup) {
+            Karyawan::where('nik', $nik)->update(['group' => $grup]);
+        }
+        $id = fn (string $nik) => Karyawan::where('nik', $nik)->value('id');
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-15', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $id('0002'), 'tanggal' => '2026-10-15', 'kode' => 'DT>', 'menit_terlambat' => 45]);
+        Absensi::create(['karyawan_id' => $id('0003'), 'tanggal' => '2026-10-15', 'kode' => 'DT<']);              // otomatis 30 menit
+        AbsensiMesin::create(['tanggal' => '2026-10-15', 'nik' => '0004']);                                      // belum ada keterangan
+
+        $hariIni = HrmsDashboard::build($this->hrmsAdmin())['hariIni'];
+
+        // 4 orang x 8 jam = 32; hilang 2 x 8 jam tidak hadir + 75 menit terlambat.
+        $this->assertSame(32, $hariIni['manHour']['tersedia']);
+        $this->assertEqualsWithDelta(14.75, $hariIni['manHour']['efektif'], 0.001);
+        $this->assertEqualsWithDelta(46.0, $hariIni['manHour']['persen'], 0.001);
+
+        $this->assertSame(2, $hariIni['keterlambatan']['orang']);
+        $this->assertSame(75, $hariIni['keterlambatan']['menit']);
+        $this->assertSame(['DT<' => 1, 'DT>' => 1, 'PC<' => 0, 'PC>' => 0], array_column($hariIni['keterlambatan']['rows'], 'count', 'kode'));
+        $this->assertSame(['PSD' => 1, 'PWD' => 1], $hariIni['keterlambatan']['departemen']);
+
+        $this->assertSame(['Shift 1 · Pagi' => 2, 'Shift 2 · Malam' => 1, 'Tanpa grup' => 1], array_column($hariIni['perShift'], 'total', 'label'));
+        $this->assertSame([1, 1, 0], array_column($hariIni['perShift'], 'hadir'));
+    }
+
+    public function test_tren_kehadiran_tujuh_hari_kerja_sampai_hari_ini_per_jenis(): void
+    {
+        $id = fn (string $nik) => Karyawan::where('nik', $nik)->value('id');
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-15', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $id('0002'), 'tanggal' => '2026-10-15', 'kode' => 'CT']);
+        Absensi::create(['karyawan_id' => $id('0003'), 'tanggal' => '2026-10-12', 'kode' => 'A']);
+        Absensi::create(['karyawan_id' => $id('0003'), 'tanggal' => '2026-10-10', 'kode' => 'S']); // Sabtu, tidak dihitung
+        Absensi::create(['karyawan_id' => $id('0003'), 'tanggal' => '2026-10-06', 'kode' => 'S']); // di luar 7 hari kerja
+        AbsensiMesin::create(['tanggal' => '2026-10-14', 'nik' => '0004']);                         // tidak absen, belum ada keterangan
+
+        $tren = HrmsDashboard::build($this->hrmsAdmin())['tren'];
+        $series = array_column($tren['series'], 'counts', 'label');
+
+        // Rab 7 s/d Kam 15 Okt tanpa Sabtu & Minggu, hari ini ikut.
+        $this->assertSame(['Rab', 'Kam', 'Jum', 'Sen', 'Sel', 'Rab', 'Kam'], array_column($tren['days'], 'label'));
+        $this->assertSame([false, false, false, false, false, false, true], array_column($tren['days'], 'today'));
+        $this->assertSame([4, 4, 4, 3, 4, 3, 2], $series['Hadir']);
+        $this->assertSame([0, 0, 0, 0, 0, 0, 1], $series['Sakit']);
+        $this->assertSame([0, 0, 0, 0, 0, 0, 1], $series['Cuti']);
+        $this->assertSame([0, 0, 0, 1, 0, 0, 0], $series['Alpa']);
+        $this->assertSame([0, 0, 0, 0, 0, 1, 0], $series['Tanpa keterangan']);
+        $this->assertSame([24, 1, 0, 1, 0, 1, 1], array_column($tren['series'], 'total'));
+        $this->assertSame('85,7', $tren['series'][0]['persen']);                                  // 24 dari 28 hari-orang
+        $this->assertSame('85,7%', $tren['value']);
+        $this->assertSame(['100', '100', '100', '75', '100', '75', '50'], array_column($tren['days'], 'persen'));
+        $this->assertSame([0, 0, 0, 1, 0, 1, 2], array_column($tren['days'], 'tidakHadir'));
+        $this->assertSame([false, false, false, true, false, true, true], array_column($tren['days'], 'diAtasTarget'));
+        $this->assertSame([0, 1, 2, 3, 4], $tren['ticks']);
+        // Garis Hadir mulai di kiri atas sumbu (4 dari maks 4) dan berakhir di kanan pada nilai 2.
+        $this->assertStringStartsWith('M0 0 ', $tren['series'][0]['path']);
+        $this->assertStringEndsWith(' 700 120', $tren['series'][0]['path']);
+    }
+
+    public function test_ulang_tahun_minggu_ini_urut_tanggal_dan_ikut_hak_akses(): void
+    {
+        // Minggu 12 - 18 Okt: Citra (12 Okt), Eka (hari ini), Andi (16 Okt). Bunga & Dodi di luar minggu ini.
+        $this->karyawan('0005', 'Eka Hari Ini', $this->pwd, 'Tetap', 'Laki-laki', masuk: '2020-01-01', lahir: '1985-10-15');
+
+        $people = HrmsDashboard::build($this->hrmsAdmin())['people'];
+
+        $this->assertSame('Ulang Tahun Minggu Ini', $people['title']);
+        $this->assertSame(3, $people['counter']);
+        $this->assertSame(['Citra Dewi', 'Eka Hari Ini', 'Andi Saputra'], array_column($people['items'], 'name'));
+        $this->assertSame(['Sen, 12 Okt · ke-25 · PWD', 'Hari ini · ke-41 · PWD', 'Jum, 16 Okt · ke-36 · PSD'], array_column($people['items'], 'sub'));
+        $this->assertSame([false, true, false], array_column($people['items'], 'check'));
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
+        $this->assertSame(['Andi Saputra'], array_column(HrmsDashboard::build($deptAdmin)['people']['items'], 'name'));
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms')->assertOk()->assertSee('Ulang Tahun Minggu Ini')->assertSee('Eka Hari Ini');
+    }
+
+    public function test_man_hour_dikurangi_menit_pulang_cepat(): void
+    {
+        $id = fn (string $nik) => Karyawan::where('nik', $nik)->value('id');
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-15', 'kode' => 'PC>', 'menit_terlambat' => 90]);
+        Absensi::create(['karyawan_id' => $id('0002'), 'tanggal' => '2026-10-15', 'kode' => 'PC<']);                   // otomatis 30 menit
+
+        $manHour = HrmsDashboard::build($this->hrmsAdmin())['hariIni']['manHour'];
+
+        // 4 x 8 jam = 32, hilang 2 jam pulang cepat.
+        $this->assertEqualsWithDelta(30.0, $manHour['efektif'], 0.001);
+        $this->assertSame(['Tidak hadir' => 0, 'Terlambat' => 0, 'Pulang cepat' => 2], array_map('intval', array_column($manHour['hilang'], 'jam', 'label')));
+    }
+
+    public function test_department_admin_tidak_melihat_tren_kehadiran(): void
+    {
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
+
+        $this->assertNull(HrmsDashboard::build($deptAdmin)['tren']);
+        $this->actingAs($deptAdmin)->get('/hrms')->assertOk()->assertDontSee('Tren Kehadiran (7 Hari)');
     }
 }

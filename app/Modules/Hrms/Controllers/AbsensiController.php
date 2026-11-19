@@ -385,18 +385,18 @@ class AbsensiController extends Controller
             'evidence.required' => __('Perubahan ke kode sakit wajib melampirkan surat dokter.'),
             'evidence.mimes' => __('Evidence harus berupa gambar (JPG/PNG) atau PDF.'),
             'evidence.max' => __('Ukuran evidence maksimal 5 MB.'),
-            ...$this->menitMessages(),
+            ...$this->menitMessages($request),
         ]);
 
-        // Menit hanya disimpan untuk kode datang terlambat; DT< otomatis 30 menit.
+        // Menit hanya disimpan untuk kode datang terlambat / pulang cepat; DT< dan PC< otomatis 30 menit.
         $data['menit_terlambat'] = Absensi::menitUntuk($data['kode'], $data['menit_terlambat'] ?? null);
 
         return $data;
     }
 
     /**
-     * Menit terlambat wajib untuk DT> (menit sebenarnya, dihitung dibulatkan ke atas per 30 menit).
-     * DT< tidak perlu diisi, otomatis 30 menit.
+     * Menit wajib untuk DT> / PC> (menit sebenarnya, dihitung dibulatkan ke atas per 30 menit).
+     * DT< / PC< tidak perlu diisi, otomatis 30 menit.
      *
      * @return list<mixed>
      */
@@ -411,8 +411,17 @@ class AbsensiController extends Controller
     /**
      * @return array<string, string>
      */
-    private function menitMessages(): array
+    private function menitMessages(Request $request): array
     {
+        if (Absensi::isPulangCepat($request->input('kode'))) {
+            return [
+                'menit_terlambat.required' => __('Isi berapa menit karyawan pulang cepat.'),
+                'menit_terlambat.integer' => __('Menit pulang cepat harus berupa angka.'),
+                'menit_terlambat.min' => __('Menit pulang cepat minimal 1 menit.'),
+                'menit_terlambat.max' => __('Menit pulang cepat maksimal 720 menit.'),
+            ];
+        }
+
         return [
             'menit_terlambat.required' => __('Isi berapa menit karyawan datang terlambat.'),
             'menit_terlambat.integer' => __('Menit terlambat harus berupa angka.'),
@@ -438,7 +447,7 @@ class AbsensiController extends Controller
             'kode.in' => __('Kode absensi tidak dikenal.'),
             'keterangan.max' => __('Keterangan maksimal 255 karakter.'),
             'keterangan.required' => __('Keterangan wajib diisi kalau alasan "Lain-lain".'),
-            ...$this->menitMessages(),
+            ...$this->menitMessages($request),
         ]);
 
         // Admin Departemen hanya boleh mengisi karyawan di departemennya.

@@ -66,6 +66,26 @@ class AbsensiPotonganTest extends TestCase
         $save('I', 45)->assertOk()->assertJson(['menit_terlambat' => null]);
     }
 
+    public function test_pc_kecil_otomatis_30_menit_dan_pc_besar_wajib_isi_menit_tanpa_ikut_potongan_terlambat(): void
+    {
+        $save = fn (string $kode, ?int $menit) => $this->actingAs($this->hrmsAdmin)->postJson('/hrms/absensi', [
+            'karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => $kode, 'menit_terlambat' => $menit,
+        ]);
+
+        $save('PC<', null)->assertOk()->assertJson(['kode' => 'PC<', 'menit_terlambat' => 30]);
+        $save('PC<', 5)->assertOk()->assertJson(['menit_terlambat' => 30]);
+
+        $save('PC>', null)->assertJsonValidationErrors(['menit_terlambat' => 'Isi berapa menit karyawan pulang cepat.']);
+        $save('PC>', 75)->assertOk()->assertJson(['kode' => 'PC>', 'menit_terlambat' => 75]);
+
+        $import = Absensi::create(['karyawan_id' => $this->budi->id, 'tanggal' => '2026-10-14', 'kode' => 'PC<']);
+        $this->assertSame(30, $import->fresh()->menit_terlambat);
+
+        // Pulang cepat tidak masuk rekap potongan datang terlambat.
+        $rows = $this->actingAs($this->hrmsAdmin)->get(route('hrms.absensi.potongan', ['bulan' => '2026-10']))->viewData('rows');
+        $this->assertCount(0, $rows);
+    }
+
     public function test_late_duration_is_summed_and_rounded_up_per_30_minutes(): void
     {
         Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-13', 'kode' => 'DT<', 'menit_terlambat' => 10]);  // 1x

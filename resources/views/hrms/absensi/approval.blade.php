@@ -166,7 +166,7 @@
                                             <dt>{{ __('Tanggal') }}</dt><dd>{{ $approval->tanggal_lama->translatedFormat('l, d M Y') }}</dd>
                                             <dt>{{ __('Kode') }}</dt><dd>{!! $tag($approval->kode_lama) !!} {{ $kodes[$approval->kode_lama]['label'] ?? '' }}</dd>
                                             @if ($approval->menit_lama)
-                                                <dt>{{ __('Terlambat') }}</dt><dd>{{ __(':menit menit', ['menit' => $approval->menit_lama]) }}</dd>
+                                                <dt>{{ \App\Modules\Hrms\Models\Absensi::isPulangCepat($approval->kode_lama) ? __('Pulang cepat') : __('Terlambat') }}</dt><dd>{{ __(':menit menit', ['menit' => $approval->menit_lama]) }}</dd>
                                             @endif
                                             <dt>{{ __('Keterangan') }}</dt><dd>{{ $approval->keterangan_lama ?: '-' }}</dd>
                                         </dl>
@@ -180,7 +180,7 @@
                                                 <dt>{{ __('Tanggal') }}</dt><dd>{{ $approval->tanggal_baru->translatedFormat('l, d M Y') }}</dd>
                                                 <dt>{{ __('Kode') }}</dt><dd>{!! $tag($approval->kode_baru) !!} {{ $kodes[$approval->kode_baru]['label'] ?? '' }}</dd>
                                                 @if ($approval->menit_baru)
-                                                    <dt>{{ __('Terlambat') }}</dt><dd>{{ __(':menit menit', ['menit' => $approval->menit_baru]) }}</dd>
+                                                    <dt>{{ \App\Modules\Hrms\Models\Absensi::isPulangCepat($approval->kode_baru) ? __('Pulang cepat') : __('Terlambat') }}</dt><dd>{{ __(':menit menit', ['menit' => $approval->menit_baru]) }}</dd>
                                                 @endif
                                                 <dt>{{ __('Keterangan') }}</dt><dd>{{ $approval->keterangan_baru ?: '-' }}</dd>
                                             </dl>

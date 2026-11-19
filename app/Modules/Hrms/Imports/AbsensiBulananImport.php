@@ -134,7 +134,7 @@ class AbsensiBulananImport
                     $absensi ??= new Absensi(['karyawan_id' => $karyawanId, 'tanggal' => $tanggal, 'created_by' => $this->userId]);
                     $absensi->fill([
                         'kode' => $kode,
-                        'menit_terlambat' => Absensi::isTerlambat($kode) && Absensi::isTerlambat($absensi->getOriginal('kode'))
+                        'menit_terlambat' => Absensi::menitSejenis($kode, $absensi->getOriginal('kode'))
                             ? $absensi->menit_terlambat
                             : null,
                         'updated_by' => $this->userId,

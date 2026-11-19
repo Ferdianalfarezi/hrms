@@ -377,9 +377,9 @@
                     @endforeach
                 </div>
                 <div style="margin-top: 16px;" id="abs-menit-wrap" hidden>
-                    <label for="abs-menit">{{ __('Terlambat berapa menit?') }}</label>
+                    <label for="abs-menit" id="abs-menit-label">{{ __('Terlambat berapa menit?') }}</label>
                     <input id="abs-menit" type="number" name="menit_terlambat" min="1" max="720" placeholder="{{ __('Mis. 45') }}" inputmode="numeric" disabled>
-                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< tidak perlu diisi, otomatis 30 menit.') }}</div>
+                    <div class="muted small" style="margin-top: 4px;">{{ __('Isi menit sebenarnya. Dihitung dibulatkan ke atas per 30 menit: 1 - 30 menit = 30 menit, 31 - 60 menit = 1 jam, dst. DT< dan PC< tidak perlu diisi, otomatis 30 menit.') }}</div>
                 </div>
                 <div style="margin-top: 16px;">
                     <label for="abs-ket">{{ __('Keterangan') }} <span class="muted" id="abs-ket-hint">{{ __('(opsional)') }}</span></label>
@@ -480,13 +480,17 @@
         var form = document.getElementById('abs-form');
         var error = document.getElementById('abs-error');
         var activeCell = null;
-        // Hanya DT> yang wajib isi menit; DT< otomatis 30 menit.
+        // Hanya DT> / PC> yang wajib isi menit; DT< / PC< otomatis 30 menit.
         var kodeTerlambat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_WAJIB_MENIT) }};
+        // Label kolom menit mengikuti jenis kodenya: datang terlambat (DT) atau pulang cepat (PC).
+        var kodePulangCepat = {{ Js::from(\App\Modules\Hrms\Models\Absensi::KODE_PULANG_CEPAT) }};
+        var labelMenit = { terlambat: @json(__('Terlambat berapa menit?')), pulangCepat: @json(__('Pulang cepat berapa menit?')) };
 
-        // Input menit hanya muncul (dan wajib) untuk kode datang terlambat.
+        // Input menit hanya muncul (dan wajib) untuk DT> / PC>.
         function syncMenit() {
             var checked = form.querySelector('input[name=kode]:checked');
             var terlambat = !!checked && kodeTerlambat.indexOf(checked.value) !== -1;
+            document.getElementById('abs-menit-label').textContent = checked && kodePulangCepat.indexOf(checked.value) !== -1 ? labelMenit.pulangCepat : labelMenit.terlambat;
             document.getElementById('abs-menit-wrap').hidden = !terlambat;
             form.elements.menit_terlambat.disabled = !terlambat;
             form.elements.menit_terlambat.required = terlambat;

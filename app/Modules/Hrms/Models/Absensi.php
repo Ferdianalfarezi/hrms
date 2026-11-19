@@ -124,8 +124,14 @@ class Absensi extends Model
     /** Potongan dihitung per kelipatan menit ini (dibulatkan ke atas). */
     public const MENIT_PER_POTONGAN = 30;
 
-    /** Kode terlambat yang menitnya wajib diisi manual; DT< otomatis MENIT_PER_POTONGAN menit. */
-    public const KODE_WAJIB_MENIT = ['DT>'];
+    /** Kode pulang cepat: menitnya diisi seperti datang terlambat, tapi tidak ikut potongan terlambat. */
+    public const KODE_PULANG_CEPAT = ['PC<', 'PC>'];
+
+    /** Kode yang menitnya wajib diisi manual (DT> / PC>). */
+    public const KODE_WAJIB_MENIT = ['DT>', 'PC>'];
+
+    /** Kode yang menitnya otomatis MENIT_PER_POTONGAN menit (DT< / PC<). */
+    public const KODE_MENIT_OTOMATIS = ['DT<', 'PC<'];
 
     /**
      * KODE dengan label dalam bahasa tampilan yang sedang dipakai.
@@ -142,30 +148,52 @@ class Absensi extends Model
         return in_array($kode, self::KODE_TERLAMBAT, true);
     }
 
+    public static function isPulangCepat(?string $kode): bool
+    {
+        return in_array($kode, self::KODE_PULANG_CEPAT, true);
+    }
+
+    /**
+     * Kode yang menyimpan menit di kolom menit_terlambat: datang terlambat dan pulang cepat.
+     */
+    public static function punyaMenit(?string $kode): bool
+    {
+        return self::isTerlambat($kode) || self::isPulangCepat($kode);
+    }
+
+    /**
+     * Dua kode memakai menit yang sama artinya (DT< <-> DT>, PC< <-> PC>), jadi menit lama boleh dipertahankan.
+     */
+    public static function menitSejenis(?string $kodeA, ?string $kodeB): bool
+    {
+        return (self::isTerlambat($kodeA) && self::isTerlambat($kodeB))
+            || (self::isPulangCepat($kodeA) && self::isPulangCepat($kodeB));
+    }
+
     public static function wajibIsiMenit(?string $kode): bool
     {
         return in_array($kode, self::KODE_WAJIB_MENIT, true);
     }
 
     /**
-     * Menit terlambat dari input manual: DT< selalu 30 menit, DT> memakai isian, kode lain tidak punya menit.
+     * Menit dari input manual: DT< / PC< selalu 30 menit, DT> / PC> memakai isian, kode lain tidak punya menit.
      */
     public static function menitUntuk(?string $kode, mixed $menit): ?int
     {
         return match (true) {
-            $kode === 'DT<' => self::MENIT_PER_POTONGAN,
-            self::isTerlambat($kode) => $menit ? (int) $menit : null,
+            in_array($kode, self::KODE_MENIT_OTOMATIS, true) => self::MENIT_PER_POTONGAN,
+            self::punyaMenit($kode) => $menit ? (int) $menit : null,
             default => null,
         };
     }
 
     /**
-     * Jalur mana pun (input, approval, import) tidak boleh menyimpan DT< tanpa menit.
+     * Jalur mana pun (input, approval, import) tidak boleh menyimpan DT< / PC< tanpa menit.
      */
     protected static function booted(): void
     {
         static::saving(function (Absensi $absensi) {
-            if ($absensi->kode === 'DT<' && ! $absensi->menit_terlambat) {
+            if (in_array($absensi->kode, self::KODE_MENIT_OTOMATIS, true) && ! $absensi->menit_terlambat) {
                 $absensi->menit_terlambat = self::MENIT_PER_POTONGAN;
             }
         });

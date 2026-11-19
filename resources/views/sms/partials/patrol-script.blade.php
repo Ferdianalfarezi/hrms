@@ -43,6 +43,12 @@
             dialog.querySelectorAll('[data-close]').forEach(function (button) {
                 button.addEventListener('click', function () { dialog.close(); });
             });
+            // data-close-x-only (form tambah / edit patrol): klik di luar modal dan tombol Esc tidak menutup modal.
+            if ('closeXOnly' in dialog.dataset) {
+                dialog.addEventListener('cancel', function (event) { event.preventDefault(); });
+                dialog.addEventListener('keydown', function (event) { if (event.key === 'Escape') event.preventDefault(); });
+                return;
+            }
             dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
         });
 

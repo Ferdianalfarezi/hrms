@@ -220,7 +220,8 @@
 
 @if ($canEdit)
     {{-- Modal tambah / edit --}}
-    <dialog class="modal" id="patrol-modal">
+    {{-- Form panjang: hanya bisa ditutup lewat tombol X, supaya isian tidak hilang karena klik di luar modal / tombol Esc. --}}
+    <dialog class="modal" id="patrol-modal" data-close-x-only>
         <form method="POST" action="{{ route('sms.cross-patrols.store') }}" id="patrol-form" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" value="POST">
@@ -352,7 +353,6 @@
                 @include('sms.partials.patrol-fix-fields')
             </div>
             <div class="modal-foot">
-                <button type="button" class="btn btn-ghost" data-close>{{ __('Batal') }}</button>
                 <button type="submit" class="btn" id="patrol-submit">{{ __('Simpan') }}</button>
             </div>
         </form>

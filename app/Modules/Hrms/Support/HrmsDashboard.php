@@ -10,6 +10,7 @@ use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Support\ModuleDashboard;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Dashboard HRMS berbasis tabel karyawans. Semua angka mengikuti hak akses user:
@@ -17,6 +18,29 @@ use Illuminate\Support\Carbon;
  */
 class HrmsDashboard
 {
+    /**
+     * Rincian tidak hadir di kartu absensi hari ini dan grafik tren kehadiran: kategori Absensi::KATEGORI,
+     * ditambah "tanpa" = tidak absen di mesin dan belum ada keterangan.
+     *
+     * @var array<string, array{label: string, tone: string}>
+     */
+    private const KATEGORI_TIDAK_HADIR = [
+        'S' => ['label' => 'Sakit', 'tone' => 'warning'],
+        'I' => ['label' => 'Izin', 'tone' => 'primary'],
+        'CT' => ['label' => 'Cuti', 'tone' => 'primary-soft'],
+        'WFH' => ['label' => 'WFH', 'tone' => 'soft'],
+        'Alpa' => ['label' => 'Alpa', 'tone' => 'navy'],
+        'tanpa' => ['label' => 'Tanpa keterangan', 'tone' => 'danger'],
+    ];
+
+    /** Jumlah hari kerja (Senin - Jumat) di grafik tren kehadiran, berakhir hari ini. */
+    private const HARI_TREN = 7;
+
+    /** Ukuran viewBox SVG grafik garis tren kehadiran. */
+    public const TREN_LEBAR = 700;
+
+    public const TREN_TINGGI = 240;
+
     public static function build(User $viewer): array
     {
         $application = Application::where('code', 'hrms')->firstOrFail();
@@ -30,19 +54,6 @@ class HrmsDashboard
         $pkwt = (int) $statusCounts->only(['PKWT 1', 'PKWT 2', 'PKWT 3'])->sum();
         $magang = (int) ($statusCounts['Pemagangan'] ?? 0);
         $perempuan = $visible()->where('jenis_kelamin', 'Perempuan')->count();
-
-        // Karyawan masuk per bulan, 7 bulan terakhir (termasuk bulan ini).
-        $since = Carbon::now()->startOfMonth()->subMonths(6);
-        $joinDates = $visible()->where('tanggal_masuk', '>=', $since)->pluck('tanggal_masuk');
-        $bars = collect(range(0, 6))->map(function ($offset) use ($since, $joinDates) {
-            $month = $since->copy()->addMonths($offset);
-
-            return [
-                'label' => $month->translatedFormat('M'),
-                'count' => $joinDates->filter(fn ($date) => $date->isSameMonth($month))->count(),
-                'highlight' => $month->isSameMonth(now()),
-            ];
-        });
 
         return [
             'application' => $application,
@@ -65,38 +76,16 @@ class HrmsDashboard
                 ['label' => 'Laki-laki', 'count' => $total - $perempuan],
                 ['label' => 'Perempuan', 'count' => $perempuan],
             ] : [],
-            // Admin Departemen: daftar tugas absensi yang belum diisi, bukan grafik karyawan baru.
-            'growth' => $viewer->isDepartmentAdmin() ? self::belumAdaKeterangan($visible) : [
-                'title' => 'Karyawan Masuk',
-                'total' => $bars->sum('count'),
-                'caption' => "karyawan masuk\n7 bulan terakhir",
-                'bubble' => 'bulan ini',
-                'bars' => $bars->all(),
-                'link' => route('hrms.karyawans.index'),
-            ],
+            // Admin Departemen: daftar tugas absensi yang belum diisi; admin HRMS: tren kehadiran 7 hari kerja.
+            'growth' => $viewer->isDepartmentAdmin() ? self::belumAdaKeterangan($visible) : null,
+            'tren' => $viewer->isDepartmentAdmin() ? null : self::trenKehadiran($visible),
             // Admin Departemen: persentase kehadiran tiap karyawan di departemennya bulan ini.
             'composition' => $viewer->isDepartmentAdmin()
                 ? self::kehadiranKaryawan($visible, $departmentLabel)
                 : self::absensiHariIni($visible),
-            'people' => [
-                'title' => 'Karyawan Terbaru',
-                'counter' => min(5, $total).'/'.$total,
-                'items' => $visible()->with('department')->whereNotNull('tanggal_masuk')
-                    ->orderByDesc('tanggal_masuk')->orderByDesc('nik')->take(5)->get()
-                    ->map(fn (Karyawan $karyawan) => [
-                        'name' => $karyawan->nama,
-                        'sub' => collect(["NIK {$karyawan->nik}", $karyawan->department?->name, __('masuk :tanggal', ['tanggal' => $karyawan->tanggal_masuk->translatedFormat('d M Y')])])
-                            ->filter()->join(' · '),
-                        'check' => $karyawan->status === 'Tetap',
-                        'url' => route('hrms.karyawans.index', ['q' => $karyawan->nik]),
-                    ])->all(),
-                'empty' => 'Belum ada data karyawan.',
-            ],
-            'calendar' => ModuleDashboard::week(
-                self::birthdaysThisWeek($visible),
-                caption: 'Karyawan yang berulang tahun minggu ini.',
-                empty: 'Tidak ada karyawan yang berulang tahun minggu ini.',
-            ),
+            // Kolom kanan bawah (di bawah kartu absensi): karyawan yang berulang tahun minggu ini.
+            'people' => self::ulangTahunMingguIni($visible),
+            'hariIni' => ProduktivitasHariIni::build($visible),
         ];
     }
 
@@ -117,16 +106,6 @@ class HrmsDashboard
             ['label' => 'Shift Pagi', 'value' => $grupPagi, 'icon' => 'sun'],
             ['label' => 'Shift Malam', 'value' => ShiftRotasi::lawan($grupPagi), 'icon' => 'moon'],
         ];
-    }
-
-    /**
-     * Nama panggilan untuk kalender: kata pertama, atau dua kata kalau kata pertama sangat pendek (mis. "I Made").
-     */
-    private static function shortName(string $nama): string
-    {
-        $words = explode(' ', $nama);
-
-        return mb_strlen($words[0]) <= 2 && isset($words[1]) ? "{$words[0]} {$words[1]}" : $words[0];
     }
 
     /**
@@ -246,6 +225,7 @@ class HrmsDashboard
         $cekUlang = collect(KomparasiAbsensi::selHadirDiMesin($karyawans, $today, $today))
             ->keys()->filter(fn ($id) => isset($kodes[$id]))->count();
         $hadir = max($total - $kodes->count() - $tanpaKeterangan, 0);
+        $keterangan = fn (int $jumlah, string $persen) => number_format($jumlah, 0, ',', '.').' '.__('orang').' · '.$persen.'%';
 
         $note = AbsensiMesin::whereDate('tanggal', $today->toDateString())->exists()
             ? ($cekUlang > 0 ? __(':count kode tidak hadir perlu dicek ulang (hadir di mesin absen).', ['count' => $cekUlang]) : __('Data mesin absen hari ini sudah diupload.'))
@@ -255,19 +235,224 @@ class HrmsDashboard
             'title' => __('Absensi').' '.$today->translatedFormat('d M'),
             'value' => self::persenHadir($hadir, $total).'%',
             'unit' => 'orang',
+            // Semua kategori selalu tampil (walau 0) supaya rinciannya lengkap. "Tidak hadir" = jumlah rincian di bawahnya,
+            // jadi tidak ikut bar ("stack" => false). Persen tidak hadir = sisa persen hadir, supaya jumlahnya 100%.
             'segments' => [
-                ['label' => 'Hadir', 'count' => $hadir, 'tone' => 'success'],
-                ['label' => 'Tidak hadir', 'count' => $kodes->count(), 'tone' => 'navy'],
-                ['label' => 'Tidak hadir tanpa keterangan', 'count' => $tanpaKeterangan, 'tone' => 'danger'],
+                ['label' => 'Hadir', 'count' => $hadir, 'tone' => 'success', 'always' => true, 'text' => $keterangan($hadir, self::persenHadir($hadir, $total))],
+                ['label' => 'Tidak hadir', 'count' => $total - $hadir, 'tone' => 'outline', 'always' => true, 'stack' => false,
+                    'text' => $keterangan($total - $hadir, self::persenSisa($hadir, $total))],
+                ...self::rincianTidakHadir([...$kodes->countBy(fn (string $kode) => Absensi::kategori($kode))->all(), 'tanpa' => $tanpaKeterangan])
+                    ->map(fn (array $kategori) => [...$kategori, 'always' => true, 'text' => $keterangan($kategori['count'], self::persen($kategori['count'], $total))])->all(),
             ],
             'note' => $note,
         ];
     }
 
     /**
+     * Tren kehadiran 7 hari kerja terakhir sampai hari ini (Sabtu/Minggu: sampai Jumat terakhir), per jenis kehadiran.
+     * Dipakai grafik garis, batang, pie, dan tabel di kartu yang sama.
+     */
+    private static function trenKehadiran(\Closure $visible): array
+    {
+        $today = Carbon::today();
+        $days = collect();
+        for ($day = $today->isWeekend() ? $today->copy()->previousWeekday() : $today->copy(); $days->count() < self::HARI_TREN; $day->subWeekday()) {
+            $days->prepend($day->copy());
+        }
+        $rekap = self::rekapPerHari($visible, $days);
+
+        $series = collect([['label' => 'Hadir', 'tone' => 'success', 'counts' => $rekap->pluck('hadir')->all()]])
+            ->concat(collect(array_values(self::KATEGORI_TIDAK_HADIR))->map(fn (array $info, int $index) => [
+                ...$info,
+                'counts' => $rekap->map(fn (array $hari) => $hari['rincian'][$index]['count'])->all(),
+            ]));
+        $grandTotal = $series->sum(fn (array $item) => array_sum($item['counts']));
+
+        $skala = self::skalaSumbu((int) $series->flatMap(fn (array $item) => $item['counts'])->max());
+        $series = $series->map(function (array $item) use ($skala, $grandTotal) {
+            $titik = collect($item['counts'])->map(fn (int $count, int $index) => [
+                $index / (self::HARI_TREN - 1) * self::TREN_LEBAR,
+                self::TREN_TINGGI - $count / $skala['max'] * self::TREN_TINGGI,
+            ])->all();
+
+            return [
+                ...$item,
+                'total' => array_sum($item['counts']),
+                'persen' => self::persen(array_sum($item['counts']), $grandTotal),
+                'path' => self::garisHalus($titik),
+            ];
+        });
+
+        $totalHariOrang = $rekap->sum('total');
+
+        return [
+            'periode' => $days->first()->translatedFormat('d M').' - '.$days->last()->translatedFormat('d M Y'),
+            // Rata-rata persen hadir selama 7 hari (hari-orang hadir / hari-orang total).
+            'value' => $totalHariOrang > 0 ? self::persenHadir($rekap->sum('hadir'), $totalHariOrang).'%' : '-',
+            'days' => $rekap->map(fn (array $hari) => [
+                'label' => $hari['day']->translatedFormat('D'),
+                'date' => $hari['day']->translatedFormat('d M'),
+                'total' => $hari['total'],
+                'tidakHadir' => $hari['tidakHadir'],
+                'persen' => $hari['total'] > 0 ? self::persenHadir($hari['hadir'], $hari['total']) : null,
+                'diAtasTarget' => $hari['total'] > 0 && $hari['tidakHadir'] / $hari['total'] * 100 > LaporanAbsensiShift::TARGET_PERSEN,
+                'today' => $hari['day']->isToday(),
+            ])->all(),
+            'series' => $series->all(),
+            'ticks' => $skala['ticks'],
+            'max' => $skala['max'],
+            'target' => LaporanAbsensiShift::TARGET_PERSEN,
+            'link' => route('hrms.absensi.index'),
+        ];
+    }
+
+    /**
+     * Karyawan yang berulang tahun minggu ini (Senin - Minggu), urut tanggal lalu nama. Yang ulang tahun hari ini diberi tanda centang.
+     */
+    private static function ulangTahunMingguIni(\Closure $visible): array
+    {
+        $awalMinggu = Carbon::today()->startOfWeek();
+        $days = collect(range(0, 6))->map(fn (int $offset) => $awalMinggu->copy()->addDays($offset));
+
+        $rows = $visible()->whereNotNull('tgl_lahir')->with('department:id,name')
+            ->get(['id', 'nik', 'nama', 'tgl_lahir', 'department_id'])
+            ->map(fn (Karyawan $karyawan) => [
+                'karyawan' => $karyawan,
+                'day' => $days->first(fn (Carbon $day) => $day->month === $karyawan->tgl_lahir->month && $day->day === $karyawan->tgl_lahir->day),
+            ])
+            ->filter(fn (array $row) => $row['day'] !== null)
+            ->sortBy(fn (array $row) => $row['day']->format('md').$row['karyawan']->nama)
+            ->values();
+
+        return [
+            'title' => 'Ulang Tahun Minggu Ini',
+            'counter' => $rows->count(),
+            'items' => $rows->map(fn (array $row) => [
+                'name' => $row['karyawan']->nama,
+                'sub' => collect([
+                    $row['day']->isToday() ? __('Hari ini') : $row['day']->translatedFormat('D, d M'),
+                    __('ke-:umur', ['umur' => $row['day']->year - $row['karyawan']->tgl_lahir->year]),
+                    $row['karyawan']->department?->name,
+                ])->filter()->join(' · '),
+                'check' => $row['day']->isToday(),
+                'url' => route('hrms.karyawans.index', ['q' => $row['karyawan']->nik]),
+            ])->all(),
+            'empty' => 'Tidak ada karyawan yang berulang tahun minggu ini.',
+        ];
+    }
+
+    /**
+     * Rekap kehadiran per hari. Jumlah karyawan per hari hanya yang sudah masuk pada hari itu.
+     * Tidak hadir = kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan.
+     *
+     * @param  Collection<int, Carbon>  $days  urut dari yang paling lama
+     * @return Collection<int, array{day: Carbon, total: int, hadir: int, tidakHadir: int, rincian: list<array{label: string, tone: string, count: int}>}>
+     */
+    private static function rekapPerHari(\Closure $visible, Collection $days): Collection
+    {
+        $mulai = $days->first();
+        $sampai = $days->last();
+        $karyawans = $visible()->get(['id', 'nik', 'group', 'tanggal_masuk']);
+
+        // [Y-m-d][kategori] => jumlah karyawan
+        $tidakHadir = [];
+        Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
+            ->where('tanggal', '>=', $mulai->toDateString())
+            ->where('tanggal', '<', $sampai->copy()->addDay()->toDateString())
+            ->whereIn('kode', Absensi::kodeTidakHadir())
+            ->get(['karyawan_id', 'tanggal', 'kode'])
+            ->unique(fn (Absensi $absensi) => $absensi->karyawan_id.'|'.$absensi->tanggal->toDateString())
+            ->each(function (Absensi $absensi) use (&$tidakHadir) {
+                $kategori = Absensi::kategori($absensi->kode);
+                $tidakHadir[$absensi->tanggal->toDateString()][$kategori] = ($tidakHadir[$absensi->tanggal->toDateString()][$kategori] ?? 0) + 1;
+            });
+        foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $mulai, $sampai) as $tanggal) {
+            foreach (array_keys($tanggal) as $key) {
+                $tidakHadir[$key]['tanpa'] = ($tidakHadir[$key]['tanpa'] ?? 0) + 1;
+            }
+        }
+
+        return $days->map(function (Carbon $day) use ($karyawans, $tidakHadir) {
+            $total = $karyawans->filter(fn (Karyawan $karyawan) => $karyawan->tanggal_masuk === null || $karyawan->tanggal_masuk->lte($day))->count();
+            $rincian = self::rincianTidakHadir($tidakHadir[$day->toDateString()] ?? []);
+            $jumlahTidakHadir = min($rincian->sum('count'), $total);
+
+            return [
+                'day' => $day,
+                'total' => $total,
+                'hadir' => $total - $jumlahTidakHadir,
+                'tidakHadir' => $jumlahTidakHadir,
+                'rincian' => $rincian->all(),
+            ];
+        })->values();
+    }
+
+    /**
+     * Batas atas sumbu Y yang "bulat" dengan 4 interval (mis. nilai terbesar 352 -> 0, 100, 200, 300, 400).
+     *
+     * @return array{max: int, ticks: list<int>}
+     */
+    private static function skalaSumbu(int $nilaiTerbesar): array
+    {
+        $kasar = max($nilaiTerbesar, 4) / 4;
+        $besaran = 10 ** floor(log10($kasar));
+        $langkah = (int) collect([1, 2, 2.5, 5, 10])
+            ->map(fn (float|int $kali) => $kali * $besaran)
+            ->first(fn (float|int $kandidat) => $kandidat >= $kasar && floor($kandidat) == $kandidat, ceil($kasar));
+
+        return ['max' => $langkah * 4, 'ticks' => array_map(fn (int $index) => $langkah * $index, range(0, 4))];
+    }
+
+    /**
+     * Path SVG garis melengkung (kubik monoton) melewati semua titik; lengkungnya tidak melampaui titik di sekitarnya
+     * (garis yang bernilai 0 tidak turun di bawah sumbu).
+     *
+     * @param  list<array{0: float|int, 1: float|int}>  $titik
+     */
+    private static function garisHalus(array $titik): string
+    {
+        $format = fn (float|int $angka) => rtrim(rtrim(number_format($angka, 2, '.', ''), '0'), '.');
+        $jumlah = count($titik);
+        $path = 'M'.$format($titik[0][0]).' '.$format($titik[0][1]);
+
+        $kemiringan = [];
+        for ($i = 0; $i < $jumlah - 1; $i++) {
+            $kemiringan[] = ($titik[$i + 1][1] - $titik[$i][1]) / ($titik[$i + 1][0] - $titik[$i][0]);
+        }
+        $tangen = [];
+        for ($i = 0; $i < $jumlah; $i++) {
+            $tangen[] = match (true) {
+                $i === 0 => $kemiringan[0],
+                $i === $jumlah - 1 => $kemiringan[$jumlah - 2],
+                $kemiringan[$i - 1] * $kemiringan[$i] <= 0 => 0,
+                default => 2 / (1 / $kemiringan[$i - 1] + 1 / $kemiringan[$i]),
+            };
+        }
+        for ($i = 0; $i < $jumlah - 1; $i++) {
+            $jarak = ($titik[$i + 1][0] - $titik[$i][0]) / 3;
+            $path .= ' C'.$format($titik[$i][0] + $jarak).' '.$format($titik[$i][1] + $tangen[$i] * $jarak)
+                .' '.$format($titik[$i + 1][0] - $jarak).' '.$format($titik[$i + 1][1] - $tangen[$i + 1] * $jarak)
+                .' '.$format($titik[$i + 1][0]).' '.$format($titik[$i + 1][1]);
+        }
+
+        return $path;
+    }
+
+    /**
+     * @param  array<string, int>  $jumlahPerKategori  kategori KATEGORI_TIDAK_HADIR => jumlah
+     * @return Collection<int, array{label: string, tone: string, count: int}>
+     */
+    private static function rincianTidakHadir(array $jumlahPerKategori): Collection
+    {
+        return collect(self::KATEGORI_TIDAK_HADIR)
+            ->map(fn (array $info, string $kategori) => [...$info, 'count' => (int) ($jumlahPerKategori[$kategori] ?? 0)])
+            ->values();
+    }
+
+    /**
      * Persen hadir dibulatkan ke bawah 1 desimal (mis. 560/561 = "99,8"), supaya tidak tampil 100% selama masih ada yang tidak hadir.
      */
-    private static function persenHadir(int $hadir, int $total): string
+    public static function persenHadir(int $hadir, int $total): string
     {
         if ($total === 0) {
             return '0';
@@ -279,22 +464,30 @@ class HrmsDashboard
     }
 
     /**
-     * @return list<array{date: Carbon, name: string, title: string}>
+     * Persen sisa dari persenHadir (mis. hadir 99,8 -> tidak hadir 0,2), supaya keduanya selalu berjumlah 100%.
      */
-    private static function birthdaysThisWeek(\Closure $visible): array
+    private static function persenSisa(int $hadir, int $total): string
     {
-        $weekStart = Carbon::now()->startOfWeek();
-        $days = collect(range(0, 6))->map(fn ($offset) => $weekStart->copy()->addDays($offset));
+        if ($total === 0) {
+            return '0';
+        }
 
-        return $visible()->whereNotNull('tgl_lahir')->get(['nama', 'tgl_lahir'])
-            ->flatMap(function (Karyawan $karyawan) use ($days) {
-                $day = $days->first(fn (Carbon $day) => $day->month === $karyawan->tgl_lahir->month && $day->day === $karyawan->tgl_lahir->day);
+        $permil = 1000 - intdiv($hadir * 1000, $total);
 
-                return $day ? [[
-                    'date' => $day,
-                    'name' => self::shortName($karyawan->nama),
-                    'title' => "{$karyawan->nama} ulang tahun ke-".($day->year - $karyawan->tgl_lahir->year),
-                ]] : [];
-            })->all();
+        return number_format($permil / 10, $permil % 10 === 0 ? 0 : 1, ',', '.');
+    }
+
+    /**
+     * Persen biasa dibulatkan 1 desimal (mis. 1/561 = "0,2").
+     */
+    private static function persen(int $jumlah, int $total): string
+    {
+        if ($total === 0) {
+            return '0';
+        }
+
+        $persen = round($jumlah / $total * 100, 1);
+
+        return number_format($persen, $persen == floor($persen) ? 0 : 1, ',', '.');
     }
 }

@@ -93,15 +93,15 @@ class AbsensiTest extends TestCase
     {
         $deptAdmin = $this->deptAdmin($this->psd);
 
-        $this->save($deptAdmin, $this->andi, '2026-10-15', 'PC>', 'PC 13:00')
+        $this->save($deptAdmin, $this->andi, '2026-10-15', 'PC<', 'PC 13:00')
             ->assertOk()
-            ->assertJson(['kode' => 'PC>', 'keterangan' => 'PC 13:00']);
+            ->assertJson(['kode' => 'PC<', 'keterangan' => 'PC 13:00']);
 
-        $this->assertDatabaseHas('absensis', ['karyawan_id' => $this->andi->id, 'kode' => 'PC>', 'created_by' => $deptAdmin->id]);
+        $this->assertDatabaseHas('absensis', ['karyawan_id' => $this->andi->id, 'kode' => 'PC<', 'created_by' => $deptAdmin->id]);
 
         // Admin HRMS otomatis melihat tanda yang diinput admin departemen.
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi')
-            ->assertSee('data-kode="PC&gt;"', false)
+            ->assertSee('data-kode="PC&lt;"', false)
             ->assertSee('PC 13:00');
     }
 

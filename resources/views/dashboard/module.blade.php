@@ -90,7 +90,8 @@
     .legend-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
     .legend-label { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .legend-value { margin-left: auto; font-size: 13px; font-weight: 600; white-space: nowrap; }
-    .tone-primary { background: var(--primary); } .tone-navy { background: var(--navy); } .tone-primary-soft { background: #5b8def; } .tone-soft { background: #b9cbef; } .tone-success { background: #22c55e; } .tone-danger { background: #ef4444; }
+    .tone-primary { background: var(--primary); } .tone-navy { background: var(--navy); } .tone-primary-soft { background: #5b8def; } .tone-soft { background: #b9cbef; } .tone-success { background: #22c55e; } .tone-danger { background: #ef4444; } .tone-warning { background: #f59e0b; }
+    .tone-outline { background: transparent; box-shadow: inset 0 0 0 2px var(--line-strong); }
 
     .team-card { flex: 1; }
     .team-card .card-head b { font-size: 26px; font-weight: 400; }
@@ -317,7 +318,8 @@
             {{-- Satu bar proporsional + legenda, supaya tidak meluber walau kartu sempit. "bar" => false menyembunyikan bar. --}}
             @if ($composition['bar'] ?? true)
                 <div class="stackbar">
-                    @foreach ($segments as $segment)
+                    {{-- "stack" => false: baris ringkasan (mis. total tidak hadir) hanya tampil di legenda. --}}
+                    @foreach ($segments->where('count', '>', 0)->reject(fn ($segment) => ($segment['stack'] ?? true) === false) as $segment)
                         <span class="tone-{{ $segment['tone'] }}" style="flex: {{ $segment['count'] }}; --j: {{ $loop->index }};" title="{{ __($segment['label']) }}: {{ $segment['count'] }}"></span>
                     @endforeach
                 </div>
