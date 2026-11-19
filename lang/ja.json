@@ -1268,7 +1268,7 @@
     "Submit Penilaian": "評価を提出",
     "Tanpa keterangan": "備考なし",
     "rata-rata hadir": "平均出勤率",
-    "Grafik kehadiran per hari kerja, batang = jumlah tidak hadir per kategori.": "営業日ごとの出勤グラフ。棒 = カテゴリ別の欠勤人数。",
+    "Grafik kehadiran per hari kerja, batang kiri = hadir, batang kanan = tidak hadir per kategori.": "営業日別の出勤グラフ。左の棒 = 出勤、右の棒 = カテゴリ別の欠勤。",
     "Man-hour Hari Ini": "本日のマンアワー",
     "Jam kerja efektif": "実働時間",
     "jam": "時間",

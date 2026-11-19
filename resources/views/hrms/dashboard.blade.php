@@ -99,11 +99,13 @@
     .tren-x span b { display: block; color: var(--muted); font-weight: 600; }
     .tren-x span.today b { color: var(--primary); }
 
-    /* Grafik batang: yang tidak hadir per hari, ditumpuk per kategori; persen hadir di atasnya. */
+    /* Grafik batang: tiap hari dua batang, hadir dan tidak hadir (ditumpuk per kategori); persen hadir di atasnya. */
     .tren-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; height: 100%; }
     .tren-bars .col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-    .tren-bars .plot { flex: 1; min-height: 0; width: 100%; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line-strong); }
-    .tren-bars .stack { width: min(32px, 70%); display: flex; flex-direction: column-reverse; gap: 2px; border-radius: 8px 8px 3px 3px; overflow: hidden;
+    .tren-bars .plot { flex: 1; min-height: 0; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; border-bottom: 1px solid var(--line-strong); }
+    .tren-bars .tren-bar { width: min(26px, 44%); height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; }
+    .tren-bars .tren-bar em { font-style: normal; font-size: 10px; font-weight: 600; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .tren-bars .stack { width: 100%; display: flex; flex-direction: column-reverse; gap: 2px; border-radius: 8px 8px 3px 3px; overflow: hidden;
                         transform-origin: bottom; animation: dash-grow-y .8s cubic-bezier(.22, 1, .36, 1) backwards; animation-delay: calc(var(--j, 0) * 50ms); }
     .tren-bars .stack span { min-height: 3px; }
     .tren-bars small { font-size: 11px; color: var(--faint); line-height: 1.2; text-align: center; }
@@ -135,9 +137,8 @@
     table.tren-table .total { font-weight: 700; }
     table.tren-table tfoot td { border-bottom: 0; color: var(--muted); font-weight: 600; }
 
-    /* Legenda hanya untuk garis & batang; batang tidak memuat "Hadir". */
+    /* Legenda hanya untuk garis & batang. */
     .tren-card[data-aktif="pie"] .tren-legend, .tren-card[data-aktif="tabel"] .tren-legend { visibility: hidden; }
-    .tren-card[data-aktif="batang"] .tren-legend .hadir { display: none; }
     .empty-note { color: var(--faint); font-size: 13px; padding: 12px 0; }
 
     @media (prefers-reduced-motion: reduce) { .mh-bar span, .tren-plot svg, .tren-bars .stack, .tren-donut { animation: none; } }
@@ -234,24 +235,35 @@
 
         {{-- Batang --}}
         <div class="tren-panel" data-panel="batang">
-            {{-- Batang = jumlah yang tidak hadir per kategori (Hadir tidak ikut, supaya kategori kecil tetap terlihat). --}}
-            @php($maxTidakHadir = max(collect($tren['days'])->max('tidakHadir'), 1))
-            <div class="tren-bars" role="img" aria-label="{{ __('Grafik kehadiran per hari kerja, batang = jumlah tidak hadir per kategori.') }}">
+            {{-- Tiap hari dua batang dengan skala yang sama: Hadir, lalu Tidak hadir yang ditumpuk per kategori. --}}
+            @php($maxBatang = max(collect($tren['days'])->map(fn ($day, $index) => max($hadirSeries['counts'][$index], $day['tidakHadir']))->max(), 1))
+            @php($tinggiBatang = fn (int $jumlah) => $jumlah > 0 ? 'calc((100% - 12px) * '.max(round($jumlah / $maxBatang, 4), 0.03).')' : '0')
+            <div class="tren-bars" role="img" aria-label="{{ __('Grafik kehadiran per hari kerja, batang kiri = hadir, batang kanan = tidak hadir per kategori.') }}">
                 @foreach ($tren['days'] as $day)
                     @php($index = $loop->index)
+                    @php($hadirHari = $hadirSeries['counts'][$index])
                     <div class="col" style="--j: {{ $index }};"
                          title="{{ $day['label'] }}, {{ $day['date'] }}&#10;{{ collect($tren['series'])->map(fn ($item) => __($item['label']).': '.$item['counts'][$index])->join("\n") }}&#10;{{ $catatanPersen }}">
                         <span @class(['tren-pct', 'over' => $day['diAtasTarget']])>{{ $day['persen'] !== null ? $day['persen'].'%' : '-' }}</span>
                         <div class="plot">
-                            @if ($day['tidakHadir'] > 0)
-                                <div class="stack" style="height: {{ max(round($day['tidakHadir'] / $maxTidakHadir * 100), 8) }}%;">
-                                    @foreach (array_slice($tren['series'], 1) as $item)
-                                        @if ($item['counts'][$index] > 0)
-                                            <span class="tone-{{ $item['tone'] }}" style="flex: {{ $item['counts'][$index] }};"></span>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            @endif
+                            <div class="tren-bar">
+                                <em>{{ $angka($hadirHari) }}</em>
+                                @if ($hadirHari > 0)
+                                    <div class="stack" style="height: {{ $tinggiBatang($hadirHari) }};"><span class="tone-{{ $hadirSeries['tone'] }}" style="flex: 1;"></span></div>
+                                @endif
+                            </div>
+                            <div class="tren-bar">
+                                <em @if ($day['diAtasTarget']) style="color: #dc2626;" @endif>{{ $angka($day['tidakHadir']) }}</em>
+                                @if ($day['tidakHadir'] > 0)
+                                    <div class="stack" style="height: {{ $tinggiBatang($day['tidakHadir']) }};">
+                                        @foreach (array_slice($tren['series'], 1) as $item)
+                                            @if ($item['counts'][$index] > 0)
+                                                <span class="tone-{{ $item['tone'] }}" style="flex: {{ $item['counts'][$index] }};"></span>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                         <small @if ($day['today']) style="color: var(--primary);" @endif><b>{{ $day['label'] }}</b>{{ $day['date'] }}</small>
                     </div>
