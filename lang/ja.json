@@ -1310,5 +1310,6 @@
     "Menit pulang cepat harus berupa angka.": "早退の分数は数値で入力してください。",
     "Menit pulang cepat minimal 1 menit.": "早退の分数は1分以上にしてください。",
     "Menit pulang cepat maksimal 720 menit.": "早退の分数は720分以内にしてください。",
-    "Pulang cepat": "早退"
+    "Pulang cepat": "早退",
+    "Terjadi kesalahan di server saat membuka halaman tersebut, Anda dikembalikan ke halaman sebelumnya. Silakan coba lagi.": "ページを開く際にサーバーエラーが発生したため、前のページに戻りました。もう一度お試しください。"
 }
