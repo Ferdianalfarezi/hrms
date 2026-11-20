@@ -72,7 +72,7 @@
 <div class="jr-head">
     <div>
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Japan Resume') }}</h1>
-        <p class="muted" style="margin: 2px 0 0;">{{ __('Rekap kehadiran harian :bulan · Total = MP Shift 1 + Shift 2', ['bulan' => $bulan->translatedFormat('F Y')]) }}</p>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Rekap kehadiran harian :bulan · Total = semua MP yang masuk di tanggal itu (pagi, NS, dan malam)', ['bulan' => $bulan->translatedFormat('F Y')]) }}</p>
     </div>
     <form method="GET" class="jr-toolbar">
         <span class="month-nav">
@@ -171,7 +171,7 @@
 
 <p class="jr-note">
     @if ($dataSampai)
-        {{ __('Data sampai :tanggal dari file HRD (2026 summary). Hari setelahnya dihitung otomatis dari absensi: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.', ['tanggal' => $dataSampai->translatedFormat('d F Y')]) }}
+        {{ __('Data sampai :tanggal dari file HRD (2026 summary). Hari setelahnya dihitung otomatis dari absensi tanggal itu: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.', ['tanggal' => $dataSampai->translatedFormat('d F Y')]) }}
     @else
         {{ __('Dihitung otomatis dari absensi: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.') }}
     @endif

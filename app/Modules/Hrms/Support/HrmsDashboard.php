@@ -19,8 +19,8 @@ use Illuminate\Support\Collection;
 class HrmsDashboard
 {
     /**
-     * Rincian tidak hadir di kartu absensi hari ini dan grafik tren kehadiran: kategori Absensi::KATEGORI,
-     * ditambah "tanpa" = tidak absen di mesin dan belum ada keterangan.
+     * Rincian tidak hadir di kartu absensi hari ini dan grafik tren kehadiran: kategori Absensi::KATEGORI.
+     * Tidak absen di mesin dan belum ada keterangan dihitung Alpa (sama seperti laporan Detail / Resume).
      *
      * @var array<string, array{label: string, tone: string}>
      */
@@ -30,7 +30,6 @@ class HrmsDashboard
         'CT' => ['label' => 'Cuti', 'tone' => 'primary-soft'],
         'WFH' => ['label' => 'WFH', 'tone' => 'soft'],
         'Alpa' => ['label' => 'Alpa', 'tone' => 'navy'],
-        'tanpa' => ['label' => 'Tanpa keterangan', 'tone' => 'danger'],
     ];
 
     /** Jumlah hari kerja (Senin - Jumat) di grafik tren kehadiran, berakhir hari ini. */
@@ -238,7 +237,7 @@ class HrmsDashboard
             'title' => __('Absensi').' '.$today->translatedFormat('d M'),
             'value' => self::persenHadir($hadir, $total).'%',
             'unit' => 'orang',
-            'segments' => self::segmenAbsensi($total, $hadir, [...$kodes->countBy(fn (string $kode) => Absensi::kategori($kode))->all(), 'tanpa' => $tanpaKeterangan]),
+            'segments' => self::segmenAbsensi($total, $hadir, self::tambahAlpa($kodes->countBy(fn (string $kode) => Absensi::kategori($kode))->all(), $tanpaKeterangan)),
             'shifts' => collect($perShift)->map(fn (array $shift) => [
                 'label' => $shift['label'],
                 'sub' => $shift['sub'],
@@ -389,7 +388,7 @@ class HrmsDashboard
             });
         foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $mulai, $sampai) as $tanggal) {
             foreach (array_keys($tanggal) as $key) {
-                $tidakHadir[$key]['tanpa'] = ($tidakHadir[$key]['tanpa'] ?? 0) + 1;
+                $tidakHadir[$key]['Alpa'] = ($tidakHadir[$key]['Alpa'] ?? 0) + 1;
             }
         }
 
@@ -457,6 +456,19 @@ class HrmsDashboard
         }
 
         return $path;
+    }
+
+    /**
+     * Karyawan yang tidak absen di mesin dan belum ada keterangan ditambahkan ke kategori Alpa.
+     *
+     * @param  array<string, int>  $perKategori
+     * @return array<string, int>
+     */
+    private static function tambahAlpa(array $perKategori, int $tanpaKeterangan): array
+    {
+        $perKategori['Alpa'] = ($perKategori['Alpa'] ?? 0) + $tanpaKeterangan;
+
+        return $perKategori;
     }
 
     /**

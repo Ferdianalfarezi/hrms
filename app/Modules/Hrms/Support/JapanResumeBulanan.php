@@ -14,8 +14,9 @@ use Illuminate\Support\Carbon;
  * per hari kerja Total MP, Hadir, Cuti, S+I, dan rate (persentase tidak hadir).
  *
  * Sampai tanggal data tersimpan terakhir (hasil seeder dari Excel) dipakai data tersimpan apa adanya.
- * Setelah itu dihitung otomatis dari absensi, sama seperti laporan tanggal X di menu Resume:
- *  - Total = MP Shift 1 (grup pagi + NS tanggal X) + MP Shift 2 (grup malam tanggal X-1).
+ * Setelah itu dihitung otomatis dari absensi per tanggal (bukan per laporan shift seperti menu Resume):
+ *  - Total = semua MP yang masuk di tanggal X: grup pagi + NS + grup malam yang mulai malam tanggal X.
+ *  - Ketidakhadiran diambil dari absensi tanggal X (shift malam dicatat di tanggal mulai shift-nya).
  *  - Cuti  = kategori CT (CT, CK, CH, CB, IMP).
  *  - S+I   = Sakit + Izin + Alpa (termasuk tidak absen di mesin tanpa keterangan). WFH dihitung hadir.
  * Hari otomatis hanya hari yang ada data absensi / mesin absen (hari libur tidak tampil), dan bukan cuti bersama.
@@ -68,8 +69,6 @@ class JapanResumeBulanan
      */
     private static function hitungDariAbsensi(Carbon $mulai, Carbon $sampai): array
     {
-        // Shift 2 di laporan tanggal X adalah malam tanggal X-1, jadi absensi sehari sebelumnya ikut dibaca.
-        $dariTanggal = $mulai->copy()->subDay();
         $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
         $karyawans = Karyawan::whereNotNull('group')->get(['id', 'nik', 'group']);
         $headcount = $karyawans->countBy('group')->all();
@@ -84,7 +83,7 @@ class JapanResumeBulanan
             ->join('karyawans', 'karyawans.id', '=', 'absensis.karyawan_id')
             ->whereNotNull('karyawans.group')
             ->whereIn('absensis.kode', Absensi::kodeTidakHadir())
-            ->whereDate('absensis.tanggal', '>=', $dariTanggal->toDateString())
+            ->whereDate('absensis.tanggal', '>=', $mulai->toDateString())
             ->whereDate('absensis.tanggal', '<=', $sampai->toDateString())
             ->get(['absensis.tanggal', 'absensis.kode', 'karyawans.group'])
             ->each(function ($row) use ($tambah) {
@@ -100,7 +99,7 @@ class JapanResumeBulanan
 
         // Tidak absen di mesin dan belum ada keterangan = Alpa (masuk S+I).
         $grupOf = $karyawans->pluck('group', 'id');
-        foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $dariTanggal, $sampai) as $karyawanId => $dates) {
+        foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $mulai, $sampai) as $karyawanId => $dates) {
             foreach (array_keys($dates) as $tanggal) {
                 $tambah($tanggal, $grupOf[$karyawanId], 'sakit_izin');
             }
@@ -116,26 +115,20 @@ class JapanResumeBulanan
                 continue;
             }
 
-            $kemarin = $day->copy()->subDay();
+            // Semua grup yang masuk di tanggal ini: pagi + NS, dan grup malam yang mulai malam tanggal ini.
+            $tanggal = $day->toDateString();
             $grupPagi = ShiftRotasi::grupPagi($day, $rotasis);
-            $grupMalamKemarin = ShiftRotasi::grupPagi($kemarin, $rotasis);
             $shifts = [
-                [$day->toDateString(), array_values(array_filter([$grupPagi, 'NS']))],
-                [$kemarin->toDateString(), $grupMalamKemarin ? [ShiftRotasi::lawan($grupMalamKemarin)] : []],
+                array_values(array_filter([$grupPagi, 'NS'])),
+                $grupPagi ? [ShiftRotasi::lawan($grupPagi)] : [],
             ];
+            $grups = array_merge(...$shifts);
 
-            $total = 0;
-            $cuti = 0;
-            $sakitIzin = 0;
-            $cutiBersama = 0;
-            $shiftMasuk = 0;
-            foreach ($shifts as [$tanggal, $grups]) {
-                $total += $mp($grups);
-                $cuti += $jumlah($grups, $tanggal, 'cuti');
-                $sakitIzin += $jumlah($grups, $tanggal, 'sakit_izin');
-                $cutiBersama += $jumlah($grups, $tanggal, 'cb');
-                $shiftMasuk += $mp($grups) > 0 ? 1 : 0;
-            }
+            $total = $mp($grups);
+            $cuti = $jumlah($grups, $tanggal, 'cuti');
+            $sakitIzin = $jumlah($grups, $tanggal, 'sakit_izin');
+            $cutiBersama = $jumlah($grups, $tanggal, 'cb');
+            $shiftMasuk = count(array_filter($shifts, fn (array $shift) => $mp($shift) > 0));
 
             if ($total === 0 || $cutiBersama >= $total * self::BATAS_CUTI_BERSAMA) {
                 continue;

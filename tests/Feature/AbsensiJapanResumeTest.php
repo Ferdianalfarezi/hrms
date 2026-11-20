@@ -96,16 +96,17 @@ class AbsensiJapanResumeTest extends TestCase
 
         $rows = JapanResumeBulanan::build(Carbon::parse('2026-10-01'), Carbon::today())['rows'];
 
-        // 14 Okt dari data tersimpan, 15 Okt otomatis: Shift 1 (B + NS = 6 MP) + Shift 2 malam 14 Okt (A = 2 MP).
+        // 14 Okt dari data tersimpan, 15 Okt otomatis: semua MP yang masuk 15 Okt = pagi B + NS (6) + malam A (2).
         $this->assertSame(['2026-10-14', '2026-10-15'], array_map(fn (array $row) => $row['tanggal']->toDateString(), $rows));
         $this->assertFalse($rows[0]['otomatis']);
         $this->assertTrue($rows[1]['otomatis']);
-        // Cuti = CT; S+I = SD + I + Alpa mesin (0005) + Alpa malam (0003); WFH dihitung hadir.
-        $this->assertSame(['両直', 8, 3, 1, 4, 62.5], [$rows[1]['shift'], $rows[1]['total'], $rows[1]['hadir'], $rows[1]['cuti'], $rows[1]['sakit_izin'], $rows[1]['rate']]);
+        // Hanya absensi tanggal 15: Cuti = CT; S+I = SD + I + Alpa mesin (0005); WFH dihitung hadir.
+        // Alpa 0003 tanggal 14 (malam sebelumnya) tidak ikut, karena bukan tanggal ini.
+        $this->assertSame(['両直', 8, 4, 1, 3, 50.0], [$rows[1]['shift'], $rows[1]['total'], $rows[1]['hadir'], $rows[1]['cuti'], $rows[1]['sakit_izin'], $rows[1]['rate']]);
 
         $this->actingAs($this->hrmsAdmin())->get(route('hrms.absensi.japan-resume', ['bulan' => '2026-10']))
             ->assertOk()
-            ->assertSeeInOrder(['10/15', 'Otomatis', '両直', '8', '3', '1', '4', '62,5%']);
+            ->assertSeeInOrder(['10/15', 'Otomatis', '両直', '8', '4', '1', '3', '50,0%']);
     }
 
     public function test_hari_libur_dan_cuti_bersama_tidak_tampil(): void

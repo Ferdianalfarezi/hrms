@@ -25,7 +25,7 @@ class ProduktivitasHariIni
     /** @var Collection<int, Karyawan> */
     private Collection $karyawans;
 
-    /** @var array<int, string> karyawan_id => kategori Absensi::KATEGORI, atau 'tanpa' (belum ada keterangan) */
+    /** @var array<int, string> karyawan_id => kategori Absensi::KATEGORI (belum ada keterangan dihitung Alpa) */
     private array $tidakHadir = [];
 
     /** @var Collection<int, Absensi> absensi hari ini dengan kode KODE_TELAT */
@@ -47,7 +47,8 @@ class ProduktivitasHariIni
             }
         }
         foreach (array_keys(KomparasiAbsensi::selBelumAdaKeterangan($this->karyawans->values(), $today, $today)) as $karyawanId) {
-            $this->tidakHadir[$karyawanId] ??= 'tanpa';
+            // Tidak absen di mesin dan belum ada keterangan = Alpa.
+            $this->tidakHadir[$karyawanId] ??= 'Alpa';
         }
 
         $this->telat = $absensis->whereIn('kode', self::KODE_TELAT)->values();

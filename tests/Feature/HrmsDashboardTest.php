@@ -95,7 +95,7 @@ class HrmsDashboardTest extends TestCase
 
         $composition = HrmsDashboard::build($this->hrmsAdmin())['composition'];
 
-        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 3, 'Sakit' => 1, 'Izin' => 1, 'Cuti' => 0, 'WFH' => 0, 'Alpa' => 0, 'Tanpa keterangan' => 1],
+        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 3, 'Sakit' => 1, 'Izin' => 1, 'Cuti' => 0, 'WFH' => 0, 'Alpa' => 1],
             array_column($composition['segments'], 'count', 'label'));
         $this->assertSame(['1 orang · 25%', '3 orang · 75%', '1 orang · 25%', '1 orang · 25%', '0 orang · 0%'],
             array_slice(array_column($composition['segments'], 'text'), 0, 5));
@@ -252,10 +252,10 @@ class HrmsDashboardTest extends TestCase
 
         $this->assertSame(['Shift 1 · Pagi', 'Shift 2 · Malam'], array_column($shifts, 'label'));
         $this->assertSame(['33,3%', '0%'], array_column($shifts, 'value'));
-        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 2, 'Sakit' => 1, 'Izin' => 0, 'Cuti' => 0, 'WFH' => 0, 'Alpa' => 0, 'Tanpa keterangan' => 1],
+        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 2, 'Sakit' => 1, 'Izin' => 0, 'Cuti' => 0, 'WFH' => 0, 'Alpa' => 1],
             array_column($shifts[0]['segments'], 'count', 'label'));
         $this->assertSame(['1 orang · 33,3%', '2 orang · 66,7%'], array_column(array_slice($shifts[0]['segments'], 0, 2), 'text'));
-        $this->assertSame(['Hadir' => 0, 'Tidak hadir' => 1, 'Sakit' => 0, 'Izin' => 0, 'Cuti' => 1, 'WFH' => 0, 'Alpa' => 0, 'Tanpa keterangan' => 0],
+        $this->assertSame(['Hadir' => 0, 'Tidak hadir' => 1, 'Sakit' => 0, 'Izin' => 0, 'Cuti' => 1, 'WFH' => 0, 'Alpa' => 0],
             array_column($shifts[1]['segments'], 'count', 'label'));
 
         // Shift 1 di atas Shift 2; ulang tahun pindah ke baris bawah, tidak lagi di kolom kanan.
@@ -282,9 +282,10 @@ class HrmsDashboardTest extends TestCase
         $this->assertSame([4, 4, 4, 3, 4, 3, 2], $series['Hadir']);
         $this->assertSame([0, 0, 0, 0, 0, 0, 1], $series['Sakit']);
         $this->assertSame([0, 0, 0, 0, 0, 0, 1], $series['Cuti']);
-        $this->assertSame([0, 0, 0, 1, 0, 0, 0], $series['Alpa']);
-        $this->assertSame([0, 0, 0, 0, 0, 1, 0], $series['Tanpa keterangan']);
-        $this->assertSame([24, 1, 0, 1, 0, 1, 1], array_column($tren['series'], 'total'));
+        // Tidak absen di mesin dan belum ada keterangan (Rab 14) ikut dihitung Alpa.
+        $this->assertSame([0, 0, 0, 1, 0, 1, 0], $series['Alpa']);
+        $this->assertArrayNotHasKey('Tanpa keterangan', $series);
+        $this->assertSame([24, 1, 0, 1, 0, 2], array_column($tren['series'], 'total'));
         $this->assertSame('85,7', $tren['series'][0]['persen']);                                  // 24 dari 28 hari-orang
         $this->assertSame('85,7%', $tren['value']);
         $this->assertSame(['100', '100', '100', '75', '100', '75', '50'], array_column($tren['days'], 'persen'));

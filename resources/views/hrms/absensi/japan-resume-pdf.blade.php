@@ -50,7 +50,7 @@
 
 <div class="sheet">
     <h1>{{ __('JAPAN RESUME') }} · {{ Str::upper($bulan->translatedFormat('F Y')) }}</h1>
-    <p class="sub">{{ __('Total = MP Shift 1 + Shift 2 · rate = (Cuti + S+I) / Total') }}</p>
+    <p class="sub">{{ __('Total = semua MP yang masuk di tanggal itu · rate = (Cuti + S+I) / Total') }}</p>
 
     <table class="jr">
         <thead>
