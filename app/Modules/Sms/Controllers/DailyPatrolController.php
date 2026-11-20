@@ -5,6 +5,8 @@ namespace App\Modules\Sms\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Sms\Controllers\Concerns\ScopesPatrolToDepartment;
 use App\Modules\Sms\Models\DailyPatrol;
+use App\Modules\Sms\Support\KaryawanPicker;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,7 +32,7 @@ class DailyPatrolController extends Controller
         $department = $access['canFilterDepartment'] ? (string) $request->query('department') : '';
 
         $filtered = $this->visibleTo(DailyPatrol::query(), $user)
-            ->when(in_array($status, [DailyPatrol::STATUS_OPEN, DailyPatrol::STATUS_CLOSED], true), fn ($query) => $query->where('status', $status))
+            ->tap(fn (Builder $query) => $this->applyStatusFilter($query, $status))
             ->when(ctype_digit($department), fn ($query) => $query->where('department_id', $department))
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('finding', 'like', "%{$search}%")
@@ -56,7 +58,8 @@ class DailyPatrolController extends Controller
             'department' => $department,
             'resikos' => DailyPatrol::RESIKO,
             'kategoris' => DailyPatrol::KATEGORI,
-            'karyawans' => $access['canEdit'] ? $this->karyawanOptions() : [],
+            // Nama terbaru karyawan PIC / PIC Patrol di halaman ini, untuk isi awal form edit.
+            'karyawanNames' => $access['canEdit'] ? KaryawanPicker::namesFor($patrols->items(), ['pic', 'pic_patrol']) : [],
         ]);
     }
 
@@ -75,7 +78,7 @@ class DailyPatrolController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->route('sms.daily-patrols.index')->with('status', __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]));
+        return $this->redirectAfterCreate($request, 'sms.daily-patrols.index', $patrol);
     }
 
     public function update(Request $request, DailyPatrol $dailyPatrol): RedirectResponse
@@ -133,14 +136,18 @@ class DailyPatrolController extends Controller
             'rekomendasi' => ['required', 'string', 'max:2000'],
             'resiko' => ['required', Rule::in(array_keys(DailyPatrol::RESIKO))],
             'kategori' => ['required', Rule::in(array_keys(DailyPatrol::kategoriOptions()))],
-            'target' => ['required', 'date_format:Y-m-d'],
-            'pic' => $this->karyawanNamesRules($patrol?->pic),
-            'pic_patrol' => $this->karyawanNamesRules($patrol?->pic_patrol),
+            'target' => ['required', 'date_format:Y-m-d', 'after_or_equal:tanggal'],
+            'pic' => $this->karyawanRules($patrol, 'pic'),
+            'pic_patrol' => $this->karyawanRules($patrol, 'pic_patrol'),
             ...($creating ? [] : [
                 'foto_perbaikan' => $this->photoRules(false),
                 'status' => ['required', Rule::in([DailyPatrol::STATUS_OPEN, DailyPatrol::STATUS_CLOSED])],
             ]),
-        ], [...$this->photoMessages(), 'department_id.required' => __('Pilih area.')], [
+        ], [
+            ...$this->photoMessages(),
+            'department_id.required' => __('Pilih area.'),
+            'target.after_or_equal' => __('Target perbaikan tidak boleh sebelum tanggal temuan.'),
+        ], [
             'tanggal' => 'tanggal',
             'finding' => 'finding',
             'foto' => 'foto',
@@ -160,6 +167,6 @@ class DailyPatrolController extends Controller
         $this->ensureCanClose($request, $patrol, $data);
         unset($data['foto'], $data['foto_perbaikan']);
 
-        return $this->joinNames($data, ['pic', 'pic_patrol']);
+        return $this->resolveKaryawan($data, ['pic', 'pic_patrol']);
     }
 }

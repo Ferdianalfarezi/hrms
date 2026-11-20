@@ -7,6 +7,7 @@ use App\Modules\Sms\Controllers\Concerns\ScopesPatrolToDepartment;
 use App\Modules\Sms\Models\CrossPatrol;
 use App\Modules\Sms\Models\DailyPatrol;
 use App\Modules\Sms\Support\CrossPatrolExport;
+use App\Modules\Sms\Support\KaryawanPicker;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,9 @@ class CrossPatrolController extends Controller
 
     /** Batas kotak sekali cetak (20 halaman A4) supaya browser tidak berat. */
     private const PRINT_LIMIT = 500;
+
+    /** Batas baris sekali export (tiap baris memuat 1-2 foto) supaya server tidak kehabisan memori. */
+    private const EXPORT_LIMIT = 500;
 
     public function index(Request $request): View
     {
@@ -54,19 +58,29 @@ class CrossPatrolController extends Controller
             'zonas' => CrossPatrol::ZONA,
             'resikos' => CrossPatrol::RESIKO,
             'kategoris' => CrossPatrol::KATEGORI,
-            'karyawans' => $access['canEdit'] ? $this->karyawanOptions() : [],
+            // Nama terbaru karyawan PIC / Patroler di halaman ini, untuk isi awal form edit.
+            'karyawanNames' => $access['canEdit'] ? KaryawanPicker::namesFor($patrols->items(), ['pic', 'patroler']) : [],
         ]);
     }
 
     /**
      * Export daftar sesuai filter yang sedang dipakai, urut tanggal (seperti nomor di form).
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): StreamedResponse|RedirectResponse
     {
         Gate::authorize('sms-patrol');
 
         $filters = $this->filters($request);
-        $patrols = $this->filteredQuery($request, $filters)->orderBy('tanggal')->orderBy('id')->get();
+        $query = $this->filteredQuery($request, $filters);
+
+        // Terlalu banyak baris (dengan foto) untuk satu file: minta persempit filter, bukan export yang terpotong diam-diam.
+        $total = (clone $query)->count();
+        if ($total > self::EXPORT_LIMIT) {
+            return redirect()->route('sms.cross-patrols.index', $request->query())
+                ->with('error', __('Hasil filter berisi :total temuan, maksimal :limit sekali export. Persempit filter (mis. pilih tanggal, plant, atau zona) lalu export lagi.', ['total' => $total, 'limit' => self::EXPORT_LIMIT]));
+        }
+
+        $patrols = $query->orderBy('tanggal')->orderBy('id')->get();
 
         return (new CrossPatrolExport(
             $patrols,
@@ -90,7 +104,10 @@ class CrossPatrolController extends Controller
             : $this->filteredQuery($request, $this->filters($request));
 
         return view('sms.cross-patrols.print', [
-            'patrols' => $query->orderBy('tanggal')->orderBy('id')->limit(self::PRINT_LIMIT)->get(),
+            'patrols' => $query->clone()->orderBy('tanggal')->orderBy('id')->limit(self::PRINT_LIMIT)->get(),
+            // Jumlah sebenarnya, supaya preview memberi tahu kalau cetakan terpotong di PRINT_LIMIT.
+            'total' => $query->count(),
+            'limit' => self::PRINT_LIMIT,
             // 25 kotak per lembar A4 (5 x 5).
             'perPage' => 25,
             'columns' => 5,
@@ -112,8 +129,7 @@ class CrossPatrolController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->route('sms.cross-patrols.index', $this->keptFilters($request))
-            ->with('status', __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]));
+        return $this->redirectAfterCreate($request, 'sms.cross-patrols.index', $patrol);
     }
 
     public function update(Request $request, CrossPatrol $crossPatrol): RedirectResponse
@@ -172,7 +188,7 @@ class CrossPatrolController extends Controller
         $search = $filters['search'];
 
         return $this->visibleTo(CrossPatrol::query(), $request->user())
-            ->when(in_array($filters['status'], [CrossPatrol::STATUS_OPEN, CrossPatrol::STATUS_CLOSED], true), fn ($query) => $query->where('status', $filters['status']))
+            ->tap(fn (Builder $query) => $this->applyStatusFilter($query, $filters['status']))
             ->when(ctype_digit($filters['department']), fn ($query) => $query->where('department_id', $filters['department']))
             ->when($filters['tanggal'] !== '', fn ($query) => $query->whereDate('tanggal', $filters['tanggal']))
             ->when($filters['plant'] !== '', fn ($query) => $query->where('plant', $filters['plant']))
@@ -213,15 +229,15 @@ class CrossPatrolController extends Controller
             'area' => ['required', 'string', 'max:100'],
             'department_id' => [$request->user()->isModuleAdmin('sms') ? 'required' : 'nullable', 'integer', 'exists:departments,id'],
             'rekomendasi' => ['required', 'string', 'max:2000'],
-            'target' => ['required', 'date_format:Y-m-d'],
-            'pic' => $this->karyawanNamesRules($patrol?->pic),
+            'target' => ['required', 'date_format:Y-m-d', 'after_or_equal:tanggal'],
+            'pic' => $this->karyawanRules($patrol, 'pic'),
             'kategori' => ['required', Rule::in(array_keys(DailyPatrol::kategoriOptions()))],
-            'patroler' => $this->karyawanNamesRules($patrol?->patroler),
+            'patroler' => $this->karyawanRules($patrol, 'patroler'),
             ...($creating ? [] : [
                 'foto_perbaikan' => $this->photoRules(false),
                 'status' => ['required', Rule::in([CrossPatrol::STATUS_OPEN, CrossPatrol::STATUS_CLOSED])],
             ]),
-        ], $this->photoMessages(), [
+        ], [...$this->photoMessages(), 'target.after_or_equal' => __('Target perbaikan tidak boleh sebelum tanggal temuan.')], [
             'tanggal' => 'tanggal',
             'plant' => 'plant',
             'zona' => 'zona',
@@ -243,6 +259,6 @@ class CrossPatrolController extends Controller
         $this->ensureCanClose($request, $patrol, $data);
         unset($data['foto'], $data['foto_perbaikan']);
 
-        return $this->joinNames($data, ['pic', 'patroler']);
+        return $this->resolveKaryawan($data, ['pic', 'patroler']);
     }
 }

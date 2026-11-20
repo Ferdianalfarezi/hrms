@@ -2,6 +2,11 @@
 
 @section('title', __('Cross Patrol'))
 
+{{-- Daftar temuan selalu diambil ulang dari server, bukan dari cache Turbo, supaya data yang baru ditambah langsung terlihat. --}}
+@push('head')
+    <meta name="turbo-cache-control" content="no-cache">
+@endpush
+
 @section('styles')
     @include('sms.partials.patrol-styles')
     table.patrol .c-check { width: 32px; padding-right: 0; }
@@ -23,6 +28,7 @@
 @endsection
 
 @section('content')
+@use('App\Modules\Sms\Support\KaryawanPicker')
 @php
     $resikoTone = collect($resikos)->map(fn ($info) => $info['tone']);
     $fields = ['tanggal', 'plant', 'zona', 'finding', 'efek', 'resiko', 'area', 'department_id', 'rekomendasi', 'target', 'pic', 'kategori', 'patroler', 'status', 'foto', 'foto_perbaikan'];
@@ -82,6 +88,7 @@
         <option value="">{{ __('Semua status') }}</option>
         <option value="open" @selected($status === 'open')>{{ __('Open') }}</option>
         <option value="closed" @selected($status === 'closed')>{{ __('Close') }}</option>
+        <option value="overdue" @selected($status === 'overdue')>{{ __('Open (lewat target)') }}</option>
     </select>
     @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()" aria-label="{{ __('Departemen') }}">
@@ -99,6 +106,7 @@
         <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
         <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
         <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
+        <span class="chip chip-overdue">{{ __('Lewat target') }} <b>{{ $statusCounts['overdue'] }}</b></span>
     </div>
 </form>
 
@@ -120,7 +128,7 @@
             </thead>
             <tbody>
                 @forelse ($patrols as $patrol)
-                    <tr>
+                    <tr @class(['row-overdue' => $patrol->isOverdue(), 'row-new' => session('highlight') === $patrol->id]) @if (session('highlight') === $patrol->id) data-row-new @endif>
                         <td class="c-check"><input type="checkbox" value="{{ $patrol->id }}" data-check aria-label="Pilih temuan {{ $patrols->firstItem() + $loop->index }}"></td>
                         <td class="muted">{{ $patrols->firstItem() + $loop->index }}</td>
                         <td class="nowrap">{{ $patrol->tanggal->format('d M Y') }}</td>
@@ -136,14 +144,7 @@
                         <td><span class="risk risk-{{ $resikoTone[$patrol->resiko] ?? 'orange' }}">{{ $patrol->resikoLabel() }}</span></td>
                         <td class="nowrap">{{ $patrol->target->format('d M Y') }}</td>
                         <td>
-                            @if ($patrol->isClosed())
-                                <span class="status-pill status-closed" title="Ditutup {{ $patrol->closed_at?->format('d/m/Y H:i') }}">{{ __('Close') }}</span>
-                                @if ($patrol->closer)
-                                    <span class="closed-by">{{ __('oleh') }} <b>{{ $patrol->closer->name }}</b></span>
-                                @endif
-                            @else
-                                <span class="status-pill status-open">{{ __('Open') }}</span>
-                            @endif
+                            @include('sms.partials.patrol-status', ['showCloser' => true])
                         </td>
                         <td style="text-align: right;">
                             @include('sms.partials.patrol-actions', ['printable' => true, 'record' => [
@@ -157,9 +158,9 @@
                                 'department_id' => (string) $patrol->department_id,
                                 'rekomendasi' => $patrol->rekomendasi,
                                 'target' => $patrol->target->toDateString(),
-                                'pic' => $patrol->pic,
+                                'pic' => json_encode(KaryawanPicker::items($patrol, 'pic', $karyawanNames)),
                                 'kategori' => $patrol->kategori,
-                                'patroler' => $patrol->patroler,
+                                'patroler' => json_encode(KaryawanPicker::items($patrol, 'patroler', $karyawanNames)),
                                 'status' => $patrol->status,
                                 'foto_url' => $patrol->foto_url,
                                 'foto_perbaikan_url' => $patrol->foto_perbaikan_url,
@@ -409,9 +410,15 @@
             var doc = frame.contentDocument;
             var cards = doc ? doc.querySelectorAll('.card').length : 0;
             var pages = doc ? doc.querySelectorAll('.sheet').length : 0;
-            document.getElementById('print-info').textContent = cards
+            var total = doc ? Number(doc.body.dataset.total || cards) : cards;
+            var info = cards
                 ? __t(':cards kotak · :pages halaman A4', { cards: cards, pages: pages })
                 : __t('Tidak ada temuan untuk dicetak.');
+            // Hasil filter lebih banyak dari batas sekali cetak: beri tahu, jangan terpotong diam-diam.
+            if (total > cards) {
+                info += ' · ' + __t('dari :total temuan (maks. :limit sekali cetak, persempit filter untuk sisanya)', { total: total, limit: doc.body.dataset.limit });
+            }
+            document.getElementById('print-info').textContent = info;
             loading.hidden = true;
             go.disabled = cards === 0;
         });

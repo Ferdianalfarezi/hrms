@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Policies\KaryawanPolicy;
 use App\Modules\Hrms\Support\JenjangPenilaian;
+use App\Modules\Sms\Support\KaryawanPicker;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -51,6 +52,13 @@ class AppServiceProvider extends ServiceProvider
             || JenjangPenilaian::rank(JenjangPenilaian::userLevel($user)) >= JenjangPenilaian::RANK['asst_leader']);
 
         Gate::policy(Karyawan::class, KaryawanPolicy::class);
+
+        // Nama karyawan diubah: label PIC / Patroler di temuan SMS yang memilih karyawan itu ikut diperbarui.
+        Karyawan::updated(function (Karyawan $karyawan) {
+            if ($karyawan->wasChanged('nama')) {
+                KaryawanPicker::refreshNamesOf($karyawan);
+            }
+        });
 
         View::composer('layouts.app', function ($view) {
             $view->with('navTabs', $this->mainTabs());

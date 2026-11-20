@@ -3,6 +3,7 @@
 use App\Modules\Hrms\Controllers\AbsensiApprovalController;
 use App\Modules\Hrms\Controllers\AbsensiController;
 use App\Modules\Hrms\Controllers\AbsensiDetailController;
+use App\Modules\Hrms\Controllers\AbsensiJapanResumeController;
 use App\Modules\Hrms\Controllers\AbsensiKomparasiController;
 use App\Modules\Hrms\Controllers\AbsensiPotonganController;
 use App\Modules\Hrms\Controllers\AbsensiPresentaseController;
@@ -43,6 +44,9 @@ Route::post('absensi/rotasi', [AbsensiDetailController::class, 'storeRotasi'])->
 // Resume absensi harian per shift & plant (khusus Admin HRMS).
 Route::get('absensi/resume', [AbsensiResumeController::class, 'index'])->name('absensi.resume');
 Route::get('absensi/resume/pdf', [AbsensiResumeController::class, 'pdf'])->name('absensi.resume.pdf');
+
+// Japan Resume: rekap kehadiran harian per bulan untuk laporan Jepang (khusus Admin HRMS).
+Route::get('absensi/japan-resume', AbsensiJapanResumeController::class)->name('absensi.japan-resume');
 
 // Persentase ketidakhadiran bulanan per kelompok karyawan (khusus Admin HRMS).
 Route::get('absensi/presentase', [AbsensiPresentaseController::class, 'index'])->name('absensi.presentase');

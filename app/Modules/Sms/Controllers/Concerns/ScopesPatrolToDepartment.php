@@ -5,9 +5,11 @@ namespace App\Modules\Sms\Controllers\Concerns;
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Sms\Support\KaryawanPicker;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -99,13 +101,19 @@ trait ScopesPatrolToDepartment
     /**
      * Jumlah temuan Open & Close sesuai filter yang sedang dipakai (semua halaman, bukan hanya halaman ini).
      *
-     * @return array{open: int, closed: int}
+     * "overdue" = bagian dari Open yang target perbaikannya sudah lewat.
+     *
+     * @return array{open: int, closed: int, overdue: int}
      */
     private function statusCounts(Builder $query): array
     {
         $counts = (clone $query)->toBase()->reorder()->selectRaw('status, count(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
 
-        return ['open' => (int) ($counts['open'] ?? 0), 'closed' => (int) ($counts['closed'] ?? 0)];
+        return [
+            'open' => (int) ($counts['open'] ?? 0),
+            'closed' => (int) ($counts['closed'] ?? 0),
+            'overdue' => $this->overdueCount($query),
+        ];
     }
 
     /**
@@ -167,6 +175,20 @@ trait ScopesPatrolToDepartment
     }
 
     /**
+     * Setelah tambah temuan: daftar dimuat ulang tanpa filter di halaman 1 (temuan baru selalu terlihat paling atas,
+     * walaupun tidak cocok dengan filter yang tadi dipakai), dan baris barunya disorot.
+     */
+    private function redirectAfterCreate(Request $request, string $route, Model $patrol): RedirectResponse
+    {
+        $message = __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]);
+        if (array_diff_key($this->keptFilters($request), ['page' => true]) !== []) {
+            $message .= ' '.__('Filter direset supaya temuan baru terlihat.');
+        }
+
+        return redirect()->route($route)->with('status', $message)->with('highlight', $patrol->id);
+    }
+
+    /**
      * Filter & halaman daftar yang dikirim form (keep[...]) supaya kembali ke tampilan yang sama setelah simpan.
      */
     private function keptFilters(Request $request): array
@@ -202,33 +224,30 @@ trait ScopesPatrolToDepartment
     }
 
     /**
-     * Pilihan karyawan untuk field PIC / PIC Patrol / Patroler (dropdown multi-pilih dengan pencarian).
-     *
-     * @return list<array{nama: string, info: string}>
+     * Rule field pilih karyawan (PIC / PIC Patrol / Patroler, bisa lebih dari 1): nilai JSON [{id, nama}] dari form.
+     * Tiap ID harus ada di data karyawan. Nama lama tanpa ID (dulu diketik manual) hanya boleh dipertahankan saat edit.
      */
-    private function karyawanOptions(): array
+    private function karyawanRules(?Model $patrol, string $field): array
     {
-        return Karyawan::query()
-            ->with('department:id,name')
-            ->orderBy('nama')
-            ->get(['id', 'nik', 'nama', 'department_id'])
-            ->map(fn (Karyawan $karyawan) => [
-                'nama' => $karyawan->nama,
-                'info' => $karyawan->nik.' · '.($karyawan->department?->name ?? '-'),
-            ])
-            ->all();
-    }
+        return ['required', 'string', 'max:20000', function (string $attribute, mixed $value, Closure $fail) use ($patrol, $field) {
+            $items = KaryawanPicker::decode($value);
+            if ($items === null) {
+                $fail(__('Format :attribute tidak valid.'));
 
-    /**
-     * Rule field nama karyawan (bisa lebih dari 1, dipisah koma): tiap nama harus ada di data karyawan.
-     * Nama yang sudah tersimpan di temuan (data lama yang diketik manual) tetap boleh dipertahankan saat edit.
-     */
-    private function karyawanNamesRules(?string $current): array
-    {
-        return ['required', 'string', 'max:2000', function (string $attribute, mixed $value, Closure $fail) use ($current) {
-            $names = $this->splitNames((string) $value);
-            $known = Karyawan::whereIn('nama', $names)->pluck('nama')->all();
-            $unknown = array_diff($names, $known, $this->splitNames((string) $current));
+                return;
+            }
+            if ($items === []) {
+                $fail(__(':Attribute wajib diisi.'));
+
+                return;
+            }
+
+            $ids = array_filter(array_column($items, 'id'));
+            $known = Karyawan::whereIn('id', $ids)->pluck('id')->all();
+            $legacy = KaryawanPicker::legacyNames($patrol, $field);
+            $unknown = collect($items)
+                ->filter(fn (array $item) => $item['id'] !== null ? ! in_array($item['id'], $known, true) : ! in_array($item['nama'], $legacy, true))
+                ->pluck('nama')->unique()->all();
 
             if ($unknown !== []) {
                 $fail(__('Karyawan tidak ditemukan: ').implode(', ', $unknown).'.');
@@ -237,23 +256,44 @@ trait ScopesPatrolToDepartment
     }
 
     /**
-     * Rapikan isian nama karyawan menjadi "Nama A, Nama B" (tanpa spasi berlebih / nama dobel).
+     * Ubah isian pilih karyawan yang sudah lolos validasi menjadi {field}_ids (ID karyawan)
+     * dan {field} (label nama terbaru dari data karyawan, dipisah koma, tanpa dobel).
      */
-    private function joinNames(array $data, array $fields): array
+    private function resolveKaryawan(array $data, array $fields): array
     {
         foreach ($fields as $field) {
-            $data[$field] = implode(', ', $this->splitNames($data[$field]));
+            $items = KaryawanPicker::decode($data[$field]) ?? [];
+            $ids = array_values(array_unique(array_filter(array_column($items, 'id'))));
+            $names = Karyawan::whereIn('id', $ids)->pluck('nama', 'id');
+
+            $data[$field.'_ids'] = $ids;
+            $data[$field] = implode(', ', array_unique(array_map(
+                fn (array $item) => $item['id'] !== null ? $names[$item['id']] : $item['nama'],
+                $items,
+            )));
         }
 
         return $data;
     }
 
     /**
-     * @return list<string>
+     * Temuan Open yang target perbaikannya sudah lewat, dihitung dari filter yang sedang dipakai.
      */
-    private function splitNames(string $value): array
+    private function overdueCount(Builder $query): int
     {
-        return array_values(array_unique(array_filter(array_map('trim', explode(',', $value)), 'strlen')));
+        return (clone $query)->reorder()->overdue()->count();
+    }
+
+    /**
+     * Filter status: Open, Close, atau "overdue" (Open lewat target).
+     */
+    private function applyStatusFilter(Builder $query, string $status): Builder
+    {
+        return match ($status) {
+            'open', 'closed' => $query->where('status', $status),
+            'overdue' => $query->overdue(),
+            default => $query,
+        };
     }
 
     abstract private function photoFolder(): string;

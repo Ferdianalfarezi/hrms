@@ -5,12 +5,14 @@ namespace App\Modules\Sms\Models;
 use App\Models\User;
 use App\Modules\Hrms\Models\Department;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['tanggal', 'finding', 'foto', 'potensi_bahaya', 'department_id', 'plant', 'rekomendasi', 'resiko', 'kategori',
-    'target', 'pic', 'pic_patrol', 'foto_perbaikan', 'status', 'closed_at', 'closed_by', 'created_by', 'updated_by'])]
+    'target', 'pic', 'pic_ids', 'pic_patrol', 'pic_patrol_ids', 'foto_perbaikan', 'status', 'closed_at', 'closed_by', 'created_by', 'updated_by'])]
 class DailyPatrol extends Model
 {
     public const STATUS_OPEN = 'open';
@@ -68,12 +70,31 @@ class DailyPatrol extends Model
             'tanggal' => 'date',
             'target' => 'date',
             'closed_at' => 'datetime',
+            'pic_ids' => 'array',
+            'pic_patrol_ids' => 'array',
         ];
     }
 
     public function isClosed(): bool
     {
         return $this->status === self::STATUS_CLOSED;
+    }
+
+    /**
+     * Masih Open padahal target perbaikan sudah lewat (hari target sendiri belum dihitung lewat).
+     */
+    public function isOverdue(): bool
+    {
+        return ! $this->isClosed() && $this->target !== null && $this->target->lt(today());
+    }
+
+    /**
+     * Temuan Open yang target perbaikannya sudah lewat.
+     */
+    #[Scope]
+    protected function overdue(Builder $query): void
+    {
+        $query->where('status', self::STATUS_OPEN)->whereDate('target', '<', today());
     }
 
     public function kategoriLabel(): string

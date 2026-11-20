@@ -62,9 +62,23 @@ class DailyPatrolTest extends TestCase
         return $user;
     }
 
+    /**
+     * Isian PIC / patroler di tes ditulis sebagai nama dipisah koma, lalu dikirim seperti form: JSON [{id, nama}].
+     * Nama yang bukan karyawan dikirim tanpa id (seperti nama lama ketik manual).
+     */
+    private function picks(string $names): string
+    {
+        $names = array_filter(array_map('trim', explode(',', $names)), 'strlen');
+
+        return json_encode(array_values(array_map(fn (string $nama) => [
+            'id' => Karyawan::where('nama', $nama)->value('id'),
+            'nama' => $nama,
+        ], $names)));
+    }
+
     private function payload(array $overrides = []): array
     {
-        return [
+        $data = [
             'tanggal' => '2026-10-19',
             'finding' => 'Tutup samping mesh troley tidak di tutup',
             'foto' => UploadedFile::fake()->image('temuan.jpg'),
@@ -78,6 +92,14 @@ class DailyPatrolTest extends TestCase
             'pic_patrol' => 'Yayan R, Miftari',
             ...$overrides,
         ];
+
+        foreach (['pic', 'pic_patrol'] as $field) {
+            if (is_string($data[$field] ?? null) && $data[$field] !== '' && ! str_starts_with($data[$field], '[')) {
+                $data[$field] = $this->picks($data[$field]);
+            }
+        }
+
+        return $data;
     }
 
     private function patrol(Department $department, array $overrides = []): DailyPatrol
@@ -214,12 +236,13 @@ class DailyPatrolTest extends TestCase
         $this->assertSame('Yayan R', $patrol->fresh()->pic_patrol);
     }
 
-    public function test_form_lists_karyawan_options(): void
+    public function test_form_searches_karyawan_from_server_instead_of_loading_all(): void
     {
         $this->actingAs($this->deptAdmin($this->psd))->get('/sms/daily-patrols')
             ->assertOk()
             ->assertSee('data-karyawan-picker', false)
-            ->assertSee('Aminudin');
+            ->assertSee('sms\/karyawan-options', false)
+            ->assertDontSee('Aminudin');
     }
 
     public function test_cannot_close_without_repair_photo(): void
@@ -444,7 +467,7 @@ class DailyPatrolTest extends TestCase
 
         // Pilihan bulan "All" = rekap setahun.
         $this->assertSame([
-            ['department' => 'PSD', 'total' => 3, 'open' => 2, 'close' => 1, 'cells' => ['fire.S' => 2, 'drop.E' => 1]],
+            ['department' => 'PSD', 'total' => 3, 'open' => 2, 'close' => 1, 'cells' => ['drop.E' => 1, 'fire.S' => 2]],
             ['department' => 'PWD', 'total' => 1, 'open' => 0, 'close' => 1, 'cells' => ['fire.S' => 1]],
         ], $chart['data'][2026]['all']);
         $this->assertSame([['department' => 'PWD', 'total' => 1, 'open' => 1, 'close' => 0, 'cells' => ['fire.S' => 1]]], $chart['data'][2025]['all']);

@@ -3,6 +3,7 @@
 use App\Modules\Sms\Controllers\CrossPatrolController;
 use App\Modules\Sms\Controllers\DailyPatrolController;
 use App\Modules\Sms\Controllers\DashboardController;
+use App\Modules\Sms\Controllers\KaryawanOptionController;
 use App\Modules\Sms\Controllers\KecelakaanController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,6 +11,9 @@ Route::get('/', DashboardController::class)->name('dashboard');
 // Export Excel isi modal perbesar grafik Daily Patrol & Cross Patrol di dashboard.
 Route::get('dashboard/export/daily', [DashboardController::class, 'exportDaily'])->name('dashboard.export.daily');
 Route::get('dashboard/export/cross', [DashboardController::class, 'exportCross'])->name('dashboard.export.cross');
+
+// Pencarian karyawan untuk isian PIC / Patroler (dipanggil saat mengetik di form temuan).
+Route::get('karyawan-options', KaryawanOptionController::class)->name('karyawan-options');
 
 // Daily Patrol: tambah/edit/hapus lewat modal di halaman daftar.
 Route::resource('daily-patrols', DailyPatrolController::class)->only(['index', 'store', 'update', 'destroy']);

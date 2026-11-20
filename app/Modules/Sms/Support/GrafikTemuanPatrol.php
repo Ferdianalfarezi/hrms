@@ -22,17 +22,19 @@ class GrafikTemuanPatrol
         $names = Department::pluck('name', 'id');
         $counts = [];
 
-        foreach (DailyPatrol::query()->select(['department_id', 'tanggal', 'status', 'kategori', 'resiko'])->cursor() as $patrol) {
-            $year = $patrol->tanggal->year;
-            $department = $names[$patrol->department_id] ?? '-';
-            $status = $patrol->isClosed() ? 'close' : 'open';
-            $cell = $patrol->kategori.'.'.$patrol->resiko;
+        // Sudah dijumlahkan di database: satu baris = satu kombinasi bulan, departemen, status, kategori & resiko.
+        foreach (PatrolCounts::byMonth(DailyPatrol::query(), ['department_id', 'status', 'kategori', 'resiko']) as $group) {
+            $year = $group->year;
+            $count = $group->aggregate;
+            $department = $names[$group->department_id] ?? '-';
+            $status = $group->status === DailyPatrol::STATUS_CLOSED ? 'close' : 'open';
+            $cell = $group->kategori.'.'.$group->resiko;
 
-            foreach (['all', $patrol->tanggal->month] as $period) {
+            foreach (['all', $group->month] as $period) {
                 $counts[$year][$period][$department] ??= ['department' => $department, 'total' => 0, 'open' => 0, 'close' => 0, 'cells' => []];
-                $counts[$year][$period][$department]['total']++;
-                $counts[$year][$period][$department][$status]++;
-                $counts[$year][$period][$department]['cells'][$cell] = ($counts[$year][$period][$department]['cells'][$cell] ?? 0) + 1;
+                $counts[$year][$period][$department]['total'] += $count;
+                $counts[$year][$period][$department][$status] += $count;
+                $counts[$year][$period][$department]['cells'][$cell] = ($counts[$year][$period][$department]['cells'][$cell] ?? 0) + $count;
             }
         }
 
@@ -60,6 +62,10 @@ class GrafikTemuanPatrol
     {
         $rows = array_values($rows);
         usort($rows, fn (array $a, array $b) => strcmp($a['department'], $b['department']));
+        // Urutan kunci "kategori.resiko" dibuat tetap (urut abjad), tidak tergantung urutan hasil query.
+        foreach (array_keys($rows) as $index) {
+            ksort($rows[$index]['cells']);
+        }
 
         return $rows;
     }

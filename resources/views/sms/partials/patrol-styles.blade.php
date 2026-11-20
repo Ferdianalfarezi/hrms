@@ -31,10 +31,21 @@
     .status-pill { display: inline-block; padding: 5px 16px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1.5px solid; white-space: nowrap; }
     .status-open { color: #b45309; border-color: #f59e0b; background: #fffbeb; }
     .status-closed { color: var(--success); border-color: #34d399; background: var(--success-bg); }
+    /* Open lewat target: pill merah + seluruh baris tabel disorot merah. */
+    .status-overdue { color: #b91c1c; border-color: #ef4444; background: #fee2e2; }
+    .overdue-note { display: block; margin-top: 4px; font-size: 11px; color: #b91c1c; font-weight: 600; white-space: nowrap; }
+    table.patrol tbody tr.row-overdue > td { background: #fee2e2; }
+    table.patrol tbody tr.row-overdue > td:first-child { box-shadow: inset 4px 0 0 #dc2626; }
+    table.patrol tbody tr.row-overdue:hover > td { background: #fecaca; }
+    /* Baris yang baru ditambahkan: disorot hijau lalu memudar, supaya jelas datanya bertambah. */
+    @keyframes row-new-flash { 0%, 60% { background: #bbf7d0; } 100% { background: transparent; } }
+    table.patrol tbody tr.row-new > td { animation: row-new-flash 4s ease-out; }
+    table.patrol tbody tr.row-new > td:first-child { box-shadow: inset 4px 0 0 #16a34a; }
     .closed-by { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
     .closed-by b { color: var(--text); font-weight: 600; }
     .summary .chip.chip-open { background: #fffbeb; color: #b45309; }
     .summary .chip.chip-closed { background: var(--success-bg); color: var(--success); }
+    .summary .chip.chip-overdue { background: #fee2e2; color: #b91c1c; }
 
     table.patrol .c-finding .sub { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
 
@@ -109,6 +120,8 @@
         background: transparent; color: var(--navy); font-size: 15px; line-height: 1;
     }
     .kp-chip button:hover { background: rgba(30, 58, 138, .15); }
+    /* Nama lama yang belum terhubung ke data karyawan (dulu diketik manual). */
+    .kp-chip-legacy { background: #fff7ed; color: #9a3412; border: 1px dashed #fdba74; }
     .kp-box input.kp-search { flex: 1; min-width: 140px; width: auto; padding: 5px 6px; border: 0; background: transparent; outline: none; }
     .kp-list {
         margin-top: 4px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line-strong); border-radius: 12px;

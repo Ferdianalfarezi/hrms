@@ -24,22 +24,25 @@ class GrafikCrossPatrol
         $names = Department::pluck('name', 'id');
         $years = [];
 
-        foreach (CrossPatrol::query()->select(['department_id', 'tanggal', 'status', 'zona', 'kategori', 'resiko'])->cursor() as $patrol) {
-            $year = $patrol->tanggal->year;
-            $month = $patrol->tanggal->month - 1;
-            $department = $names[$patrol->department_id] ?? '-';
-            $status = $patrol->isClosed() ? 'close' : 'open';
+        // Sudah dijumlahkan di database: satu baris = satu kombinasi bulan, departemen, status, zona, kategori & resiko.
+        foreach (PatrolCounts::byMonth(CrossPatrol::query(), ['department_id', 'status', 'zona', 'kategori', 'resiko']) as $group) {
+            $year = $group->year;
+            $month = $group->month - 1;
+            $count = $group->aggregate;
+            $department = $names[$group->department_id] ?? '-';
+            $status = $group->status === CrossPatrol::STATUS_CLOSED ? 'close' : 'open';
 
             $years[$year] ??= self::emptyYear();
-            $years[$year][$status][$month]++;
+            $years[$year][$status][$month] += $count;
             $years[$year]['departments'][$department] ??= ['department' => $department, 'values' => array_fill(0, 12, 0), 'total' => 0, 'open' => 0, 'close' => 0];
-            $years[$year]['departments'][$department]['values'][$month]++;
-            $years[$year]['departments'][$department]['total']++;
-            $years[$year]['departments'][$department][$status]++;
+            $years[$year]['departments'][$department]['values'][$month] += $count;
+            $years[$year]['departments'][$department]['total'] += $count;
+            $years[$year]['departments'][$department][$status] += $count;
 
-            $cell = $patrol->kategori.'.'.$patrol->resiko;
-            self::countZona($years[$year]['zonas']['all'], $patrol->zona, $status, $cell);
-            self::countZona($years[$year]['zonas']['months'][$month + 1], $patrol->zona, $status, $cell);
+            $zona = $group->zona !== null ? (int) $group->zona : null;
+            $cell = $group->kategori.'.'.$group->resiko;
+            self::countZona($years[$year]['zonas']['all'], $zona, $status, $cell, $count);
+            self::countZona($years[$year]['zonas']['months'][$month + 1], $zona, $status, $cell, $count);
         }
 
         // Tahun berjalan selalu ada di pilihan walau belum ada temuan.
@@ -60,14 +63,14 @@ class GrafikCrossPatrol
     /**
      * @param  array<int, array{total: int, open: int, close: int, cells: array<string, int>}>  $zonas
      */
-    private static function countZona(array &$zonas, ?int $zona, string $status, string $cell): void
+    private static function countZona(array &$zonas, ?int $zona, string $status, string $cell, int $count): void
     {
         // Data lama sebelum ada kolom zona dikumpulkan di key 0 ("Tanpa zona").
         $zona ??= 0;
         $zonas[$zona] ??= ['total' => 0, 'open' => 0, 'close' => 0, 'cells' => []];
-        $zonas[$zona]['total']++;
-        $zonas[$zona][$status]++;
-        $zonas[$zona]['cells'][$cell] = ($zonas[$zona]['cells'][$cell] ?? 0) + 1;
+        $zonas[$zona]['total'] += $count;
+        $zonas[$zona][$status] += $count;
+        $zonas[$zona]['cells'][$cell] = ($zonas[$zona]['cells'][$cell] ?? 0) + $count;
     }
 
     /**

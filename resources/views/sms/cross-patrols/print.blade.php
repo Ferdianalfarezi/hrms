@@ -50,7 +50,8 @@
         }
     </style>
 </head>
-<body>
+{{-- data-total / data-limit: preview di modal memberi tahu kalau hasil filter melebihi batas sekali cetak. --}}
+<body data-total="{{ $total }}" data-limit="{{ $limit }}">
     @forelse ($patrols->chunk($perPage) as $page => $chunk)
         <div class="sheet">
             @foreach ($chunk as $patrol)

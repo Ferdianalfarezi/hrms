@@ -27,11 +27,9 @@
         <div>
             <dt>{{ __('Status') }}</dt>
             <dd>
+                @include('sms.partials.patrol-status')
                 @if ($patrol->isClosed())
-                    <span class="status-pill status-closed">{{ __('Close') }}</span>
                     <span class="small muted">{{ $patrol->closed_at?->format('d/m/Y H:i') }}</span>
-                @else
-                    <span class="status-pill status-open">{{ __('Open') }}</span>
                 @endif
             </dd>
         </div>

@@ -1,6 +1,6 @@
 {{--
     Pilih karyawan (bisa lebih dari 1) dengan pencarian nama / NIK / departemen.
-    Nilai dikirim lewat input hidden berisi nama dipisah koma. Butuh: $name, $label; opsional $placeholder.
+    Nilai dikirim lewat input hidden berisi JSON [{id, nama}] (ID karyawan). Butuh: $name, $label; opsional $placeholder.
     JS-nya ada di sms.partials.karyawan-picker-script.
 --}}
 <div>

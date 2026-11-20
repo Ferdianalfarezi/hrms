@@ -52,6 +52,10 @@
             dialog.addEventListener('click', function (event) { if (event.target === dialog) dialog.close(); });
         });
 
+        // Temuan yang baru ditambahkan: gulir ke barisnya supaya langsung terlihat.
+        var newRow = document.querySelector('[data-row-new]');
+        if (newRow) newRow.scrollIntoView({ block: 'center' });
+
         var modal = document.getElementById('patrol-modal');
         if (!modal) return;
 

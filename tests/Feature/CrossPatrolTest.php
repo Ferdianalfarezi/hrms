@@ -9,6 +9,7 @@ use App\Modules\Sms\Models\CrossPatrol;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
@@ -56,9 +57,23 @@ class CrossPatrolTest extends TestCase
         return $user;
     }
 
+    /**
+     * Isian PIC / patroler di tes ditulis sebagai nama dipisah koma, lalu dikirim seperti form: JSON [{id, nama}].
+     * Nama yang bukan karyawan dikirim tanpa id (seperti nama lama ketik manual).
+     */
+    private function picks(string $names): string
+    {
+        $names = array_filter(array_map('trim', explode(',', $names)), 'strlen');
+
+        return json_encode(array_values(array_map(fn (string $nama) => [
+            'id' => Karyawan::where('nama', $nama)->value('id'),
+            'nama' => $nama,
+        ], $names)));
+    }
+
     private function payload(array $overrides = []): array
     {
-        return [
+        $data = [
             'tanggal' => '2026-09-24',
             'plant' => 'Plant 1',
             'zona' => '3',
@@ -74,6 +89,14 @@ class CrossPatrolTest extends TestCase
             'patroler' => 'Yayan R, Miftari',
             ...$overrides,
         ];
+
+        foreach (['pic', 'patroler'] as $field) {
+            if (is_string($data[$field] ?? null) && $data[$field] !== '' && ! str_starts_with($data[$field], '[')) {
+                $data[$field] = $this->picks($data[$field]);
+            }
+        }
+
+        return $data;
     }
 
     private function patrol(Department $department, array $overrides = []): CrossPatrol
@@ -308,5 +331,114 @@ class CrossPatrolTest extends TestCase
 
         // Foto temuan 2 + foto perbaikan 1.
         $this->assertCount(3, $sheet->getDrawingCollection());
+    }
+
+    public function test_open_past_target_is_marked_overdue_with_red_row_and_filter(): void
+    {
+        Carbon::setTestNow('2026-10-10 09:00:00');
+        $this->patrol($this->psd, ['finding' => 'Sudah lewat', 'target' => '2026-10-09']);
+        $this->patrol($this->psd, ['finding' => 'Target hari ini', 'target' => '2026-10-10']);
+        $this->patrol($this->psd, ['finding' => 'Sudah close', 'target' => '2026-10-01', 'status' => 'closed']);
+        $admin = $this->deptAdmin($this->psd);
+
+        $this->actingAs($admin)->get('/sms/cross-patrols')->assertOk()
+            ->assertSee('<tr class="row-overdue"', false)
+            ->assertSee('Open (lewat target)')
+            ->assertSee('Lewat 1 hari')
+            ->assertSee('Lewat target <b>1</b>', false);
+
+        // Filter status "Open (lewat target)": target hari ini dan temuan Close tidak ikut.
+        $this->actingAs($admin)->get('/sms/cross-patrols?status=overdue')->assertOk()
+            ->assertSee('Sudah lewat')
+            ->assertDontSee('Target hari ini')
+            ->assertDontSee('Sudah close');
+
+        Carbon::setTestNow();
+    }
+
+    public function test_target_cannot_be_before_finding_date(): void
+    {
+        $this->actingAs($this->smsAdmin())
+            ->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id, 'tanggal' => '2026-09-24', 'target' => '2026-09-23']))
+            ->assertSessionHasErrors(['target' => 'Target perbaikan tidak boleh sebelum tanggal temuan.']);
+
+        $this->assertSame(0, CrossPatrol::count());
+    }
+
+    public function test_pic_is_saved_as_karyawan_id_and_follows_rename(): void
+    {
+        // Dua karyawan bernama sama tetap bisa dibedakan karena yang disimpan ID-nya.
+        $twin = Karyawan::create(['nik' => 'K99', 'nama' => 'Samri', 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'department_id' => $this->pwd->id]);
+        $pic = json_encode([['id' => $twin->id, 'nama' => 'Samri']]);
+
+        $this->actingAs($this->smsAdmin())
+            ->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id, 'pic' => $pic]))
+            ->assertSessionHasNoErrors();
+
+        $patrol = CrossPatrol::sole();
+        $this->assertSame([$twin->id], $patrol->pic_ids);
+        $this->assertSame('Samri', $patrol->pic);
+        $this->assertCount(2, $patrol->patroler_ids);
+
+        $twin->update(['nama' => 'Samri Wijaya']);
+        $this->assertSame('Samri Wijaya', $patrol->fresh()->pic);
+    }
+
+    public function test_karyawan_search_returns_matches_for_patrol_users_only(): void
+    {
+        $samri = Karyawan::where('nama', 'Samri')->sole();
+
+        $this->actingAs($this->deptAdmin($this->psd))->getJson('/sms/karyawan-options?q=yay')
+            ->assertOk()
+            ->assertJsonCount(2)
+            ->assertJsonPath('0.nama', 'Yayan R')
+            ->assertJsonPath('0.info', 'K2 · PSD');
+
+        $this->actingAs($this->deptAdmin($this->psd))->getJson('/sms/karyawan-options?exclude='.$samri->id)
+            ->assertOk()
+            ->assertJsonMissing(['nama' => 'Samri']);
+
+        $staff = User::factory()->create();
+        $staff->assignRole('sms', 'staff');
+        $this->actingAs($staff)->getJson('/sms/karyawan-options?q=yay')->assertForbidden();
+    }
+
+    public function test_export_over_limit_asks_to_narrow_filter_and_print_reports_real_total(): void
+    {
+        $row = $this->patrol($this->psd)->only(['plant', 'zona', 'finding', 'foto', 'efek', 'resiko', 'area', 'department_id', 'rekomendasi', 'pic', 'kategori', 'patroler', 'status']);
+        CrossPatrol::insert(array_fill(0, 500, [...$row, 'tanggal' => '2026-09-24', 'target' => '2026-09-30', 'created_at' => now(), 'updated_at' => now()]));
+        $admin = $this->deptAdmin($this->psd);
+
+        $this->actingAs($admin)->get('/sms/cross-patrols/export?plant=Plant+1')
+            ->assertRedirect(route('sms.cross-patrols.index', ['plant' => 'Plant 1']))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, '501 temuan'));
+
+        // Cetak tetap dibatasi 500 kotak, tapi preview tahu jumlah sebenarnya.
+        $this->actingAs($admin)->get('/sms/cross-patrols/print')
+            ->assertOk()
+            ->assertSee('data-total="501" data-limit="500"', false);
+    }
+
+    public function test_after_create_list_reloads_without_filters_and_highlights_new_row(): void
+    {
+        $admin = $this->smsAdmin();
+
+        // Sedang memfilter zona 1, lalu menambah temuan zona 3: daftar dibuka tanpa filter supaya temuan barunya terlihat.
+        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id, 'keep' => ['zona' => '1', 'page' => '2']]))
+            ->assertRedirect(route('sms.cross-patrols.index'))
+            ->assertSessionHas('status', fn (string $message) => str_contains($message, 'Filter direset'))
+            ->assertSessionHas('highlight', CrossPatrol::sole()->id);
+
+        $this->actingAs($admin)->withSession(['highlight' => CrossPatrol::sole()->id])->get('/sms/cross-patrols')
+            ->assertOk()
+            ->assertSee('row-new', false)
+            ->assertSee('data-row-new', false)
+            ->assertSee('Kabel AC menjuntai')
+            ->assertSee('<meta name="turbo-cache-control" content="no-cache">', false);
+
+        // Edit tetap kembali ke filter yang sedang dipakai.
+        $patrol = CrossPatrol::sole();
+        $this->actingAs($admin)->put("/sms/cross-patrols/{$patrol->id}", $this->payload(['department_id' => $this->psd->id, 'foto' => null, 'status' => 'open', 'keep' => ['zona' => '1']]))
+            ->assertRedirect(route('sms.cross-patrols.index', ['zona' => '1']));
     }
 }
