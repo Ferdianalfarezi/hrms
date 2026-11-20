@@ -14,6 +14,7 @@ use Database\Seeders\ApplicationSeeder;
 use Database\Seeders\JapanResumeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use OpenSpout\Reader\XLSX\Reader;
 use Tests\TestCase;
 
 class AbsensiJapanResumeTest extends TestCase
@@ -234,6 +235,49 @@ class AbsensiJapanResumeTest extends TestCase
 
         $this->assertSame(999, JapanResume::whereDate('tanggal', '2026-03-02')->value('total'));
         $this->assertSame(184, JapanResume::where('sumber', 'excel')->count());
+    }
+
+    public function test_unduh_excel_mengikuti_susunan_sheet_bulanan(): void
+    {
+        Carbon::setTestNow('2026-11-19 10:00:00');
+        $this->seed(JapanResumeSeeder::class);
+        $admin = $this->hrmsAdmin();
+
+        $this->actingAs($admin)->get(route('hrms.absensi.japan-resume', ['bulan' => '2026-03']))
+            ->assertSee(route('hrms.absensi.japan-resume.excel', ['bulan' => '2026-03']), false)
+            ->assertSee(route('hrms.absensi.japan-resume.pdf', ['bulan' => '2026-03']), false);
+
+        $response = $this->actingAs($admin)->get(route('hrms.absensi.japan-resume.excel', ['bulan' => '2026-03']))
+            ->assertOk()
+            ->assertDownload('japan-resume-2026-03.xlsx');
+
+        $path = tempnam(sys_get_temp_dir(), 'xlsx');
+        file_put_contents($path, $response->streamedContent());
+        $reader = new Reader;
+        $reader->open($path);
+        $rows = [];
+        foreach ($reader->getSheetIterator() as $sheet) {
+            $this->assertSame('Mar 2026', $sheet->getName());
+            foreach ($sheet->getRowIterator() as $row) {
+                $rows[] = $row->toArray();
+            }
+        }
+        $reader->close();
+        unlink($path);
+
+        // Baris 1 persen Cuti & S+I, baris 2 total bulan, baris 3 judul kolom, lalu per hari (16 hari di sheet Mar).
+        $this->assertEqualsWithDelta(0.028, $rows[0][5], 0.001);
+        $this->assertEqualsWithDelta(0.025, $rows[0][6], 0.001);
+        $this->assertSame(['Mar Total', 8385, 7937, 235, 213], [$rows[1][1], $rows[1][3], $rows[1][4], $rows[1][5], $rows[1][6]]);
+        $this->assertSame(['DAY', 'Date', 'Shift', 'Total', 'Hadir', 'Cuti', 'S+I', 'rate'], $rows[2]);
+        $this->assertCount(3 + 16, $rows);
+        $this->assertSame('2026-03-15', $rows[13][1]->format('Y-m-d'));
+        $this->assertSame(['一直', 173, 163, 6, 4], array_slice($rows[13], 2, 5));
+        $this->assertEqualsWithDelta(0.058, $rows[13][7], 0.001);
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', Department::firstOrCreate(['name' => 'PSD'])->id);
+        $this->actingAs($deptAdmin)->get(route('hrms.absensi.japan-resume.excel'))->assertForbidden();
     }
 
     public function test_bulan_tidak_valid_kembali_ke_bulan_ini(): void

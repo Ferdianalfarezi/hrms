@@ -5,12 +5,21 @@ namespace App\Modules\Hrms\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Hrms\Models\JapanResume;
 use App\Modules\Hrms\Support\JapanResumeBulanan;
+use DateTimeImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\Border;
+use OpenSpout\Common\Entity\Style\BorderName;
+use OpenSpout\Common\Entity\Style\BorderPart;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Writer\XLSX\Writer;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
@@ -34,6 +43,71 @@ class AbsensiJapanResumeController extends Controller
         Gate::authorize('manage-module', 'hrms');
 
         return view('hrms.absensi.japan-resume-pdf', $this->resume($request));
+    }
+
+    /**
+     * Excel satu bulan dengan susunan sheet bulanan file HRD: baris 1 persentase Cuti & S+I, baris 2 total bulan,
+     * baris 3 judul kolom (DAY, Date, shift, Total, Hadir, Cuti, S+I, rate), lalu satu baris per hari.
+     */
+    public function excel(Request $request): StreamedResponse
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        ['bulan' => $bulan, 'rows' => $rows, 'total' => $total] = $this->resume($request);
+
+        return response()->streamDownload(function () use ($bulan, $rows, $total) {
+            $border = new Border(...array_map(fn (BorderName $name) => new BorderPart($name), BorderName::cases()));
+            $cell = (new Style)->withBorder($border);
+            $tanggal = (new Style)->withBorder($border)->withFormat('m/d');
+            $persen = (new Style)->withBorder($border)->withFormat('0.0%');
+            $header = (new Style)->withFontBold(true)->withBackgroundColor('DCE6F1')->withBorder($border);
+            $totalStyle = (new Style)->withFontBold(true)->withBackgroundColor('FFF2CC')->withBorder($border);
+            $totalPersen = $totalStyle->withFormat('0.0%');
+            $atasPersen = (new Style)->withFontBold(true)->withFormat('0.0%');
+            $rasio = fn (?float $value) => $value === null ? null : $value / 100;
+
+            $writer = new Writer;
+            $writer->openToFile('php://output');
+            $sheet = $writer->getCurrentSheet();
+            $sheet->setName($bulan->format('M Y'));
+            $sheet->setColumnWidth(12, 1);
+            $sheet->setColumnWidth(14, 2);
+            $sheet->setColumnWidth(10, 3, 4, 5, 6, 7, 8);
+
+            $writer->addRow(new Row([
+                Cell::fromValue(null), Cell::fromValue(null), Cell::fromValue(null), Cell::fromValue(null), Cell::fromValue(null),
+                Cell::fromValue($rasio($total['persen_cuti']), $atasPersen),
+                Cell::fromValue($rasio($total['persen_sakit_izin']), $atasPersen),
+            ]));
+            $writer->addRow(new Row([
+                Cell::fromValue(null, $totalStyle),
+                Cell::fromValue($bulan->format('M').' Total', $totalStyle),
+                Cell::fromValue(null, $totalStyle),
+                Cell::fromValue($total['total'], $totalStyle),
+                Cell::fromValue($total['hadir'], $totalStyle),
+                Cell::fromValue($total['cuti'], $totalStyle),
+                Cell::fromValue($total['sakit_izin'], $totalStyle),
+                Cell::fromValue($rasio($total['rate']), $totalPersen),
+            ]));
+            $writer->addRow(Row::fromValuesWithStyle(['DAY', 'Date', 'Shift', 'Total', 'Hadir', 'Cuti', 'S+I', 'rate'], $header));
+
+            foreach ($rows as $row) {
+                $writer->addRow(new Row([
+                    Cell::fromValue($row['tanggal']->translatedFormat('l'), $cell),
+                    Cell::fromValue(DateTimeImmutable::createFromInterface($row['tanggal']), $tanggal),
+                    Cell::fromValue($row['shift'], $cell),
+                    Cell::fromValue($row['total'], $cell),
+                    Cell::fromValue($row['hadir'], $cell),
+                    Cell::fromValue($row['cuti'], $cell),
+                    Cell::fromValue($row['sakit_izin'], $cell),
+                    Cell::fromValue($rasio($row['rate']), $persen),
+                ]));
+            }
+
+            $writer->close();
+        }, 'japan-resume-'.$bulan->format('Y-m').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**

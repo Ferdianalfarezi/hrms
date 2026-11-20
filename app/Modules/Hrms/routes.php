@@ -48,6 +48,7 @@ Route::get('absensi/resume/pdf', [AbsensiResumeController::class, 'pdf'])->name(
 // Japan Resume: rekap kehadiran harian per bulan untuk laporan Jepang (khusus Admin HRMS).
 Route::get('absensi/japan-resume', [AbsensiJapanResumeController::class, 'index'])->name('absensi.japan-resume');
 Route::get('absensi/japan-resume/pdf', [AbsensiJapanResumeController::class, 'pdf'])->name('absensi.japan-resume.pdf');
+Route::get('absensi/japan-resume/excel', [AbsensiJapanResumeController::class, 'excel'])->name('absensi.japan-resume.excel');
 // Angka tiap tanggal bisa disesuaikan admin; hasil penyesuaian bisa dikembalikan ke hitungan otomatis.
 Route::post('absensi/japan-resume', [AbsensiJapanResumeController::class, 'store'])->name('absensi.japan-resume.store');
 Route::delete('absensi/japan-resume/{japanResume}', [AbsensiJapanResumeController::class, 'reset'])->name('absensi.japan-resume.reset');

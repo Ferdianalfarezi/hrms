@@ -26,6 +26,16 @@
     table.jr .empty { color: var(--muted); padding: 28px; }
     .auto-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--soft); color: var(--navy); font-size: 10px; font-weight: 700; vertical-align: 1px; }
     .jr-note { margin: 12px 4px 0; font-size: 12px; color: var(--muted); }
+    /* Dropdown Unduh: pilih PDF atau Excel. */
+    .dl-menu { position: relative; }
+    .dl-menu > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .dl-menu > summary::-webkit-details-marker { display: none; }
+    .dl-menu > summary .caret { font-size: 10px; transition: transform .15s; }
+    .dl-menu[open] > summary .caret { transform: rotate(180deg); }
+    .dl-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 170px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; box-shadow: 0 12px 28px rgba(15, 35, 80, .14); }
+    .dl-list a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+    .dl-list a:hover { background: var(--soft-2); color: var(--primary); }
+    .dl-list svg { width: 16px; height: 16px; flex: none; }
     .edit-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #fff4d6; color: #8a5a00; font-size: 10px; font-weight: 700; vertical-align: 1px; }
     table.jr td.act { width: 1%; padding: 4px 8px; }
     .jr-act { display: inline-flex; gap: 4px; }
@@ -72,7 +82,19 @@
         </span>
         <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Bulan') }}">
         <button type="button" class="btn btn-sm" data-jr-add>{{ __('+ Tambah tanggal') }}</button>
-        <a href="{{ route('hrms.absensi.japan-resume.pdf', ['bulan' => $bulan->format('Y-m')]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">{{ __('Unduh PDF') }}</a>
+        <details class="dl-menu" data-dl-menu>
+            <summary class="btn btn-ghost btn-sm">{{ __('Unduh') }} <span class="caret" aria-hidden="true">&#9662;</span></summary>
+            <div class="dl-list" role="menu">
+                <a href="{{ route('hrms.absensi.japan-resume.pdf', ['bulan' => $bulan->format('Y-m')]) }}" target="_blank" rel="noopener" data-turbo="false" role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                    {{ __('PDF') }}
+                </a>
+                <a href="{{ route('hrms.absensi.japan-resume.excel', ['bulan' => $bulan->format('Y-m')]) }}" data-turbo="false" role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13l4 5M12 13l-4 5"/></svg>
+                    {{ __('Excel') }}
+                </a>
+            </div>
+        </details>
         <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">{{ __('Cetak') }}</button>
     </form>
 </div>
@@ -267,6 +289,17 @@
         // Validasi gagal: buka lagi form beserta isian sebelumnya.
         var old = {{ Js::from($errors->any() ? old() : null) }};
         if (old) open(old, true);
+
+        // Dropdown Unduh: tertutup lagi setelah memilih atau klik di luar.
+        var dlMenu = document.querySelector('[data-dl-menu]');
+        if (dlMenu) {
+            dlMenu.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', function () { dlMenu.open = false; });
+            });
+            document.addEventListener('click', function (event) {
+                if (dlMenu.open && !dlMenu.contains(event.target)) dlMenu.open = false;
+            });
+        }
 
         var newRow = document.querySelector('tr.row-new');
         if (newRow) newRow.scrollIntoView({ block: 'center' });
