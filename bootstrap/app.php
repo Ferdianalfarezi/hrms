@@ -51,25 +51,31 @@ return Application::configure(basePath: dirname(__DIR__))
             return redirect()->route('login')->withErrors(['nik' => $message]);
         });
 
-        // Server error (500) saat membuka halaman (mis. pindah menu): kembali ke halaman sebelumnya dengan pesan,
-        // bukan menampilkan halaman error. Error tetap tercatat di log. Tidak berlaku untuk JSON / submit form,
-        // dan kalau halaman sebelumnya juga error (baru saja dikembalikan ke sana), halaman error biasa yang tampil.
+        // Server error (500) saat membuka halaman (mis. pindah menu / ganti filter): kembali ke halaman sebelumnya
+        // dengan pesan, bukan menampilkan halaman error. Error tetap tercatat di log. Tidak berlaku untuk JSON / submit form.
+        // Kalau tidak ada halaman sebelumnya yang aman (dibuka langsung / di-refresh, atau halaman sebelumnya juga error),
+        // diarahkan ke portal. Halaman error biasa hanya tampil kalau portal sendiri yang error.
         $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
-            $previous = $request->hasSession() ? url()->previous() : null;
-
             if ($response->getStatusCode() !== 500
+                || ! $request->hasSession()
                 || ! $request->isMethod('GET')
                 || $request->expectsJson()
-                || $request->prefetch()
-                || ! $previous
-                || $previous === $request->fullUrl()
-                || $request->session()->has('server_error_redirect')) {
+                || $request->prefetch()) {
+                return $response;
+            }
+
+            $portal = route('portal');
+            $previous = url()->previous();
+            $previousIsUnsafe = $previous === $request->fullUrl() || $request->session()->has('server_error_redirect');
+            $target = $previousIsUnsafe ? $portal : $previous;
+
+            if ($target === $request->fullUrl()) {
                 return $response;
             }
 
             $message = __('Terjadi kesalahan di server saat membuka halaman tersebut, Anda dikembalikan ke halaman sebelumnya. Silakan coba lagi.');
 
-            return redirect()->to($previous)->with([
+            return redirect()->to($target)->with([
                 'error' => config('app.debug') ? $message.' ('.class_basename($e).': '.$e->getMessage().')' : $message,
                 'server_error_redirect' => true,
             ]);
