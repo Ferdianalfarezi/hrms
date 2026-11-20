@@ -33,7 +33,6 @@
     $resikoTone = collect($resikos)->map(fn ($info) => $info['tone']);
     $fields = ['tanggal', 'plant', 'zona', 'finding', 'efek', 'resiko', 'area', 'department_id', 'rekomendasi', 'target', 'pic', 'kategori', 'patroler', 'status', 'foto', 'foto_perbaikan'];
     $listFilters = array_filter(['q' => $search, 'status' => $status, 'department' => $department, 'tanggal' => $tanggal, 'plant' => $plant, 'zona' => $zona]);
-    $keepFilters = $listFilters + array_filter(['page' => $patrols->currentPage() > 1 ? $patrols->currentPage() : null]);
 @endphp
 
 <div class="dp-head">
@@ -227,10 +226,6 @@
             @csrf
             <input type="hidden" name="_method" value="POST">
             <input type="hidden" name="_modal" value="create">
-            @foreach ($keepFilters as $key => $value)
-                {{-- Filter & halaman daftar dipertahankan setelah simpan. --}}
-                <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
-            @endforeach
             <div class="modal-head">
                 <h2 id="patrol-modal-title">{{ __('Tambah Temuan') }}</h2>
                 <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>

@@ -175,28 +175,12 @@ trait ScopesPatrolToDepartment
     }
 
     /**
-     * Setelah tambah temuan: daftar dimuat ulang tanpa filter di halaman 1 (temuan baru selalu terlihat paling atas,
-     * walaupun tidak cocok dengan filter yang tadi dipakai), dan baris barunya disorot.
+     * Setelah tambah / edit / hapus: daftar selalu kembali ke tampilan awal (tanpa filter, halaman 1),
+     * supaya perubahan datanya langsung terlihat. Baris yang baru ditambah / diedit disorot.
      */
-    private function redirectAfterCreate(Request $request, string $route, Model $patrol): RedirectResponse
+    private function redirectToList(string $route, string $message, ?Model $highlight = null): RedirectResponse
     {
-        $message = __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]);
-        if (array_diff_key($this->keptFilters($request), ['page' => true]) !== []) {
-            $message .= ' '.__('Filter direset supaya temuan baru terlihat.');
-        }
-
-        return redirect()->route($route)->with('status', $message)->with('highlight', $patrol->id);
-    }
-
-    /**
-     * Filter & halaman daftar yang dikirim form (keep[...]) supaya kembali ke tampilan yang sama setelah simpan.
-     */
-    private function keptFilters(Request $request): array
-    {
-        return collect((array) $request->input('keep'))
-            ->only($this->filterKeys())
-            ->filter(fn ($value) => is_string($value) && $value !== '')
-            ->all();
+        return redirect()->route($route)->with('status', $message)->with('highlight', $highlight?->id);
     }
 
     /**
@@ -297,9 +281,4 @@ trait ScopesPatrolToDepartment
     }
 
     abstract private function photoFolder(): string;
-
-    /**
-     * @return list<string>
-     */
-    abstract private function filterKeys(): array;
 }

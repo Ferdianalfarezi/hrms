@@ -18,7 +18,6 @@
 @php
     $fields = ['tipe', 'kategori', 'waktu', 'nama_korban', 'department_id', 'deskripsi'];
     $listFilters = array_filter(['q' => $search, 'tipe' => $tipe, 'department' => $department]);
-    $keepFilters = $listFilters + array_filter(['page' => $kecelakaans->currentPage() > 1 ? $kecelakaans->currentPage() : null]);
 @endphp
 
 <div class="dp-head">
@@ -160,9 +159,6 @@
             @csrf
             <input type="hidden" name="_method" value="POST">
             <input type="hidden" name="_modal" value="create">
-            @foreach ($keepFilters as $key => $value)
-                <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
-            @endforeach
             <div class="modal-head">
                 <h2 id="kecelakaan-modal-title">{{ __('Tambah Kecelakaan') }}</h2>
                 <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>
@@ -237,9 +233,6 @@
         <form method="POST" id="delete-form">
             @csrf
             @method('DELETE')
-            @foreach ($keepFilters as $key => $value)
-                <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
-            @endforeach
             <div class="modal-head">
                 <h2>{{ __('Hapus Kecelakaan') }}</h2>
                 <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>

@@ -66,8 +66,7 @@ class KecelakaanController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
-            ->with('status', __('Kecelakaan :nama berhasil ditambahkan.', ['nama' => $data['nama_korban']]));
+        return $this->redirectToList('sms.kecelakaan.index', __('Kecelakaan :nama berhasil ditambahkan.', ['nama' => $data['nama_korban']]));
     }
 
     public function update(Request $request, Kecelakaan $kecelakaan): RedirectResponse
@@ -82,8 +81,7 @@ class KecelakaanController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
-            ->with('status', __('Kecelakaan :nama berhasil diperbarui.', ['nama' => $kecelakaan->nama_korban]));
+        return $this->redirectToList('sms.kecelakaan.index', __('Kecelakaan :nama berhasil diperbarui.', ['nama' => $kecelakaan->nama_korban]));
     }
 
     public function destroy(Request $request, Kecelakaan $kecelakaan): RedirectResponse
@@ -91,18 +89,12 @@ class KecelakaanController extends Controller
         $this->authorizeManage($request->user());
         $kecelakaan->delete();
 
-        return redirect()->route('sms.kecelakaan.index', $this->keptFilters($request))
-            ->with('status', __('Kecelakaan :nama berhasil dihapus.', ['nama' => $kecelakaan->nama_korban]));
+        return $this->redirectToList('sms.kecelakaan.index', __('Kecelakaan :nama berhasil dihapus.', ['nama' => $kecelakaan->nama_korban]));
     }
 
     private function photoFolder(): string
     {
         return 'kecelakaan';
-    }
-
-    private function filterKeys(): array
-    {
-        return ['q', 'tipe', 'department', 'page'];
     }
 
     private function validated(Request $request): array

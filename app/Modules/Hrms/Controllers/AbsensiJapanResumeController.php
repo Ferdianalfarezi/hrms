@@ -16,14 +16,26 @@ use Throwable;
  */
 class AbsensiJapanResumeController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function index(Request $request): View
     {
         Gate::authorize('manage-module', 'hrms');
 
-        return view('hrms.absensi.japan-resume', JapanResumeBulanan::build(
-            $this->parseMonth((string) $request->query('bulan')) ?? Carbon::today(),
-            Carbon::today(),
-        ));
+        return view('hrms.absensi.japan-resume', $this->resume($request));
+    }
+
+    /**
+     * Halaman cetak A4 seperti sheet bulanan Excel; dialog print langsung terbuka untuk disimpan sebagai PDF.
+     */
+    public function pdf(Request $request): View
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        return view('hrms.absensi.japan-resume-pdf', $this->resume($request));
+    }
+
+    private function resume(Request $request): array
+    {
+        return JapanResumeBulanan::build($this->parseMonth((string) $request->query('bulan')) ?? Carbon::today(), Carbon::today());
     }
 
     private function parseMonth(string $value): ?Carbon

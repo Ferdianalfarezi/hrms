@@ -78,7 +78,7 @@ class DailyPatrolController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        return $this->redirectAfterCreate($request, 'sms.daily-patrols.index', $patrol);
+        return $this->redirectToList('sms.daily-patrols.index', __('Temuan tanggal :tanggal berhasil ditambahkan (status Open).', ['tanggal' => $patrol->tanggal->format('d/m/Y')]), $patrol);
     }
 
     public function update(Request $request, DailyPatrol $dailyPatrol): RedirectResponse
@@ -94,8 +94,7 @@ class DailyPatrolController extends Controller
         ])->save();
         $this->deletePhotos($oldFiles);
 
-        return redirect()->route('sms.daily-patrols.index', $this->keptFilters($request))
-            ->with('status', __('Temuan berhasil diperbarui').($dailyPatrol->isClosed() ? __(' (status Close).') : '.'));
+        return $this->redirectToList('sms.daily-patrols.index', __('Temuan berhasil diperbarui').($dailyPatrol->isClosed() ? __(' (status Close).') : '.'), $dailyPatrol);
     }
 
     public function destroy(Request $request, DailyPatrol $dailyPatrol): RedirectResponse
@@ -105,17 +104,12 @@ class DailyPatrolController extends Controller
         $dailyPatrol->delete();
         $this->deletePhotos([$dailyPatrol->foto, $dailyPatrol->foto_perbaikan]);
 
-        return redirect()->route('sms.daily-patrols.index')->with('status', __('Temuan berhasil dihapus.'));
+        return $this->redirectToList('sms.daily-patrols.index', __('Temuan berhasil dihapus.'));
     }
 
     private function photoFolder(): string
     {
         return 'daily-patrol';
-    }
-
-    private function filterKeys(): array
-    {
-        return ['q', 'status', 'department', 'page'];
     }
 
     private function validated(Request $request, ?DailyPatrol $patrol): array

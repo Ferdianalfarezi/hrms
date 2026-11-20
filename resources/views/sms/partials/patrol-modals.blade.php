@@ -28,9 +28,6 @@
         <form method="POST" id="delete-form">
             @csrf
             @method('DELETE')
-            @foreach ($keepFilters as $key => $value)
-                <input type="hidden" name="keep[{{ $key }}]" value="{{ $value }}">
-            @endforeach
             <div class="modal-head">
                 <h2>{{ __('Hapus Temuan') }}</h2>
                 <button type="button" class="modal-close" data-close aria-label="{{ __('Tutup') }}">&times;</button>

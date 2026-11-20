@@ -18,7 +18,7 @@ return [
         ['label' => 'Timeline', 'route' => 'hrms.absensi.timeline', 'active' => 'hrms.absensi.timeline', 'cannot' => ['manage-module', 'hrms']],
         ['label' => 'Detail', 'route' => 'hrms.absensi.detail', 'active' => 'hrms.absensi.detail', 'can' => ['manage-module', 'hrms']],
         ['label' => 'Resume', 'route' => 'hrms.absensi.resume', 'active' => 'hrms.absensi.resume', 'can' => ['manage-module', 'hrms']],
-        ['label' => 'Japan Resume', 'route' => 'hrms.absensi.japan-resume', 'active' => 'hrms.absensi.japan-resume', 'can' => ['manage-module', 'hrms']],
+        ['label' => 'Japan Resume', 'route' => 'hrms.absensi.japan-resume', 'active' => 'hrms.absensi.japan-resume*', 'can' => ['manage-module', 'hrms']],
         ['label' => 'Presentase', 'route' => 'hrms.absensi.presentase', 'active' => 'hrms.absensi.presentase', 'can' => ['manage-module', 'hrms']],
         ['label' => 'Komparasi Mesin', 'route' => 'hrms.absensi.komparasi', 'active' => 'hrms.absensi.komparasi*', 'can' => ['manage-module', 'hrms']],
         ['label' => 'Potongan Absen', 'route' => 'hrms.absensi.potongan', 'active' => 'hrms.absensi.potongan'],

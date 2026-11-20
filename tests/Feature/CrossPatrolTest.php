@@ -419,26 +419,31 @@ class CrossPatrolTest extends TestCase
             ->assertSee('data-total="501" data-limit="500"', false);
     }
 
-    public function test_after_create_list_reloads_without_filters_and_highlights_new_row(): void
+    public function test_every_crud_submit_returns_to_default_list_without_filters(): void
     {
         $admin = $this->smsAdmin();
 
-        // Sedang memfilter zona 1, lalu menambah temuan zona 3: daftar dibuka tanpa filter supaya temuan barunya terlihat.
-        $this->actingAs($admin)->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id, 'keep' => ['zona' => '1', 'page' => '2']]))
+        // Sedang memfilter zona 4 lalu tambah / edit / hapus: selalu kembali ke daftar awal tanpa filter.
+        $this->actingAs($admin)->from('/sms/cross-patrols?zona=4&page=2')
+            ->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id]))
             ->assertRedirect(route('sms.cross-patrols.index'))
-            ->assertSessionHas('status', fn (string $message) => str_contains($message, 'Filter direset'))
             ->assertSessionHas('highlight', CrossPatrol::sole()->id);
 
         $this->actingAs($admin)->withSession(['highlight' => CrossPatrol::sole()->id])->get('/sms/cross-patrols')
             ->assertOk()
             ->assertSee('row-new', false)
             ->assertSee('data-row-new', false)
-            ->assertSee('Kabel AC menjuntai')
+            ->assertDontSee('name="keep[', false)
             ->assertSee('<meta name="turbo-cache-control" content="no-cache">', false);
 
-        // Edit tetap kembali ke filter yang sedang dipakai.
         $patrol = CrossPatrol::sole();
-        $this->actingAs($admin)->put("/sms/cross-patrols/{$patrol->id}", $this->payload(['department_id' => $this->psd->id, 'foto' => null, 'status' => 'open', 'keep' => ['zona' => '1']]))
-            ->assertRedirect(route('sms.cross-patrols.index', ['zona' => '1']));
+        $this->actingAs($admin)->from('/sms/cross-patrols?zona=4')
+            ->put("/sms/cross-patrols/{$patrol->id}", $this->payload(['department_id' => $this->psd->id, 'foto' => null, 'status' => 'open']))
+            ->assertRedirect(route('sms.cross-patrols.index'))
+            ->assertSessionHas('highlight', $patrol->id);
+
+        $this->actingAs($admin)->from('/sms/cross-patrols?zona=4')
+            ->delete("/sms/cross-patrols/{$patrol->id}")
+            ->assertRedirect(route('sms.cross-patrols.index'));
     }
 }

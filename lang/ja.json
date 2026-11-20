@@ -1330,5 +1330,8 @@
     "Belum ada data kehadiran di bulan ini.": "この月の出勤データはまだありません。",
     "Data sampai :tanggal dari file HRD (2026 summary). Hari setelahnya dihitung otomatis dari absensi: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.": ":tanggal までは人事ファイル（2026 summary）のデータ。それ以降は勤怠から自動計算：Cuti = CT/CK/CH/CB/IMP、S+I = 病欠 + 私用 + 無断欠勤、WFH は出勤扱い。",
     "Dihitung otomatis dari absensi: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.": "勤怠から自動計算：Cuti = CT/CK/CH/CB/IMP、S+I = 病欠 + 私用 + 無断欠勤、WFH は出勤扱い。",
-    "両直 = dua shift masuk, 一直 = satu shift.": "両直 = 2直稼働、一直 = 1直のみ。"
+    "両直 = dua shift masuk, 一直 = satu shift.": "両直 = 2直稼働、一直 = 1直のみ。",
+    "JAPAN RESUME": "ジャパンレジュメ",
+    "Total = MP Shift 1 + Shift 2 · rate = (Cuti + S+I) / Total": "Total = 1直 + 2直 の人数 · 不在率 = (Cuti + S+I) / Total",
+    "Shift": "シフト"
 }

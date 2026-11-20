@@ -137,6 +137,28 @@ class AbsensiJapanResumeTest extends TestCase
         $this->actingAs($deptAdmin)->get(route('hrms.absensi.japan-resume'))->assertForbidden();
     }
 
+    public function test_pdf_berisi_rekap_bulan_terpilih_dan_hanya_untuk_admin_hrms(): void
+    {
+        Carbon::setTestNow('2026-11-19 10:00:00');
+        $this->seed(JapanResumeSeeder::class);
+        $admin = $this->hrmsAdmin();
+
+        $this->actingAs($admin)->get(route('hrms.absensi.japan-resume', ['bulan' => '2026-03']))
+            ->assertSee(route('hrms.absensi.japan-resume.pdf', ['bulan' => '2026-03']), false);
+
+        $this->actingAs($admin)->get(route('hrms.absensi.japan-resume.pdf', ['bulan' => '2026-03']))
+            ->assertOk()
+            ->assertSee('Unduh / Simpan PDF')
+            ->assertSee('<title>Japan Resume 2026-03</title>', false)
+            ->assertSeeInOrder(['Mar Total', '8.385', '7.937', '235', '2,8%', '213', '2,5%', '5,3%'])
+            ->assertSeeInOrder(['3/15', '一直', '173', '163', '6', '4', '5,8%'])
+            ->assertDontSee('3/1*');
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', Department::firstOrCreate(['name' => 'PSD'])->id);
+        $this->actingAs($deptAdmin)->get(route('hrms.absensi.japan-resume.pdf'))->assertForbidden();
+    }
+
     public function test_bulan_tidak_valid_kembali_ke_bulan_ini(): void
     {
         Carbon::setTestNow('2026-11-19 10:00:00');

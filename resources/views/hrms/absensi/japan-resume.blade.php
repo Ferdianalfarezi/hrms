@@ -53,6 +53,7 @@
             <a href="{{ route('hrms.absensi.japan-resume', ['bulan' => $bulan->copy()->addMonthNoOverflow()->format('Y-m')]) }}" title="{{ __('Bulan berikutnya') }}">&rsaquo;</a>
         </span>
         <input type="month" name="bulan" value="{{ $bulan->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Bulan') }}">
+        <a href="{{ route('hrms.absensi.japan-resume.pdf', ['bulan' => $bulan->format('Y-m')]) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener" data-turbo="false">{{ __('Unduh PDF') }}</a>
         <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">{{ __('Cetak') }}</button>
     </form>
 </div>
