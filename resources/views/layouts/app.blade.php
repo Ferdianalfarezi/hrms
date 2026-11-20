@@ -74,11 +74,18 @@
     </header>
     </div>
 
+    {{-- Pesan berhasil hilang sendiri setelah beberapa detik; pesan error tetap tampil sampai ditutup. --}}
     @if (session('status'))
-        <div class="success">{{ session('status') }}</div>
+        <div class="success flash" data-flash="auto" role="status">
+            <span>{{ session('status') }}</span>
+            <button type="button" class="flash-close" data-flash-close aria-label="{{ __('Tutup') }}">&times;</button>
+        </div>
     @endif
     @if (session('error'))
-        <div class="alert">{{ session('error') }}</div>
+        <div class="alert flash" data-flash role="alert">
+            <span>{{ session('error') }}</span>
+            <button type="button" class="flash-close" data-flash-close aria-label="{{ __('Tutup') }}">&times;</button>
+        </div>
     @endif
     @if ($errors->has('user'))
         <div class="alert">{{ $errors->first('user') }}</div>

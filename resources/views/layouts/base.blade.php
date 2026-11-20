@@ -172,6 +172,11 @@
         .alert, .success { border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; margin-bottom: 16px; }
         .alert { background: var(--danger-bg); color: var(--danger); }
         .success { background: var(--success-bg); color: var(--success); }
+        /* Pesan flash di atas halaman: bisa ditutup, pesan berhasil memudar sendiri. */
+        .flash { display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: opacity .4s, transform .4s; }
+        .flash.hiding { opacity: 0; transform: translateY(-6px); }
+        .flash-close { flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: .6; }
+        .flash-close:hover { opacity: 1; background: rgba(0, 0, 0, .06); }
 
         /* Form */
         label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -417,6 +422,34 @@
             });
 
             return { show: show, hide: hide };
+        })();
+
+        // Pesan flash: tombol × menutup, pesan berhasil (data-flash="auto") hilang sendiri setelah 4 detik.
+        // Pesan dibuang sebelum halaman masuk cache Turbo, supaya tidak muncul lagi saat tombol Back ditekan.
+        window.hrFlash = window.hrFlash || (function () {
+            function dismiss(flash) {
+                if (!flash.isConnected || flash.classList.contains('hiding')) return;
+                flash.classList.add('hiding');
+                setTimeout(function () { flash.remove(); }, 400);
+            }
+
+            function init() {
+                document.querySelectorAll('[data-flash]').forEach(function (flash) {
+                    if (flash.dataset.flashReady) return;
+                    flash.dataset.flashReady = '1';
+                    var close = flash.querySelector('[data-flash-close]');
+                    if (close) close.addEventListener('click', function () { dismiss(flash); });
+                    if (flash.dataset.flash === 'auto') setTimeout(function () { dismiss(flash); }, 4000);
+                });
+            }
+
+            document.addEventListener('turbo:load', init);
+            document.addEventListener('DOMContentLoaded', init);
+            document.addEventListener('turbo:before-cache', function () {
+                document.querySelectorAll('[data-flash]').forEach(function (flash) { flash.remove(); });
+            });
+
+            return { init: init };
         })();
 
         // Toast notifikasi: animasi masuk hanya sekali, toast yang sudah ditutup tidak muncul lagi dari cache Turbo,
