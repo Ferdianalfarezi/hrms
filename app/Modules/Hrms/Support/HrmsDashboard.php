@@ -83,8 +83,10 @@ class HrmsDashboard
             'composition' => $viewer->isDepartmentAdmin()
                 ? self::kehadiranKaryawan($visible, $departmentLabel)
                 : self::absensiHariIni($visible, $hariIni['perShift']),
-            // Karyawan yang berulang tahun minggu ini: kartu di baris bawah (bukan di kolom kanan), jadi kartu absensi memakai seluruh kolom kanan.
-            'people' => [...self::ulangTahunMingguIni($visible), 'side' => false],
+            // Kolom kanan hanya kartu absensi (tanpa kartu daftar orang).
+            'people' => ['side' => false],
+            // Admin HRMS: angka grafik Laporan Detail hari ini per shift (data seluruh karyawan, jadi tidak untuk Admin Departemen).
+            'persenShift' => $viewer->isDepartmentAdmin() ? null : LaporanAbsensiShift::persenTanggal(Carbon::today()),
             'hariIni' => $hariIni,
         ];
     }
@@ -208,7 +210,7 @@ class HrmsDashboard
 
     /**
      * Ringkasan absensi hari ini seperti di halaman Absensi Harian, ditambah hasil komparasi mesin absen.
-     * Rinciannya ditampilkan per shift (Shift 1 di atas, Shift 2 di bawah).
+     * Rinciannya ditampilkan per shift (Shift 1 pagi hari ini di atas, Shift 2 malam kemarin di bawah).
      *
      * @param  list<array{label: string, sub: ?string, total: int, hadir: int, perKategori: array<string, int>}>  $perShift  dari ProduktivitasHariIni
      */
@@ -323,41 +325,6 @@ class HrmsDashboard
             'max' => $skala['max'],
             'target' => LaporanAbsensiShift::TARGET_PERSEN,
             'link' => route('hrms.absensi.index'),
-        ];
-    }
-
-    /**
-     * Karyawan yang berulang tahun minggu ini (Senin - Minggu), urut tanggal lalu nama. Yang ulang tahun hari ini diberi tanda centang.
-     */
-    private static function ulangTahunMingguIni(\Closure $visible): array
-    {
-        $awalMinggu = Carbon::today()->startOfWeek();
-        $days = collect(range(0, 6))->map(fn (int $offset) => $awalMinggu->copy()->addDays($offset));
-
-        $rows = $visible()->whereNotNull('tgl_lahir')->with('department:id,name')
-            ->get(['id', 'nik', 'nama', 'tgl_lahir', 'department_id'])
-            ->map(fn (Karyawan $karyawan) => [
-                'karyawan' => $karyawan,
-                'day' => $days->first(fn (Carbon $day) => $day->month === $karyawan->tgl_lahir->month && $day->day === $karyawan->tgl_lahir->day),
-            ])
-            ->filter(fn (array $row) => $row['day'] !== null)
-            ->sortBy(fn (array $row) => $row['day']->format('md').$row['karyawan']->nama)
-            ->values();
-
-        return [
-            'title' => 'Ulang Tahun Minggu Ini',
-            'counter' => $rows->count(),
-            'items' => $rows->map(fn (array $row) => [
-                'name' => $row['karyawan']->nama,
-                'sub' => collect([
-                    $row['day']->isToday() ? __('Hari ini') : $row['day']->translatedFormat('D, d M'),
-                    __('ke-:umur', ['umur' => $row['day']->year - $row['karyawan']->tgl_lahir->year]),
-                    $row['karyawan']->department?->name,
-                ])->filter()->join(' · '),
-                'check' => $row['day']->isToday(),
-                'url' => route('hrms.karyawans.index', ['q' => $row['karyawan']->nik]),
-            ])->all(),
-            'empty' => 'Tidak ada karyawan yang berulang tahun minggu ini.',
         ];
     }
 

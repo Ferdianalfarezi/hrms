@@ -570,7 +570,6 @@
     "karyawan tidak absen di mesin": "名の従業員が打刻機で未打刻",
     "Karyawan tidak ditemukan.": "従業員が見つかりません。",
     "Karyawan tidak ditemukan: ": "従業員が見つかりません：",
-    "Karyawan yang berulang tahun minggu ini.": "今週誕生日の従業員。",
     "Kasus per bulan — :tahun vs :lalu": "月別件数 — :tahun年 vs :lalu年",
     "Kategori": "カテゴリ",
     "KATEGORI ABSEN": "欠勤区分",
@@ -1088,7 +1087,6 @@
     "Tidak ada data karyawan di file.": "ファイルに従業員データがありません。",
     "Tidak ada foto": "写真なし",
     "Tidak ada karyawan untuk ditampilkan.": "表示する従業員がいません。",
-    "Tidak ada karyawan yang berulang tahun minggu ini.": "今週誕生日の従業員はいません。",
     "Tidak ada karyawan yang bisa ditampilkan.": "表示できる従業員がいません。",
     "Tidak ada karyawan yang datang terlambat di :bulan.": ":bulan に遅刻した従業員はいません。",
     "Tidak ada karyawan yang tidak masuk di tanggal ini.": "この日の欠勤者はいません。",
@@ -1297,7 +1295,6 @@
     "Total :jumlah hari-orang, 7 hari kerja.": "合計 :jumlah 人日（7営業日）。",
     "Jenis": "区分",
     "Persen = kehadiran per hari. Merah = tidak hadir di atas :target%.": "% = 日ごとの出勤率。赤 = 欠勤率が :target% 超。",
-    "Ulang Tahun Minggu Ini": "今週の誕生日",
     "ke-:umur": ":umur 歳",
     ":jam jam per karyawan. WFH dihitung bekerja.": "従業員1人あたり :jam 時間。WFHは勤務扱い。",
     "Edit untuk mengisi menit": "編集して分数を入力",
@@ -1351,5 +1348,7 @@
     ":Attribute maksimal :max.": ":Attribute は :max 以下にしてください。",
     "PDF": "PDF",
     "Excel": "Excel",
-    "Otomatis = dihitung dari menu Absensi Harian tanggal itu: Total = semua karyawan, Cuti = CT/CK/CH/CB/IMP, S+I = kode tidak hadir lainnya (Cuti + S+I = Total tidak hadir di Harian). Tanggal yang belum ada data absensinya memakai data file HRD (2026 summary).": "自動 = その日の日別勤怠から計算：Total = 全従業員、Cuti = CT/CK/CH/CB/IMP、S+I = その他の欠勤コード（Cuti + S+I = 日別の欠勤合計）。勤怠データがない日は人事ファイル（2026 summary）のデータを使用。"
+    "Otomatis = dihitung dari menu Absensi Harian tanggal itu: Total = semua karyawan, Cuti = CT/CK/CH/CB/IMP, S+I = kode tidak hadir lainnya (Cuti + S+I = Total tidak hadir di Harian). Tanggal yang belum ada data absensinya memakai data file HRD (2026 summary).": "自動 = その日の日別勤怠から計算：Total = 全従業員、Cuti = CT/CK/CH/CB/IMP、S+I = その他の欠勤コード（Cuti + S+I = 日別の欠勤合計）。勤怠データがない日は人事ファイル（2026 summary）のデータを使用。",
+    "Tidak Hadir per Shift": "シフト別欠勤率",
+    "Persen tidak hadir, sama seperti grafik di Laporan Detail. Merah = di atas target.": "欠勤率（詳細レポートのグラフと同じ）。赤 = 目標超過。"
 }

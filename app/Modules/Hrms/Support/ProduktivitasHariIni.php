@@ -41,17 +41,34 @@ class ProduktivitasHariIni
             ->whereDate('tanggal', $today->toDateString())
             ->get(['karyawan_id', 'kode', 'menit_terlambat']);
 
+        $this->tidakHadir = $this->tidakHadirPada($today, $this->karyawans, $absensis);
+        $this->telat = $absensis->whereIn('kode', self::KODE_TELAT)->values();
+    }
+
+    /**
+     * Karyawan yang tidak hadir pada tanggal itu: kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan (Alpa).
+     *
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @param  ?Collection<int, Absensi>  $absensis  absensi tanggal itu kalau sudah diambil
+     * @return array<int, string> karyawan_id => kategori
+     */
+    private function tidakHadirPada(Carbon $tanggal, Collection $karyawans, ?Collection $absensis = null): array
+    {
+        $absensis ??= Absensi::whereIn('karyawan_id', $karyawans->keys())
+            ->whereDate('tanggal', $tanggal->toDateString())
+            ->get(['karyawan_id', 'kode']);
+
+        $tidakHadir = [];
         foreach ($absensis as $absensi) {
             if (in_array($absensi->kode, Absensi::kodeTidakHadir(), true)) {
-                $this->tidakHadir[$absensi->karyawan_id] = Absensi::kategori($absensi->kode);
+                $tidakHadir[$absensi->karyawan_id] = Absensi::kategori($absensi->kode);
             }
         }
-        foreach (array_keys(KomparasiAbsensi::selBelumAdaKeterangan($this->karyawans->values(), $today, $today)) as $karyawanId) {
-            // Tidak absen di mesin dan belum ada keterangan = Alpa.
-            $this->tidakHadir[$karyawanId] ??= 'Alpa';
+        foreach (array_keys(KomparasiAbsensi::selBelumAdaKeterangan($karyawans->values(), $tanggal, $tanggal)) as $karyawanId) {
+            $tidakHadir[$karyawanId] ??= 'Alpa';
         }
 
-        $this->telat = $absensis->whereIn('kode', self::KODE_TELAT)->values();
+        return $tidakHadir;
     }
 
     public static function build(Closure $visible): array
@@ -109,66 +126,63 @@ class ProduktivitasHariIni
     }
 
     /**
-     * Shift 1 = grup shift pagi + NS, Shift 2 = grup shift malam (menurut rotasi). Tanpa rotasi: per grup apa adanya.
+     * Seperti Laporan Detail: Shift 1 = grup shift pagi + NS hari ini, Shift 2 = grup shift malam kemarin
+     * (mis. hari ini 20 Nov: Shift 1 pagi 20 Nov, Shift 2 malam 19 Nov). Tanpa rotasi: per grup apa adanya.
      */
     private function perShift(): array
     {
         $grupPagi = ShiftRotasi::grupPagi($this->today);
+        $kemarin = $this->today->copy()->subDay();
+        $grupMalamKemarin = ($grupPagiKemarin = ShiftRotasi::grupPagi($kemarin)) ? ShiftRotasi::lawan($grupPagiKemarin) : null;
 
-        if ($grupPagi === null) {
+        if ($grupPagi === null && $grupMalamKemarin === null) {
             $grups = $this->karyawans->pluck('group')->map(fn (?string $grup) => $grup ?: '-')->unique()->sort()->values();
 
-            return array_values(array_filter($this->rekap(
-                fn (Karyawan $karyawan) => $karyawan->group ?: '-',
-                $grups->mapWithKeys(fn (string $grup) => [$grup => ['label' => $grup === '-' ? __('Tanpa grup') : __('Grup :grup', ['grup' => $grup])]])->all(),
-            ), fn (array $row) => $row['total'] > 0));
+            return $grups->map(fn (string $grup) => $this->rekap($grup, $grup === '-' ? __('Tanpa grup') : __('Grup :grup', ['grup' => $grup]), null,
+                $this->karyawans->filter(fn (Karyawan $karyawan) => ($karyawan->group ?: '-') === $grup)))
+                ->filter(fn (array $row) => $row['total'] > 0)->values()->all();
         }
 
-        $grupMalam = ShiftRotasi::lawan($grupPagi);
-        $rows = $this->rekap(
-            fn (Karyawan $karyawan) => match ($karyawan->group) {
-                $grupPagi, 'NS' => 'pagi',
-                $grupMalam => 'malam',
-                default => 'lain',
-            },
-            [
-                'pagi' => ['label' => __('Shift 1 · Pagi'), 'sub' => __('Grup :grup + NS · 07.00 - 16.00', ['grup' => $grupPagi])],
-                'malam' => ['label' => __('Shift 2 · Malam'), 'sub' => __('Grup :grup · 20.05 - 05.00', ['grup' => $grupMalam])],
-                'lain' => ['label' => __('Tanpa grup')],
-            ],
-        );
+        $isMalam = fn (Karyawan $karyawan) => $grupMalamKemarin !== null && $karyawan->group === $grupMalamKemarin;
+        // Shift 1: grup pagi hari ini dan NS. Karyawan tanpa grup tidak dihitung di shift mana pun.
+        $isPagi = fn (Karyawan $karyawan) => $karyawan->group === 'NS' || ($grupPagi !== null && $karyawan->group === $grupPagi);
+        $pagi = $this->karyawans->filter($isPagi);
+        $malam = $this->karyawans->filter($isMalam);
 
-        return array_values(array_filter($rows, fn (array $row) => $row['total'] > 0 || $row['kunci'] !== 'lain'));
+        // Grup yang sama bisa malam kemarin dan pagi hari ini (hari pergantian rotasi), jadi tiap shift punya anggota sendiri.
+        return [
+            $this->rekap('pagi', __('Shift 1 · Pagi').' · '.$this->today->translatedFormat('d M'),
+                __('Grup :grup + NS · 07.00 - 16.00', ['grup' => $grupPagi ?? '-']), $pagi),
+            $this->rekap('malam', __('Shift 2 · Malam').' · '.$kemarin->translatedFormat('d M'),
+                __('Grup :grup · 20.05 - 05.00', ['grup' => $grupMalamKemarin ?? '-']), $malam, $this->tidakHadirPada($kemarin, $malam)),
+        ];
     }
 
     /**
-     * Kehadiran hari ini per kelompok. $kunci memetakan karyawan ke kunci di $labels; karyawan dengan kunci lain diabaikan.
+     * Kehadiran satu kelompok karyawan.
      *
-     * @param  array<string, array{label: string, sub?: string}>  $labels
-     * @return list<array{kunci: string, label: string, sub: ?string, total: int, hadir: int, tidakHadir: int, perKategori: array<string, int>, persen: ?string, diAtasTarget: bool}>
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @param  ?array<int, string>  $tidakHadir  karyawan_id => kategori; default absensi hari ini
+     * @return array{kunci: string, label: string, sub: ?string, total: int, hadir: int, tidakHadir: int, perKategori: array<string, int>, persen: ?string, diAtasTarget: bool}
      */
-    private function rekap(Closure $kunci, array $labels): array
+    private function rekap(string $kunci, string $label, ?string $sub, Collection $karyawans, ?array $tidakHadir = null): array
     {
-        $anggota = $this->karyawans->groupBy(fn (Karyawan $karyawan) => (string) $kunci($karyawan));
+        $tidakHadir ??= $this->tidakHadir;
+        $total = $karyawans->count();
+        $perKategori = $karyawans->map(fn (Karyawan $karyawan) => $tidakHadir[$karyawan->id] ?? null)->filter()->countBy()->all();
+        $jumlahTidakHadir = array_sum($perKategori);
 
-        return collect($labels)->map(function (array $info, string $key) use ($anggota) {
-            $karyawans = $anggota->get($key, collect());
-            $total = $karyawans->count();
-            $perKategori = $karyawans->map(fn (Karyawan $karyawan) => $this->tidakHadir[$karyawan->id] ?? null)->filter()->countBy()->all();
-            $tidakHadir = array_sum($perKategori);
-
-            return [
-                'kunci' => $key,
-                'label' => $info['label'],
-                'sub' => $info['sub'] ?? null,
-                'total' => $total,
-                'hadir' => $total - $tidakHadir,
-                'tidakHadir' => $tidakHadir,
-                'perKategori' => $perKategori,
-                'persen' => $total > 0 ? HrmsDashboard::persenHadir($total - $tidakHadir, $total) : null,
-                'diAtasTarget' => $total > 0 && $tidakHadir / $total * 100 > LaporanAbsensiShift::TARGET_PERSEN,
-            ];
-        })->values()->all();
+        return [
+            'kunci' => $kunci,
+            'label' => $label,
+            'sub' => $sub,
+            'total' => $total,
+            'hadir' => $total - $jumlahTidakHadir,
+            'tidakHadir' => $jumlahTidakHadir,
+            'perKategori' => $perKategori,
+            'persen' => $total > 0 ? HrmsDashboard::persenHadir($total - $jumlahTidakHadir, $total) : null,
+            'diAtasTarget' => $total > 0 && $jumlahTidakHadir / $total * 100 > LaporanAbsensiShift::TARGET_PERSEN,
+        ];
     }
 
     private function menitTerlambat(): int

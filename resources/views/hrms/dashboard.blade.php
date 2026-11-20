@@ -18,6 +18,12 @@
     @media (max-width: 640px) {
         .dash-grid { grid-template-areas: "profile" "side" "progress" "manhour" "telat" "ultah"; }
     }
+    @if (! $persenShift)
+        {{-- Admin Departemen: tanpa kartu persen per shift, kartu keterlambatan memakai tempatnya. --}}
+        .dash-grid { grid-template-areas: "profile progress progress side" "manhour telat telat side"; }
+        @media (max-width: 1100px) { .dash-grid { grid-template-areas: "profile side" "progress progress" "manhour telat"; } }
+        @media (max-width: 640px) { .dash-grid { grid-template-areas: "profile" "side" "progress" "manhour" "telat"; } }
+    @endif
     .dash-grid > .card { min-width: 0; }
     /* Kolom kanan hanya kartu absensi (Shift 1 di atas, Shift 2 di bawah). Layar lebar: tingginya mengikuti dua baris di kirinya,
        isi yang lebih panjang di-scroll di dalam kartu. */
@@ -33,11 +39,16 @@
     .shift-block .legend { gap: 4px; }
     .shift-block .legend-row, .shift-block .legend-value { font-size: 12px; }
     .shift-block .legend-row .dot { width: 8px; height: 8px; }
-    /* Ulang tahun minggu ini (baris bawah): daftar yang panjang di-scroll di dalam kartu. */
+    /* Persen tidak hadir hari ini per shift (baris bawah). */
     .a-ultah { display: flex; flex-direction: column; }
-    .a-ultah .team-list { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 6px; }
-    @media (min-width: 1101px) { .a-ultah { contain: size; } }
-    @media (max-width: 1100px) { .a-ultah .team-list { max-height: 240px; } }
+    /* Lebar kolom tetap & judul shift boleh turun baris, supaya tabel tidak keluar dari kartu. */
+    table.persen-shift { margin-top: 4px; font-size: 13px; table-layout: fixed; }
+    table.persen-shift th { font-size: 11px; color: var(--text); white-space: normal; overflow-wrap: anywhere; line-height: 1.3; vertical-align: bottom; }
+    table.persen-shift th:first-child { width: 36%; }
+    table.persen-shift td { padding: 7px 8px; font-weight: 600; }
+    table.persen-shift td:first-child { font-weight: 500; color: var(--muted); }
+    table.persen-shift td.over { color: #dc2626; }
+    table.persen-shift + .card-foot { margin-top: auto; }
     .card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
     .card-head.top { align-items: flex-start; }
 
@@ -449,8 +460,41 @@
         @endif
     </div>
 
-    {{-- Ulang tahun minggu ini (menggantikan kartu kehadiran per shift; rincian per shift ada di kartu absensi). --}}
-    @include('dashboard.partials.people-card', ['class' => 'a-ultah', 'urutan' => 6])
+    {{-- Admin HRMS: angka grafik Laporan Detail hari ini (persen tidak hadir) per shift. --}}
+    @if ($persenShift)
+        @php($persenText = fn (?float $value) => $value === null ? '-' : $angka($value, $value == floor($value) ? 0 : 1).'%')
+        <div class="card a-ultah" style="--i: 6;">
+            <div class="card-head top">
+                <div style="min-width: 0;">
+                    <h2 class="card-title">{{ __('Tidak Hadir per Shift') }}</h2>
+                    <div class="card-sub">{{ __('Hari ini') }} · {{ now()->translatedFormat('d M') }}</div>
+                </div>
+                <a href="{{ route('hrms.absensi.detail') }}" class="mini-btn" title="{{ __('Lihat detail') }}">{!! $lihat !!}</a>
+            </div>
+            <table class="tren-table persen-shift">
+                <thead>
+                    <tr>
+                        <th></th>
+                        @foreach ($persenShift as $shift)
+                            {{-- Label "Shift 1 · Pagi · 20 Nov": tanggal di baris kedua. --}}
+                            <th title="{{ $shift['label'] }} {{ $shift['sub'] }}">{{ \Illuminate\Support\Str::beforeLast($shift['label'], ' · ') }}<small>{{ collect([\Illuminate\Support\Str::afterLast($shift['label'], ' · '), $shift['sub']])->filter()->join(' · ') }}</small></th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (['target' => 'Target', 'actual' => 'Actual', 'tanpa_cuti' => 'Tanpa cuti', 'leader' => 'Asst. Leader up'] as $key => $label)
+                        <tr>
+                            <td>{{ __($label) }}</td>
+                            @foreach ($persenShift as $shift)
+                                <td @class(['over' => $key !== 'target' && $shift[$key] !== null && $shift[$key] > $shift['target']])>{{ $persenText($shift[$key]) }}</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div class="card-foot">{{ __('Persen tidak hadir, sama seperti grafik di Laporan Detail. Merah = di atas target.') }}</div>
+        </div>
+    @endif
 @endsection
 
 @push('scripts')

@@ -51,6 +51,38 @@ class LaporanAbsensiShift
     }
 
     /**
+     * Angka grafik Laporan Detail untuk satu tanggal saja (Target, Actual, Tanpa cuti, Asst. Leader up), Shift 1 lalu Shift 2.
+     * Seperti laporan tanggal itu: Shift 1 = pagi tanggal itu, Shift 2 = malam sehari sebelumnya. Persen null = hari libur / belum ada rotasi.
+     *
+     * @return list<array{label: string, sub: ?string, target: int, actual: ?float, tanpa_cuti: ?float, leader: ?float}>
+     */
+    public static function persenTanggal(Carbon $tanggal): array
+    {
+        $laporan = new self;
+        $pagi = $tanggal->copy()->startOfDay();
+        $malam = $pagi->copy()->subDay();
+
+        return collect([
+            'pagi' => [__('Shift 1 · Pagi'), $pagi],
+            'malam' => [__('Shift 2 · Malam'), $malam],
+        ])
+            ->map(function (array $info, string $shift) use ($laporan) {
+                [$label, $tanggal] = $info;
+                $grups = $laporan->grups($shift, $tanggal);
+                $point = $laporan->grafik($shift, $tanggal, $tanggal, $tanggal)['points'][0] ?? [];
+
+                return [
+                    'label' => $label.' · '.$tanggal->translatedFormat('d M'),
+                    'sub' => $grups !== [] ? __('Grup :grup', ['grup' => implode(' + ', $grups)]) : null,
+                    'target' => self::TARGET_PERSEN,
+                    'actual' => $point['actual'] ?? null,
+                    'tanpa_cuti' => $point['tanpa_cuti'] ?? null,
+                    'leader' => $point['leader'] ?? null,
+                ];
+            })->values()->all();
+    }
+
+    /**
      * Sama seperti build(), tanpa menghitung grafik bulanan ('grafik' => null).
      */
     public static function buildTanpaGrafik(Carbon $tanggal, bool $hitungCuti = true): array
@@ -245,10 +277,10 @@ class LaporanAbsensiShift
      * Persentase ketidakhadiran shift ini per hari kerja (Senin - Jumat) dalam bulan tanggal laporan.
      * "tanpa_cuti" dan "leader" (Asst. Leader up) selalu tidak menghitung cuti. Hari setelah tanggal laporan dibiarkan kosong.
      */
-    private function grafik(string $shift, Carbon $tanggal): array
+    private function grafik(string $shift, Carbon $tanggal, ?Carbon $start = null, ?Carbon $end = null): array
     {
-        $start = $tanggal->copy()->startOfMonth();
-        $end = $tanggal->copy()->endOfMonth();
+        $start ??= $tanggal->copy()->startOfMonth();
+        $end ??= $tanggal->copy()->endOfMonth();
 
         // [Y-m-d][grup] => jumlah karyawan tidak hadir: semua kode, tanpa cuti, dan Asst. Leader up tanpa cuti.
         $counts = [];
@@ -272,7 +304,8 @@ class LaporanAbsensiShift
             ->join('karyawans', 'karyawans.id', '=', 'absensis.karyawan_id')
             ->whereNotNull('karyawans.group')
             ->whereIn('absensis.kode', Absensi::kodeTidakHadir())
-            ->whereBetween('absensis.tanggal', [$start->toDateString(), $end->toDateString()])
+            ->where('absensis.tanggal', '>=', $start->toDateString())
+            ->where('absensis.tanggal', '<', $end->copy()->addDay()->toDateString())
             ->get(['absensis.tanggal', 'absensis.kode', 'karyawans.group', 'karyawans.jabatan'])
             ->each(fn ($row) => $tambah($row->tanggal->toDateString(), $row->group, $row->jabatan, in_array($row->kode, Absensi::KATEGORI['CT'], true)));
 
