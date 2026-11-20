@@ -175,12 +175,31 @@ trait ScopesPatrolToDepartment
     }
 
     /**
-     * Setelah tambah / edit / hapus: daftar selalu kembali ke tampilan awal (tanpa filter, halaman 1),
-     * supaya perubahan datanya langsung terlihat. Baris yang baru ditambah / diedit disorot.
+     * Setelah tambah / edit / hapus: kembali ke daftar dengan filter & halaman yang sedang dipakai
+     * (dibaca dari URL daftar sebelum submit). Baris yang baru ditambah / diedit disorot.
      */
     private function redirectToList(string $route, string $message, ?Model $highlight = null): RedirectResponse
     {
-        return redirect()->route($route)->with('status', $message)->with('highlight', $highlight?->id);
+        return redirect()->route($route, $this->filtersFromPreviousList($route))
+            ->with('status', $message)
+            ->with('highlight', $highlight?->id);
+    }
+
+    /**
+     * Query string halaman daftar sebelumnya (filter, pencarian, halaman). Kosong kalau submit bukan dari halaman daftar itu.
+     *
+     * @return array<string, string>
+     */
+    private function filtersFromPreviousList(string $route): array
+    {
+        $previous = url()->previous();
+        if (strtok($previous, '?') !== route($route)) {
+            return [];
+        }
+
+        parse_str((string) parse_url($previous, PHP_URL_QUERY), $query);
+
+        return array_filter($query, fn ($value) => is_string($value) && $value !== '');
     }
 
     /**

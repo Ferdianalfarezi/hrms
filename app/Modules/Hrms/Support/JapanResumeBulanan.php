@@ -22,38 +22,49 @@ use Illuminate\Support\Carbon;
  */
 class JapanResumeBulanan
 {
+    /** Baris yang dihitung dari absensi (tidak tersimpan). */
+    public const SUMBER_OTOMATIS = 'otomatis';
+
     /** Hari dianggap cuti bersama (tidak tampil) kalau minimal sebagian ini dari total MP berkode CB. */
     public const BATAS_CUTI_BERSAMA = 0.5;
 
     /**
-     * @return array{bulan: Carbon, rows: list<array{tanggal: Carbon, shift: string, total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, otomatis: bool}>, total: array{total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, persen_cuti: ?float, persen_sakit_izin: ?float}, dataSampai: ?Carbon}
+     * @return array{bulan: Carbon, rows: list<array<string, mixed>>, total: array{total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, persen_cuti: ?float, persen_sakit_izin: ?float}, dataSampai: ?Carbon}
      */
     public static function build(Carbon $bulan, Carbon $hariIni): array
     {
         $start = $bulan->copy()->startOfMonth();
         $end = $bulan->copy()->endOfMonth();
-        $dataSampai = JapanResume::max('tanggal');
+        $dataSampai = JapanResume::where('sumber', JapanResume::SUMBER_EXCEL)->max('tanggal');
         $dataSampai = $dataSampai ? Carbon::parse($dataSampai)->startOfDay() : null;
 
-        $rows = JapanResume::whereDate('tanggal', '>=', $start->toDateString())
+        // Baris tersimpan (data Excel + angka yang disesuaikan admin) selalu dipakai untuk tanggalnya.
+        $rows = JapanResume::with('editor:id,name')
+            ->whereDate('tanggal', '>=', $start->toDateString())
             ->whereDate('tanggal', '<=', $end->toDateString())
-            ->orderBy('tanggal')
             ->get()
-            ->map(fn (JapanResume $resume) => self::row($resume->tanggal, $resume->shift, $resume->total, $resume->cuti, $resume->sakit_izin, false))
+            ->mapWithKeys(fn (JapanResume $resume) => [$resume->tanggal->toDateString() => self::row(
+                $resume->tanggal, $resume->shift, $resume->total, $resume->cuti, $resume->sakit_izin, $resume->sumber, $resume->editor?->name, $resume->id,
+            )])
             ->all();
 
-        // Hari setelah data tersimpan terakhir sampai hari ini dihitung dari absensi.
+        // Hari setelah data Excel terakhir sampai hari ini dihitung dari absensi, kecuali yang sudah disesuaikan admin.
         $otomatisMulai = $dataSampai ? max($start, $dataSampai->copy()->addDay()) : $start;
         $otomatisSampai = min($end, $hariIni->copy()->startOfDay());
         if ($otomatisMulai->lte($otomatisSampai)) {
-            $rows = [...$rows, ...self::hitungDariAbsensi($otomatisMulai, $otomatisSampai)];
+            foreach (self::hitungDariAbsensi($otomatisMulai, $otomatisSampai) as $row) {
+                $rows[$row['tanggal']->toDateString()] ??= $row;
+            }
         }
+
+        ksort($rows);
+        $rows = array_values($rows);
 
         return ['bulan' => $start, 'rows' => $rows, 'total' => self::total($rows), 'dataSampai' => $dataSampai];
     }
 
     /**
-     * @return list<array{tanggal: Carbon, shift: string, total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, otomatis: bool}>
+     * @return list<array<string, mixed>>
      */
     private static function hitungDariAbsensi(Carbon $mulai, Carbon $sampai): array
     {
@@ -130,7 +141,7 @@ class JapanResumeBulanan
                 continue;
             }
 
-            $rows[] = self::row($day->copy(), $shiftMasuk === 2 ? JapanResume::SHIFT_DUA : JapanResume::SHIFT_SATU, $total, $cuti, $sakitIzin, true);
+            $rows[] = self::row($day->copy(), $shiftMasuk === 2 ? JapanResume::SHIFT_DUA : JapanResume::SHIFT_SATU, $total, $cuti, $sakitIzin, self::SUMBER_OTOMATIS);
         }
 
         return $rows;
@@ -164,13 +175,15 @@ class JapanResumeBulanan
     }
 
     /**
-     * @return array{tanggal: Carbon, shift: string, total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, otomatis: bool}
+     * @param  string  $sumber  excel / manual (tersimpan) atau otomatis (dihitung dari absensi)
+     * @return array{id: ?int, tanggal: Carbon, shift: string, total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, sumber: string, otomatis: bool, editor: ?string}
      */
-    private static function row(Carbon $tanggal, string $shift, int $total, int $cuti, int $sakitIzin, bool $otomatis): array
+    private static function row(Carbon $tanggal, string $shift, int $total, int $cuti, int $sakitIzin, string $sumber, ?string $editor = null, ?int $id = null): array
     {
         $hadir = $total - $cuti - $sakitIzin;
 
         return [
+            'id' => $id,
             'tanggal' => $tanggal,
             'shift' => $shift,
             'total' => $total,
@@ -178,7 +191,10 @@ class JapanResumeBulanan
             'cuti' => $cuti,
             'sakit_izin' => $sakitIzin,
             'rate' => self::persen($total - $hadir, $total),
-            'otomatis' => $otomatis,
+            'sumber' => $sumber,
+            'otomatis' => $sumber === self::SUMBER_OTOMATIS,
+            // Nama admin yang terakhir menyesuaikan angka baris ini (null = belum pernah diedit).
+            'editor' => $editor,
         ];
     }
 

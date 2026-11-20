@@ -10,7 +10,7 @@ class JapanResumeSeeder extends Seeder
     /**
      * Data Japan Resume Maret - 19 November 2026 dari file HRD "2026 summary.xlsx" (satu sheet per bulan;
      * sheet "Mar (2)" hanya gabungan Maret - Juni, jadi tidak dipakai). Hari yang Cuti dan S+I-nya belum diisi tidak ikut.
-     * Aman dijalankan ulang: baris dicari berdasarkan tanggal.
+     * Aman dijalankan ulang: tanggal yang sudah ada (termasuk yang sudah diedit admin) tidak ditimpa.
      *
      * Kolom: tanggal, shift, total MP, cuti, S+I.
      *
@@ -214,12 +214,11 @@ class JapanResumeSeeder extends Seeder
 
     public function run(): void
     {
-        JapanResume::upsert(
-            array_map(fn (array $row) => [
-                'tanggal' => $row[0], 'shift' => $row[1], 'total' => $row[2], 'cuti' => $row[3], 'sakit_izin' => $row[4],
-            ], self::ROWS),
-            ['tanggal'],
-            ['shift', 'total', 'cuti', 'sakit_izin'],
-        );
+        // Hanya menambah tanggal yang belum ada, supaya angka yang sudah disesuaikan admin tidak tertimpa.
+        $now = now();
+        JapanResume::insertOrIgnore(array_map(fn (array $row) => [
+            'tanggal' => $row[0], 'shift' => $row[1], 'total' => $row[2], 'cuti' => $row[3], 'sakit_izin' => $row[4],
+            'sumber' => JapanResume::SUMBER_EXCEL, 'created_at' => $now, 'updated_at' => $now,
+        ], self::ROWS));
     }
 }

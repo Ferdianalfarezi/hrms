@@ -419,31 +419,41 @@ class CrossPatrolTest extends TestCase
             ->assertSee('data-total="501" data-limit="500"', false);
     }
 
-    public function test_every_crud_submit_returns_to_default_list_without_filters(): void
+    public function test_every_crud_submit_stays_on_the_filtered_list(): void
     {
         $admin = $this->smsAdmin();
 
-        // Sedang memfilter zona 4 lalu tambah / edit / hapus: selalu kembali ke daftar awal tanpa filter.
-        $this->actingAs($admin)->from('/sms/cross-patrols?zona=4&page=2')
+        // Sedang memfilter zona 3 lalu tambah / edit / hapus: kembali ke daftar dengan filter yang sama.
+        $this->actingAs($admin)->from('/sms/cross-patrols?zona=3&q=kabel')
             ->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id]))
-            ->assertRedirect(route('sms.cross-patrols.index'))
+            ->assertRedirect(route('sms.cross-patrols.index', ['zona' => '3', 'q' => 'kabel']))
             ->assertSessionHas('highlight', CrossPatrol::sole()->id);
 
-        $this->actingAs($admin)->withSession(['highlight' => CrossPatrol::sole()->id])->get('/sms/cross-patrols')
+        $patrol = CrossPatrol::sole();
+        $this->actingAs($admin)->withSession(['highlight' => $patrol->id])->get('/sms/cross-patrols?zona=3')
             ->assertOk()
             ->assertSee('row-new', false)
             ->assertSee('data-row-new', false)
-            ->assertDontSee('name="keep[', false)
+            ->assertDontSee('tidak cocok dengan filter')
             ->assertSee('<meta name="turbo-cache-control" content="no-cache">', false);
 
-        $patrol = CrossPatrol::sole();
-        $this->actingAs($admin)->from('/sms/cross-patrols?zona=4')
+        // Temuan tersimpan tapi tidak cocok dengan filter: diberi tahu, bukan dikira gagal.
+        $this->actingAs($admin)->withSession(['highlight' => $patrol->id])->get('/sms/cross-patrols?zona=4')
+            ->assertOk()
+            ->assertSee('tidak cocok dengan filter');
+
+        $this->actingAs($admin)->from('/sms/cross-patrols?zona=4&page=2')
             ->put("/sms/cross-patrols/{$patrol->id}", $this->payload(['department_id' => $this->psd->id, 'foto' => null, 'status' => 'open']))
-            ->assertRedirect(route('sms.cross-patrols.index'))
+            ->assertRedirect(route('sms.cross-patrols.index', ['zona' => '4', 'page' => '2']))
             ->assertSessionHas('highlight', $patrol->id);
 
         $this->actingAs($admin)->from('/sms/cross-patrols?zona=4')
             ->delete("/sms/cross-patrols/{$patrol->id}")
+            ->assertRedirect(route('sms.cross-patrols.index', ['zona' => '4']));
+
+        // Submit bukan dari halaman daftar (mis. dari dashboard): ke daftar tanpa filter.
+        $this->actingAs($admin)->from('/sms')
+            ->post('/sms/cross-patrols', $this->payload(['department_id' => $this->psd->id]))
             ->assertRedirect(route('sms.cross-patrols.index'));
     }
 }

@@ -46,6 +46,8 @@
     .summary .chip.chip-open { background: #fffbeb; color: #b45309; }
     .summary .chip.chip-closed { background: var(--success-bg); color: var(--success); }
     .summary .chip.chip-overdue { background: #fee2e2; color: #b91c1c; }
+    .alert.alert-info { background: var(--soft-2); color: var(--navy); }
+    .alert.alert-info a { font-weight: 700; text-decoration: underline; }
 
     table.patrol .c-finding .sub { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
 

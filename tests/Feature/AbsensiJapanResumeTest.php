@@ -159,6 +159,83 @@ class AbsensiJapanResumeTest extends TestCase
         $this->actingAs($deptAdmin)->get(route('hrms.absensi.japan-resume.pdf'))->assertForbidden();
     }
 
+    public function test_angka_baris_otomatis_bisa_disesuaikan_lalu_dikembalikan_ke_otomatis(): void
+    {
+        Carbon::setTestNow('2026-10-15 09:00:00');
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        JapanResume::create(['tanggal' => '2026-10-14', 'shift' => '両直', 'total' => 10, 'cuti' => 1, 'sakit_izin' => 1, 'sumber' => 'excel']);
+        $this->absen($this->karyawan('0001', 'B'), '2026-10-15', 'S');
+        $this->karyawan('0002', 'A');
+        $admin = $this->hrmsAdmin();
+
+        $otomatis = fn () => collect(JapanResumeBulanan::build(Carbon::parse('2026-10-01'), Carbon::today())['rows'])
+            ->firstWhere(fn (array $row) => $row['tanggal']->toDateString() === '2026-10-15');
+        $this->assertSame(['otomatis', 2, 1], [$otomatis()['sumber'], $otomatis()['total'], $otomatis()['sakit_izin']]);
+
+        // Edit baris otomatis: jadi baris manual, Hadir & rate dihitung ulang.
+        $this->actingAs($admin)->post(route('hrms.absensi.japan-resume.store'), [
+            'tanggal' => '2026-10-15', 'shift' => '一直', 'total' => 500, 'cuti' => 5, 'sakit_izin' => 10,
+        ])->assertRedirect(route('hrms.absensi.japan-resume', ['bulan' => '2026-10']))
+            ->assertSessionHas('highlight', '2026-10-15');
+
+        $row = $otomatis();
+        $this->assertSame(['manual', '一直', 500, 485, 5, 10, 3.0, $admin->name], [$row['sumber'], $row['shift'], $row['total'], $row['hadir'], $row['cuti'], $row['sakit_izin'], $row['rate'], $row['editor']]);
+
+        $this->actingAs($admin)->get(route('hrms.absensi.japan-resume', ['bulan' => '2026-10']))
+            ->assertOk()
+            ->assertSeeInOrder(['10/15', 'Diedit', '一直', '500', '485'])
+            ->assertSee(route('hrms.absensi.japan-resume.reset', $row['id']), false);
+
+        // Reset: kembali ke hitungan otomatis dari absensi.
+        $this->actingAs($admin)->delete(route('hrms.absensi.japan-resume.reset', $row['id']))
+            ->assertRedirect(route('hrms.absensi.japan-resume', ['bulan' => '2026-10']));
+        $this->assertSame(['otomatis', 2], [$otomatis()['sumber'], $otomatis()['total']]);
+
+        // Data Excel bisa diedit (tetap data Excel), tapi tidak bisa di-reset.
+        $this->actingAs($admin)->post(route('hrms.absensi.japan-resume.store'), [
+            'tanggal' => '2026-10-14', 'shift' => '両直', 'total' => 12, 'cuti' => 2, 'sakit_izin' => 0,
+        ])->assertSessionHasNoErrors();
+        $excel = JapanResume::whereDate('tanggal', '2026-10-14')->sole();
+        $this->assertSame(['excel', 12, $admin->id], [$excel->sumber, $excel->total, $excel->updated_by]);
+        $this->actingAs($admin)->delete(route('hrms.absensi.japan-resume.reset', $excel))->assertStatus(422);
+    }
+
+    public function test_tambah_tanggal_dan_validasi_angka(): void
+    {
+        Carbon::setTestNow('2026-11-19 10:00:00');
+        $admin = $this->hrmsAdmin();
+
+        // Sabtu masuk yang tidak terdeteksi otomatis bisa ditambahkan.
+        $this->actingAs($admin)->post(route('hrms.absensi.japan-resume.store'), [
+            'tanggal' => '2026-11-14', 'shift' => '一直', 'total' => 171, 'cuti' => 1, 'sakit_izin' => 4,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(['manual', 166], [JapanResume::sole()->sumber, JapanResumeBulanan::build(Carbon::parse('2026-11-01'), Carbon::today())['rows'][0]['hadir']]);
+
+        $this->actingAs($admin)->post(route('hrms.absensi.japan-resume.store'), [
+            'tanggal' => '2026-11-16', 'shift' => '両直', 'total' => 10, 'cuti' => 6, 'sakit_izin' => 5,
+        ])->assertSessionHasErrors(['sakit_izin' => 'Cuti + S+I tidak boleh lebih dari Total.']);
+        $this->actingAs($admin)->post(route('hrms.absensi.japan-resume.store'), ['tanggal' => '2026-11-16', 'shift' => '', 'total' => 0, 'cuti' => -1])
+            ->assertSessionHasErrors(['shift', 'total', 'cuti', 'sakit_izin']);
+        $this->assertSame(1, JapanResume::count());
+
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', Department::firstOrCreate(['name' => 'PSD'])->id);
+        $this->actingAs($deptAdmin)->post(route('hrms.absensi.japan-resume.store'), [
+            'tanggal' => '2026-11-16', 'shift' => '両直', 'total' => 10, 'cuti' => 0, 'sakit_izin' => 0,
+        ])->assertForbidden();
+    }
+
+    public function test_seeder_tidak_menimpa_angka_yang_sudah_diedit(): void
+    {
+        $this->seed(JapanResumeSeeder::class);
+        JapanResume::whereDate('tanggal', '2026-03-02')->update(['total' => 999]);
+
+        $this->seed(JapanResumeSeeder::class);
+
+        $this->assertSame(999, JapanResume::whereDate('tanggal', '2026-03-02')->value('total'));
+        $this->assertSame(184, JapanResume::where('sumber', 'excel')->count());
+    }
+
     public function test_bulan_tidak_valid_kembali_ke_bulan_ini(): void
     {
         Carbon::setTestNow('2026-11-19 10:00:00');

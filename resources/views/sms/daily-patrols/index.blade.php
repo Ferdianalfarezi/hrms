@@ -45,6 +45,14 @@
     </div>
 </div>
 
+{{-- Data yang baru disimpan tidak cocok dengan filter yang sedang dipakai: beri tahu supaya tidak dikira gagal tersimpan. --}}
+@if (session('highlight') && ! $patrols->contains('id', session('highlight')))
+    <div class="alert alert-info">
+        {{ __('Temuan sudah tersimpan, tetapi tidak tampil karena tidak cocok dengan filter yang sedang dipakai.') }}
+        <a href="{{ route('sms.daily-patrols.index') }}">{{ __('Lihat semua') }}</a>
+    </div>
+@endif
+
 @if ($missingDepartment)
     <div class="alert">{{ __('Akun Anda adalah Admin Departemen SMS tetapi belum dipilihkan departemen. Hubungi Super Admin.') }}</div>
 @endif

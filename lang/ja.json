@@ -1333,5 +1333,22 @@
     "両直 = dua shift masuk, 一直 = satu shift.": "両直 = 2直稼働、一直 = 1直のみ。",
     "JAPAN RESUME": "ジャパンレジュメ",
     "Total = MP Shift 1 + Shift 2 · rate = (Cuti + S+I) / Total": "Total = 1直 + 2直 の人数 · 不在率 = (Cuti + S+I) / Total",
-    "Shift": "シフト"
+    "Shift": "シフト",
+    "Temuan sudah tersimpan, tetapi tidak tampil karena tidak cocok dengan filter yang sedang dipakai.": "指摘は保存されましたが、現在の絞り込み条件に一致しないため表示されていません。",
+    "Lihat semua": "すべて表示",
+    "+ Tambah tanggal": "+ 日付を追加",
+    "Tambah tanggal": "日付を追加",
+    "Edit Japan Resume": "ジャパンレジュメを編集",
+    "Diedit": "編集済み",
+    "Disesuaikan oleh :nama": ":nama が修正",
+    "Reset ke otomatis": "自動計算に戻す",
+    "Kembalikan tanggal ini ke hitungan otomatis dari absensi?": "この日付を勤怠からの自動計算に戻しますか？",
+    "Angka tiap tanggal bisa disesuaikan lewat tombol edit; Hadir dan rate dihitung ulang otomatis.": "各日付の数値は編集ボタンで修正できます。出勤と不在率は自動で再計算されます。",
+    "Cuti + S+I tidak boleh lebih dari Total.": "Cuti + S+I は Total を超えられません。",
+    "Japan Resume :tanggal berhasil disimpan.": "ジャパンレジュメ :tanggal を保存しました。",
+    "Japan Resume :tanggal dikembalikan ke hitungan otomatis.": "ジャパンレジュメ :tanggal を自動計算に戻しました。",
+    "Data dari Excel tidak bisa dikembalikan ke otomatis, silakan edit angkanya.": "Excel のデータは自動計算に戻せません。数値を編集してください。",
+    ":Attribute harus berupa angka bulat.": ":Attribute は整数で入力してください。",
+    ":Attribute minimal :min.": ":Attribute は :min 以上にしてください。",
+    ":Attribute maksimal :max.": ":Attribute は :max 以下にしてください。"
 }
