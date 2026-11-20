@@ -1,11 +1,11 @@
 {{-- CSS bersama halaman Daily Patrol & Cross Patrol (di-include di dalam @section('styles')). --}}
     .dp-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-    .dp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .dp-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
     .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
     .filters input[type=search] { width: 260px; border-radius: 999px; }
     .filters input[type=date] { width: auto; border-radius: 999px; padding: 9px 14px; }
     .filters select { width: auto; min-width: 150px; border-radius: 999px; }
-    .summary { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .summary { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-right: 4px; }
     .summary .chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 13px; white-space: nowrap; background: var(--glass-strong); }
 
     table.patrol { font-size: 13px; }

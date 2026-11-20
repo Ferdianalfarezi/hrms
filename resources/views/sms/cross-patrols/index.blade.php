@@ -49,6 +49,13 @@
         </p>
     </div>
     <div class="dp-actions">
+        {{-- Ringkasan jumlah sesuai filter, sebaris dengan tombol supaya baris filter tidak bertumpuk. --}}
+        <div class="summary">
+            <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
+            <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
+            <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
+            <span class="chip chip-overdue">{{ __('Lewat target') }} <b>{{ $statusCounts['overdue'] }}</b></span>
+        </div>
         {{-- Export mengikuti filter yang sedang dipakai; data-turbo="false" karena hasilnya file, bukan halaman. --}}
         <a href="{{ route('sms.cross-patrols.export', $listFilters) }}" class="btn btn-ghost" data-turbo="false">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -101,12 +108,6 @@
     @if ($listFilters)
         <a href="{{ route('sms.cross-patrols.index') }}" class="btn btn-ghost btn-sm">{{ __('Reset') }}</a>
     @endif
-    <div class="summary">
-        <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
-        <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
-        <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
-        <span class="chip chip-overdue">{{ __('Lewat target') }} <b>{{ $statusCounts['overdue'] }}</b></span>
-    </div>
 </form>
 
 <div class="card" style="padding: 8px 12px;">

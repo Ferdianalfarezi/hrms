@@ -31,9 +31,18 @@
             @endif
         </p>
     </div>
-    @if ($canManage)
-        <button type="button" class="btn" data-create>{{ __('+ Tambah Temuan') }}</button>
-    @endif
+    <div class="dp-actions">
+        {{-- Ringkasan jumlah sesuai filter, sebaris dengan tombol supaya baris filter tidak bertumpuk. --}}
+        <div class="summary">
+            <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
+            <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
+            <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
+            <span class="chip chip-overdue">{{ __('Lewat target') }} <b>{{ $statusCounts['overdue'] }}</b></span>
+        </div>
+        @if ($canManage)
+            <button type="button" class="btn" data-create>{{ __('+ Tambah Temuan') }}</button>
+        @endif
+    </div>
 </div>
 
 @if ($missingDepartment)
@@ -56,12 +65,6 @@
             @endforeach
         </select>
     @endif
-    <div class="summary">
-        <span class="chip">{{ __('Total') }} <b>{{ $patrols->total() }}</b></span>
-        <span class="chip chip-open">{{ __('Open') }} <b>{{ $statusCounts['open'] }}</b></span>
-        <span class="chip chip-closed">{{ __('Close') }} <b>{{ $statusCounts['closed'] }}</b></span>
-        <span class="chip chip-overdue">{{ __('Lewat target') }} <b>{{ $statusCounts['overdue'] }}</b></span>
-    </div>
 </form>
 
 <div class="card" style="padding: 8px 12px;">
