@@ -45,6 +45,8 @@
     table.persen-shift { margin-top: 4px; font-size: 13px; table-layout: fixed; }
     table.persen-shift th { font-size: 11px; color: var(--text); white-space: normal; overflow-wrap: anywhere; line-height: 1.3; vertical-align: bottom; }
     table.persen-shift th:first-child { width: 36%; }
+    table.persen-shift th + th { padding-left: 14px; }
+    table.persen-shift th small { white-space: normal; }
     table.persen-shift td { padding: 7px 8px; font-weight: 600; }
     table.persen-shift td:first-child { font-weight: 500; color: var(--muted); }
     table.persen-shift td.over { color: #dc2626; }
@@ -477,7 +479,7 @@
                         <th></th>
                         @foreach ($persenShift as $shift)
                             {{-- Label "Shift 1 · Pagi · 20 Nov": tanggal di baris kedua. --}}
-                            <th title="{{ $shift['label'] }} {{ $shift['sub'] }}">{{ \Illuminate\Support\Str::beforeLast($shift['label'], ' · ') }}<small>{{ collect([\Illuminate\Support\Str::afterLast($shift['label'], ' · '), $shift['sub']])->filter()->join(' · ') }}</small></th>
+                            <th title="{{ $shift['label'] }} {{ $shift['sub'] }}">{{ \Illuminate\Support\Str::beforeLast($shift['label'], ' · ') }}<small>{{ \Illuminate\Support\Str::afterLast($shift['label'], ' · ') }}</small>@if ($shift['sub'])<small>{{ $shift['sub'] }}</small>@endif</th>
                         @endforeach
                     </tr>
                 </thead>
