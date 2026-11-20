@@ -170,11 +170,7 @@
 </section>
 
 <p class="jr-note">
-    @if ($dataSampai)
-        {{ __('Data sampai :tanggal dari file HRD (2026 summary). Hari setelahnya dihitung otomatis dari absensi tanggal itu: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.', ['tanggal' => $dataSampai->translatedFormat('d F Y')]) }}
-    @else
-        {{ __('Dihitung otomatis dari absensi: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.') }}
-    @endif
+    {{ __('Otomatis = dihitung dari menu Absensi Harian tanggal itu: Total = semua karyawan, Cuti = CT/CK/CH/CB/IMP, S+I = kode tidak hadir lainnya (Cuti + S+I = Total tidak hadir di Harian). Tanggal yang belum ada data absensinya memakai data file HRD (2026 summary).') }}
     {{ __('両直 = dua shift masuk, 一直 = satu shift.') }}
     {{ __('Angka tiap tanggal bisa disesuaikan lewat tombol edit; Hadir dan rate dihitung ulang otomatis.') }}
 </p>

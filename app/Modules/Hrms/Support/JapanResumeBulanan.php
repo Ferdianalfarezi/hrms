@@ -3,7 +3,6 @@
 namespace App\Modules\Hrms\Support;
 
 use App\Modules\Hrms\Models\Absensi;
-use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\JapanResume;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Models\ShiftRotasi;
@@ -13,162 +12,103 @@ use Illuminate\Support\Carbon;
  * Japan Resume satu bulan, seperti sheet bulanan di file HRD "2026 summary.xlsx":
  * per hari kerja Total MP, Hadir, Cuti, S+I, dan rate (persentase tidak hadir).
  *
- * Sampai tanggal data tersimpan terakhir (hasil seeder dari Excel) dipakai data tersimpan apa adanya.
- * Setelah itu dihitung otomatis dari absensi per tanggal (bukan per laporan shift seperti menu Resume):
- *  - Total = semua MP yang masuk di tanggal X: grup pagi + NS + grup malam yang mulai malam tanggal X.
- *  - Ketidakhadiran diambil dari absensi tanggal X (shift malam dicatat di tanggal mulai shift-nya).
- *  - Cuti  = kategori CT (CT, CK, CH, CB, IMP).
- *  - S+I   = Sakit + Izin + Alpa (termasuk tidak absen di mesin tanpa keterangan). WFH dihitung hadir.
- * Hari otomatis hanya hari yang ada data absensi / mesin absen (hari libur tidak tampil), dan bukan cuti bersama.
+ * Sumber angka per tanggal, urut prioritas:
+ *  1. Angka yang disesuaikan admin (baris "manual").
+ *  2. Hitungan dari menu Absensi Harian, kalau tanggal itu sudah ada data absensinya:
+ *     - Total = semua karyawan (sama seperti "dari :count karyawan" di Harian).
+ *     - Cuti  = kategori CT (CT, CK, CH, CB, IMP).
+ *     - S+I   = kode tidak hadir lainnya, jadi Cuti + S+I = baris "Total tidak hadir" di Harian.
+ *  3. Data dari file Excel HRD (hasil seeder), untuk tanggal yang belum ada data absensinya di sistem.
+ * Hari tanpa data absensi sama sekali dianggap libur, hari yang sebagian besar karyawannya CB dianggap cuti bersama.
  */
 class JapanResumeBulanan
 {
-    /** Baris yang dihitung dari absensi (tidak tersimpan). */
+    /** Baris yang dihitung dari absensi Harian (tidak tersimpan). */
     public const SUMBER_OTOMATIS = 'otomatis';
 
     /** Hari dianggap cuti bersama (tidak tampil) kalau minimal sebagian ini dari total MP berkode CB. */
     public const BATAS_CUTI_BERSAMA = 0.5;
 
     /**
-     * @return array{bulan: Carbon, rows: list<array<string, mixed>>, total: array{total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, persen_cuti: ?float, persen_sakit_izin: ?float}, dataSampai: ?Carbon}
+     * @return array{bulan: Carbon, rows: list<array<string, mixed>>, total: array{total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, persen_cuti: ?float, persen_sakit_izin: ?float}}
      */
     public static function build(Carbon $bulan, Carbon $hariIni): array
     {
         $start = $bulan->copy()->startOfMonth();
         $end = $bulan->copy()->endOfMonth();
-        $dataSampai = JapanResume::where('sumber', JapanResume::SUMBER_EXCEL)->max('tanggal');
-        $dataSampai = $dataSampai ? Carbon::parse($dataSampai)->startOfDay() : null;
 
-        // Baris tersimpan (data Excel + angka yang disesuaikan admin) selalu dipakai untuk tanggalnya.
-        $rows = JapanResume::with('editor:id,name')
+        $tersimpan = JapanResume::with('editor:id,name')
             ->whereDate('tanggal', '>=', $start->toDateString())
             ->whereDate('tanggal', '<=', $end->toDateString())
             ->get()
             ->mapWithKeys(fn (JapanResume $resume) => [$resume->tanggal->toDateString() => self::row(
                 $resume->tanggal, $resume->shift, $resume->total, $resume->cuti, $resume->sakit_izin, $resume->sumber, $resume->editor?->name, $resume->id,
-            )])
-            ->all();
+            )]);
 
-        // Hari setelah data Excel terakhir sampai hari ini dihitung dari absensi, kecuali yang sudah disesuaikan admin.
-        $otomatisMulai = $dataSampai ? max($start, $dataSampai->copy()->addDay()) : $start;
-        $otomatisSampai = min($end, $hariIni->copy()->startOfDay());
-        if ($otomatisMulai->lte($otomatisSampai)) {
-            foreach (self::hitungDariAbsensi($otomatisMulai, $otomatisSampai) as $row) {
-                $rows[$row['tanggal']->toDateString()] ??= $row;
+        // Data Excel dulu, ditimpa hitungan Harian untuk tanggal yang ada data absensinya, lalu ditimpa angka manual.
+        $rows = $tersimpan->where('sumber', JapanResume::SUMBER_EXCEL)->all();
+        $sampai = min($end, $hariIni->copy()->startOfDay());
+        if ($start->lte($sampai)) {
+            foreach (self::hitungDariHarian($start, $sampai) as $tanggal => $row) {
+                $rows[$tanggal] = $row;
             }
         }
+        $rows = [...$rows, ...$tersimpan->where('sumber', JapanResume::SUMBER_MANUAL)->all()];
 
         ksort($rows);
         $rows = array_values($rows);
 
-        return ['bulan' => $start, 'rows' => $rows, 'total' => self::total($rows), 'dataSampai' => $dataSampai];
+        return ['bulan' => $start, 'rows' => $rows, 'total' => self::total($rows)];
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * Angka per tanggal dari data menu Absensi Harian.
+     *
+     * @return array<string, array<string, mixed>> [Y-m-d] => baris
      */
-    private static function hitungDariAbsensi(Carbon $mulai, Carbon $sampai): array
+    private static function hitungDariHarian(Carbon $mulai, Carbon $sampai): array
     {
-        $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
-        $karyawans = Karyawan::whereNotNull('group')->get(['id', 'nik', 'group']);
-        $headcount = $karyawans->countBy('group')->all();
+        $range = fn ($query) => $query->whereDate('tanggal', '>=', $mulai->toDateString())->whereDate('tanggal', '<=', $sampai->toDateString());
 
-        // [Y-m-d][grup][kolom] => jumlah karyawan tidak hadir.
+        // [Y-m-d][kolom] => jumlah karyawan, kolom: cuti / sakit_izin / cb.
         $absen = [];
-        $tambah = function (string $tanggal, string $grup, string $kolom) use (&$absen) {
-            $absen[$tanggal][$grup][$kolom] = ($absen[$tanggal][$grup][$kolom] ?? 0) + 1;
-        };
-
-        Absensi::query()
-            ->join('karyawans', 'karyawans.id', '=', 'absensis.karyawan_id')
-            ->whereNotNull('karyawans.group')
-            ->whereIn('absensis.kode', Absensi::kodeTidakHadir())
-            ->whereDate('absensis.tanggal', '>=', $mulai->toDateString())
-            ->whereDate('absensis.tanggal', '<=', $sampai->toDateString())
-            ->get(['absensis.tanggal', 'absensis.kode', 'karyawans.group'])
-            ->each(function ($row) use ($tambah) {
-                $tanggal = Carbon::parse($row->tanggal)->toDateString();
-                $kolom = self::kolom($row->kode);
-                if ($kolom !== null) {
-                    $tambah($tanggal, $row->group, $kolom);
-                }
-                if ($row->kode === 'CB') {
-                    $tambah($tanggal, $row->group, 'cb');
+        Absensi::query()->tap($range)
+            ->whereIn('kode', Absensi::kodeTidakHadir())
+            ->get(['tanggal', 'kode'])
+            ->each(function (Absensi $absensi) use (&$absen) {
+                $tanggal = $absensi->tanggal->toDateString();
+                $kolom = Absensi::kategori($absensi->kode) === 'CT' ? 'cuti' : 'sakit_izin';
+                $absen[$tanggal][$kolom] = ($absen[$tanggal][$kolom] ?? 0) + 1;
+                if ($absensi->kode === 'CB') {
+                    $absen[$tanggal]['cb'] = ($absen[$tanggal]['cb'] ?? 0) + 1;
                 }
             });
 
-        // Tidak absen di mesin dan belum ada keterangan = Alpa (masuk S+I).
-        $grupOf = $karyawans->pluck('group', 'id');
-        foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $mulai, $sampai) as $karyawanId => $dates) {
-            foreach (array_keys($dates) as $tanggal) {
-                $tambah($tanggal, $grupOf[$karyawanId], 'sakit_izin');
-            }
-        }
+        // Hari kerja = tanggal yang sudah ada data absensinya (kode apa pun, termasuk DT / PC).
+        $adaData = Absensi::query()->tap($range)->distinct()->pluck('tanggal')
+            ->mapWithKeys(fn ($tanggal) => [Carbon::parse($tanggal)->toDateString() => true]);
 
-        $adaData = self::tanggalAdaData($mulai, $sampai);
-        $jumlah = fn (array $grups, string $tanggal, string $kolom) => array_sum(array_map(fn ($grup) => $absen[$tanggal][$grup][$kolom] ?? 0, $grups));
-        $mp = fn (array $grups) => array_sum(array_map(fn ($grup) => $headcount[$grup] ?? 0, $grups));
+        $total = Karyawan::count();
+        $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
         $rows = [];
 
         for ($day = $mulai->copy(); $day->lte($sampai); $day->addDay()) {
-            if (! isset($adaData[$day->toDateString()])) {
-                continue;
-            }
-
-            // Semua grup yang masuk di tanggal ini: pagi + NS, dan grup malam yang mulai malam tanggal ini.
             $tanggal = $day->toDateString();
-            $grupPagi = ShiftRotasi::grupPagi($day, $rotasis);
-            $shifts = [
-                array_values(array_filter([$grupPagi, 'NS'])),
-                $grupPagi ? [ShiftRotasi::lawan($grupPagi)] : [],
-            ];
-            $grups = array_merge(...$shifts);
-
-            $total = $mp($grups);
-            $cuti = $jumlah($grups, $tanggal, 'cuti');
-            $sakitIzin = $jumlah($grups, $tanggal, 'sakit_izin');
-            $cutiBersama = $jumlah($grups, $tanggal, 'cb');
-            $shiftMasuk = count(array_filter($shifts, fn (array $shift) => $mp($shift) > 0));
-
-            if ($total === 0 || $cutiBersama >= $total * self::BATAS_CUTI_BERSAMA) {
+            $cutiBersama = $absen[$tanggal]['cb'] ?? 0;
+            if ($total === 0 || ! isset($adaData[$tanggal]) || $cutiBersama >= $total * self::BATAS_CUTI_BERSAMA) {
                 continue;
             }
 
-            $rows[] = self::row($day->copy(), $shiftMasuk === 2 ? JapanResume::SHIFT_DUA : JapanResume::SHIFT_SATU, $total, $cuti, $sakitIzin, self::SUMBER_OTOMATIS);
+            // Ada jadwal rotasi grup A/B = shift pagi & malam masuk (両直), selain itu hanya satu shift (一直).
+            $shift = ShiftRotasi::grupPagi($day, $rotasis) ? JapanResume::SHIFT_DUA : JapanResume::SHIFT_SATU;
+            $rows[$tanggal] = self::row($day->copy(), $shift, $total, $absen[$tanggal]['cuti'] ?? 0, $absen[$tanggal]['sakit_izin'] ?? 0, self::SUMBER_OTOMATIS);
         }
 
         return $rows;
     }
 
     /**
-     * Kolom Japan Resume untuk kode absensi; null = tetap dihitung hadir (WFH, DT, PC).
-     */
-    private static function kolom(string $kode): ?string
-    {
-        return match (Absensi::kategori($kode)) {
-            'CT' => 'cuti',
-            'S', 'I', 'Alpa' => 'sakit_izin',
-            default => null,
-        };
-    }
-
-    /**
-     * Tanggal yang punya data absensi atau data mesin absen (hari kerja). Hari tanpa data sama sekali = libur.
-     *
-     * @return array<string, true>
-     */
-    private static function tanggalAdaData(Carbon $mulai, Carbon $sampai): array
-    {
-        $range = fn ($query) => $query->whereDate('tanggal', '>=', $mulai->toDateString())->whereDate('tanggal', '<=', $sampai->toDateString());
-
-        return Absensi::query()->tap($range)->distinct()->pluck('tanggal')
-            ->concat(AbsensiMesin::query()->tap($range)->distinct()->pluck('tanggal'))
-            ->mapWithKeys(fn ($tanggal) => [Carbon::parse($tanggal)->toDateString() => true])
-            ->all();
-    }
-
-    /**
-     * @param  string  $sumber  excel / manual (tersimpan) atau otomatis (dihitung dari absensi)
+     * @param  string  $sumber  excel / manual (tersimpan) atau otomatis (dihitung dari absensi Harian)
      * @return array{id: ?int, tanggal: Carbon, shift: string, total: int, hadir: int, cuti: int, sakit_izin: int, rate: ?float, sumber: string, otomatis: bool, editor: ?string}
      */
     private static function row(Carbon $tanggal, string $shift, int $total, int $cuti, int $sakitIzin, string $sumber, ?string $editor = null, ?int $id = null): array

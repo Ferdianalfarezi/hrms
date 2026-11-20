@@ -1328,8 +1328,6 @@
     "Otomatis": "自動",
     "Dihitung otomatis dari data absensi": "勤怠データから自動計算",
     "Belum ada data kehadiran di bulan ini.": "この月の出勤データはまだありません。",
-    "Data sampai :tanggal dari file HRD (2026 summary). Hari setelahnya dihitung otomatis dari absensi tanggal itu: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.": ":tanggal までは人事ファイル（2026 summary）のデータ。それ以降はその日の勤怠から自動計算：Cuti = CT/CK/CH/CB/IMP、S+I = 病欠 + 私用 + 無断欠勤、WFH は出勤扱い。",
-    "Dihitung otomatis dari absensi: Cuti = CT/CK/CH/CB/IMP, S+I = Sakit + Izin + Alpa, WFH dihitung hadir.": "勤怠から自動計算：Cuti = CT/CK/CH/CB/IMP、S+I = 病欠 + 私用 + 無断欠勤、WFH は出勤扱い。",
     "両直 = dua shift masuk, 一直 = satu shift.": "両直 = 2直稼働、一直 = 1直のみ。",
     "JAPAN RESUME": "ジャパンレジュメ",
     "Total = semua MP yang masuk di tanggal itu · rate = (Cuti + S+I) / Total": "Total = その日に出勤予定の全人数 · 不在率 = (Cuti + S+I) / Total",
@@ -1352,5 +1350,6 @@
     ":Attribute minimal :min.": ":Attribute は :min 以上にしてください。",
     ":Attribute maksimal :max.": ":Attribute は :max 以下にしてください。",
     "PDF": "PDF",
-    "Excel": "Excel"
+    "Excel": "Excel",
+    "Otomatis = dihitung dari menu Absensi Harian tanggal itu: Total = semua karyawan, Cuti = CT/CK/CH/CB/IMP, S+I = kode tidak hadir lainnya (Cuti + S+I = Total tidak hadir di Harian). Tanggal yang belum ada data absensinya memakai data file HRD (2026 summary).": "自動 = その日の日別勤怠から計算：Total = 全従業員、Cuti = CT/CK/CH/CB/IMP、S+I = その他の欠勤コード（Cuti + S+I = 日別の欠勤合計）。勤怠データがない日は人事ファイル（2026 summary）のデータを使用。"
 }

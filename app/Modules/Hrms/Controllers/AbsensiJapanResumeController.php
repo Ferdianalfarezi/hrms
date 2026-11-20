@@ -111,8 +111,8 @@ class AbsensiJapanResumeController extends Controller
     }
 
     /**
-     * Simpan angka satu tanggal (edit baris yang ada atau tambah tanggal baru). Baris otomatis yang diedit
-     * jadi baris "manual"; data Excel yang diedit tetap tercatat sebagai data Excel.
+     * Simpan angka satu tanggal (edit baris yang ada atau tambah tanggal baru). Angka yang disimpan selalu jadi
+     * baris "manual", yang dipakai di atas hitungan dari absensi Harian maupun data Excel.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -136,15 +136,15 @@ class AbsensiJapanResumeController extends Controller
             throw ValidationException::withMessages(['sakit_izin' => __('Cuti + S+I tidak boleh lebih dari Total.')]);
         }
 
-        $resume = JapanResume::whereDate('tanggal', $data['tanggal'])->first() ?? new JapanResume(['sumber' => JapanResume::SUMBER_MANUAL]);
-        $resume->fill([...$data, 'updated_by' => $request->user()->id])->save();
+        $resume = JapanResume::whereDate('tanggal', $data['tanggal'])->first() ?? new JapanResume;
+        $resume->fill([...$data, 'sumber' => JapanResume::SUMBER_MANUAL, 'updated_by' => $request->user()->id])->save();
 
         return $this->backToMonth($resume, __('Japan Resume :tanggal berhasil disimpan.', ['tanggal' => $resume->tanggal->format('n/j')]));
     }
 
     /**
-     * Kembalikan tanggal yang angkanya disesuaikan admin ke hitungan otomatis dari absensi.
-     * Data dari Excel tidak bisa di-reset (tidak ada hitungan otomatis untuknya), cukup diedit.
+     * Hapus angka yang disesuaikan admin: tanggal itu kembali memakai hitungan dari absensi Harian
+     * (kalau belum ada data absensinya, baris tanggal itu tidak tampil; data Excel bisa dikembalikan lewat seeder).
      */
     public function reset(JapanResume $japanResume): RedirectResponse
     {

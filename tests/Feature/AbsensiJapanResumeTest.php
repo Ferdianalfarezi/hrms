@@ -76,33 +76,35 @@ class AbsensiJapanResumeTest extends TestCase
             ->assertDontSee('auto-badge" title', false);
     }
 
-    public function test_hari_setelah_data_excel_dihitung_otomatis_dari_absensi(): void
+    public function test_tanggal_yang_ada_data_harian_dihitung_dari_harian_menggantikan_data_excel(): void
     {
         Carbon::setTestNow('2026-10-15 09:00:00');
-        // Minggu 12 - 18 Okt: grup B pagi, grup A malam.
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
-        JapanResume::create(['tanggal' => '2026-10-14', 'shift' => '両直', 'total' => 10, 'cuti' => 1, 'sakit_izin' => 1]);
+        // Data Excel: 13 Okt (belum ada data absensi di sistem) tetap dipakai, 15 Okt diganti hitungan Harian.
+        JapanResume::create(['tanggal' => '2026-10-13', 'shift' => '両直', 'total' => 10, 'cuti' => 1, 'sakit_izin' => 1, 'sumber' => 'excel']);
+        JapanResume::create(['tanggal' => '2026-10-15', 'shift' => '両直', 'total' => 10, 'cuti' => 0, 'sakit_izin' => 2, 'sumber' => 'excel']);
 
         $this->absen($this->karyawan('0001', 'B'), '2026-10-15', 'SD');
         $this->karyawan('0002', 'NS');
         $this->absen($this->karyawan('0003', 'A'), '2026-10-14', 'A');
         $this->absen($this->karyawan('0004', 'B'), '2026-10-15', 'CT');
-        $this->karyawan('0005', 'NS');
+        $this->absen($this->karyawan('0005', 'NS'), '2026-10-15', 'DT<');
         $this->absen($this->karyawan('0006', 'B'), '2026-10-15', 'I');
         $this->karyawan('0007', 'A');
         $this->absen($this->karyawan('0008', 'B'), '2026-10-15', 'WFH');
-        // Tidak absen di mesin dan belum ada keterangan = Alpa.
-        AbsensiMesin::create(['tanggal' => '2026-10-15', 'nik' => '0005']);
+        // Sel merah Harian (tidak absen di mesin, belum ada keterangan) tidak ikut "Total tidak hadir".
+        AbsensiMesin::create(['tanggal' => '2026-10-15', 'nik' => '0002']);
 
-        $rows = JapanResumeBulanan::build(Carbon::parse('2026-10-01'), Carbon::today())['rows'];
+        $rows = collect(JapanResumeBulanan::build(Carbon::parse('2026-10-01'), Carbon::today())['rows'])
+            ->keyBy(fn (array $row) => $row['tanggal']->toDateString());
 
-        // 14 Okt dari data tersimpan, 15 Okt otomatis: semua MP yang masuk 15 Okt = pagi B + NS (6) + malam A (2).
-        $this->assertSame(['2026-10-14', '2026-10-15'], array_map(fn (array $row) => $row['tanggal']->toDateString(), $rows));
-        $this->assertFalse($rows[0]['otomatis']);
-        $this->assertTrue($rows[1]['otomatis']);
-        // Hanya absensi tanggal 15: Cuti = CT; S+I = SD + I + Alpa mesin (0005); WFH dihitung hadir.
-        // Alpa 0003 tanggal 14 (malam sebelumnya) tidak ikut, karena bukan tanggal ini.
-        $this->assertSame(['両直', 8, 4, 1, 3, 50.0], [$rows[1]['shift'], $rows[1]['total'], $rows[1]['hadir'], $rows[1]['cuti'], $rows[1]['sakit_izin'], $rows[1]['rate']]);
+        $this->assertSame(['2026-10-13', '2026-10-14', '2026-10-15'], $rows->keys()->all());
+        $this->assertSame(['excel', 10, 1, 1], [$rows['2026-10-13']['sumber'], $rows['2026-10-13']['total'], $rows['2026-10-13']['cuti'], $rows['2026-10-13']['sakit_izin']]);
+        $this->assertSame(['otomatis', 8, 0, 1], [$rows['2026-10-14']['sumber'], $rows['2026-10-14']['total'], $rows['2026-10-14']['cuti'], $rows['2026-10-14']['sakit_izin']]);
+
+        // 15 Okt seperti footer Harian: Total tidak hadir 4 (SD, CT, I, WFH; DT< tetap hadir) dari 8 karyawan.
+        $row = $rows['2026-10-15'];
+        $this->assertSame(['otomatis', '両直', 8, 4, 1, 3, 50.0], [$row['sumber'], $row['shift'], $row['total'], $row['hadir'], $row['cuti'], $row['sakit_izin'], $row['rate']]);
 
         $this->actingAs($this->hrmsAdmin())->get(route('hrms.absensi.japan-resume', ['bulan' => '2026-10']))
             ->assertOk()
@@ -193,12 +195,14 @@ class AbsensiJapanResumeTest extends TestCase
             ->assertRedirect(route('hrms.absensi.japan-resume', ['bulan' => '2026-10']));
         $this->assertSame(['otomatis', 2], [$otomatis()['sumber'], $otomatis()['total']]);
 
-        // Data Excel bisa diedit (tetap data Excel), tapi tidak bisa di-reset.
+        // Data Excel yang diedit juga jadi angka manual (tidak tertimpa hitungan Harian); Excel asli tidak bisa di-reset.
         $this->actingAs($admin)->post(route('hrms.absensi.japan-resume.store'), [
             'tanggal' => '2026-10-14', 'shift' => '両直', 'total' => 12, 'cuti' => 2, 'sakit_izin' => 0,
         ])->assertSessionHasNoErrors();
-        $excel = JapanResume::whereDate('tanggal', '2026-10-14')->sole();
-        $this->assertSame(['excel', 12, $admin->id], [$excel->sumber, $excel->total, $excel->updated_by]);
+        $edited = JapanResume::whereDate('tanggal', '2026-10-14')->sole();
+        $this->assertSame(['manual', 12, $admin->id], [$edited->sumber, $edited->total, $edited->updated_by]);
+
+        $excel = JapanResume::create(['tanggal' => '2026-10-13', 'shift' => '両直', 'total' => 10, 'cuti' => 0, 'sakit_izin' => 0, 'sumber' => 'excel']);
         $this->actingAs($admin)->delete(route('hrms.absensi.japan-resume.reset', $excel))->assertStatus(422);
     }
 
