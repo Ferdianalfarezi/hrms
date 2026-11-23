@@ -7,6 +7,7 @@ use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\LaporanShiftGrup;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Modules\Hrms\Support\LaporanAbsensiShift;
 use Database\Seeders\ApplicationSeeder;
@@ -310,5 +311,75 @@ class AbsensiDetailTest extends TestCase
             ->assertRedirect(route('hrms.absensi.detail', ['tanggal' => '2026-10-15']));
 
         $this->assertSame('B', ShiftRotasi::grupPagi(Carbon::parse('2026-10-15')));
+    }
+
+    public function test_grup_laporan_bisa_sama_dan_ns_ikut_pagi_tanpa_mengubah_rotasi(): void
+    {
+        // Rotasi: malam Jumat 16 Okt grup B, pagi Senin 19 Okt grup A. Laporan 19 Okt diatur A dan A.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $grupA = $this->karyawan('0001', 'Andi Grup A', 'A');
+        $grupB = $this->karyawan('0002', 'Budi Grup B', 'B');
+        $ns = $this->karyawan('0003', 'Cici NonShift', 'NS');
+        $this->absen($grupA, '2026-10-16', 'S', 'Sakit Jumat');
+        $this->absen($grupB, '2026-10-16', 'I', 'Izin Jumat');
+        $this->absen($ns, '2026-10-19', 'I', 'Izin Senin');
+
+        $this->actingAs($this->hrmsAdmin())
+            ->post(route('hrms.absensi.detail.grup'), ['tanggal' => '2026-10-19', 'grup_malam' => 'A', 'grup_pagi' => 'A'])
+            ->assertRedirect(route('hrms.absensi.detail', ['tanggal' => '2026-10-19']));
+
+        $report = LaporanAbsensiShift::build(Carbon::parse('2026-10-19'));
+        [$shiftMalam, $shiftPagi] = $report['sections'];
+
+        $this->assertSame(['malam' => 'A', 'pagi' => 'A', 'diatur' => true], $report['grupLaporan']);
+        $this->assertSame(['A'], $shiftMalam['grups']);
+        $this->assertSame([$grupA->id], $shiftMalam['rows']->pluck('karyawan.id')->all());
+        $this->assertSame(['A', 'NS'], $shiftPagi['grups']);
+        $this->assertSame([$ns->id], $shiftPagi['rows']->pluck('karyawan.id')->all());
+
+        // Jadwal rotasi dan laporan tanggal lain tidak berubah.
+        $this->assertSame('B', ShiftRotasi::grupMalam(Carbon::parse('2026-10-16')));
+        $this->assertSame(['A'], LaporanAbsensiShift::build(Carbon::parse('2026-10-16'))['sections'][0]['grups']);
+    }
+
+    public function test_grup_laporan_memindahkan_alpa_ke_shift_yang_diatur(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $grupA = $this->karyawan('0001', 'Andi Grup A', 'A');
+        AbsensiMesin::create(['tanggal' => '2026-10-19', 'nik' => '0001']);
+        LaporanShiftGrup::create(['tanggal' => '2026-10-19', 'grup_malam' => 'A', 'grup_pagi' => 'A']);
+
+        [$shiftMalam, $shiftPagi] = LaporanAbsensiShift::build(Carbon::parse('2026-10-19'))['sections'];
+
+        $this->assertSame([$grupA->id], $shiftMalam['rows']->pluck('karyawan.id')->all());
+        $this->assertSame([$grupA->id], $shiftPagi['rows']->pluck('karyawan.id')->all());
+    }
+
+    public function test_grup_laporan_bisa_dikembalikan_ke_rotasi(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        LaporanShiftGrup::create(['tanggal' => '2026-10-19', 'grup_malam' => 'A', 'grup_pagi' => 'A']);
+
+        $this->actingAs($this->hrmsAdmin())
+            ->delete(route('hrms.absensi.detail.grup.destroy'), ['tanggal' => '2026-10-19'])
+            ->assertRedirect(route('hrms.absensi.detail', ['tanggal' => '2026-10-19']));
+
+        $report = LaporanAbsensiShift::build(Carbon::parse('2026-10-19'));
+        $this->assertSame(['malam' => 'B', 'pagi' => 'A', 'diatur' => false], $report['grupLaporan']);
+    }
+
+    public function test_grup_laporan_hanya_untuk_admin_dan_harus_valid(): void
+    {
+        $deptAdmin = User::factory()->create();
+        $deptAdmin->assignRole('hrms', 'dept_admin', $this->psd->id);
+        $data = ['tanggal' => '2026-10-19', 'grup_malam' => 'A', 'grup_pagi' => 'A'];
+
+        $this->actingAs($deptAdmin)->post(route('hrms.absensi.detail.grup'), $data)->assertForbidden();
+        $this->actingAs($deptAdmin)->delete(route('hrms.absensi.detail.grup.destroy'), ['tanggal' => '2026-10-19'])->assertForbidden();
+        $this->actingAs($this->hrmsAdmin())
+            ->post(route('hrms.absensi.detail.grup'), [...$data, 'grup_malam' => 'NS'])
+            ->assertSessionHasErrors('grup_malam');
+
+        $this->assertSame(0, LaporanShiftGrup::count());
     }
 }

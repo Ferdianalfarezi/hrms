@@ -40,6 +40,8 @@ Route::get('absensi/detail', [AbsensiDetailController::class, 'index'])->name('a
 Route::get('absensi/detail/export', [AbsensiDetailController::class, 'export'])->name('absensi.detail.export');
 Route::get('absensi/detail/pdf', [AbsensiDetailController::class, 'pdf'])->name('absensi.detail.pdf');
 Route::post('absensi/rotasi', [AbsensiDetailController::class, 'storeRotasi'])->name('absensi.rotasi');
+Route::post('absensi/detail/grup', [AbsensiDetailController::class, 'storeGrupLaporan'])->name('absensi.detail.grup');
+Route::delete('absensi/detail/grup', [AbsensiDetailController::class, 'destroyGrupLaporan'])->name('absensi.detail.grup.destroy');
 
 // Resume absensi harian per shift & plant (khusus Admin HRMS).
 Route::get('absensi/resume', [AbsensiResumeController::class, 'index'])->name('absensi.resume');

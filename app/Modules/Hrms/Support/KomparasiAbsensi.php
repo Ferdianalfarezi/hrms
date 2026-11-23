@@ -128,6 +128,49 @@ class KomparasiAbsensi
     }
 
     /**
+     * Karyawan tanpa keterangan menurut jadwal grup laporan, bukan jadwal rotasi: [karyawan_id][Y-m-d tanggal shift] => true.
+     *
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @param  array<string, array{hariKerja: string, grups: list<string>}>  $jadwal  [Y-m-d tanggal shift] => hari kerja dan grupnya
+     * @return array<int, array<string, true>>
+     */
+    public static function selBelumAdaKeteranganJadwal(Collection $karyawans, array $jadwal): array
+    {
+        if ($jadwal === []) {
+            return [];
+        }
+
+        $bebas = array_flip(Karyawan::whereIn('id', $karyawans->pluck('id'))->bebasAbsenMesin()->pluck('id')->all());
+        $byNik = $karyawans->reject(fn (Karyawan $karyawan) => isset($bebas[$karyawan->id]))->keyBy('nik');
+        $tanggalShift = array_keys($jadwal);
+        $sudahDiisi = self::sudahDiisi($karyawans->pluck('id')->all(), Carbon::parse(min($tanggalShift)), Carbon::parse(max($tanggalShift)));
+        $hariKerja = array_column($jadwal, 'hariKerja');
+
+        // [Y-m-d hari kerja] => daftar NIK yang tidak absen di mesin
+        $tidakAbsen = [];
+        AbsensiMesin::whereIn('nik', $byNik->keys())
+            ->where('tanggal', '>=', min($hariKerja))
+            ->where('tanggal', '<', Carbon::parse(max($hariKerja))->addDay()->toDateString())
+            ->get(['tanggal', 'nik'])
+            ->each(function (AbsensiMesin $row) use (&$tidakAbsen) {
+                $tidakAbsen[$row->tanggal->toDateString()][] = $row->nik;
+            });
+
+        $sel = [];
+        foreach ($jadwal as $tanggal => $shift) {
+            foreach ($tidakAbsen[$shift['hariKerja']] ?? [] as $nik) {
+                $karyawan = $byNik[$nik];
+
+                if (in_array($karyawan->group, $shift['grups'], true) && ! isset($sudahDiisi[$karyawan->id][$tanggal])) {
+                    $sel[$karyawan->id][$tanggal] = true;
+                }
+            }
+        }
+
+        return $sel;
+    }
+
+    /**
      * Sel matriks yang menurut mesin karyawannya hadir: hari kerjanya sudah diupload dan NIK-nya tidak ada di data mesin.
      * Dipakai untuk menandai kode tidak hadir dari admin yang kemungkinan salah input. [karyawan_id][Y-m-d] => true.
      *

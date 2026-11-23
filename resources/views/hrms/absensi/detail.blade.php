@@ -17,10 +17,10 @@
     .cuti-toggle.on .switch { background: var(--navy); }
     .cuti-toggle.on .switch::after { left: 14px; }
 
-    .rotasi { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 14px 20px; margin-bottom: 20px; }
-    .rotasi-info { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
-    .rotasi form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .rotasi input[type=date], .rotasi select { width: auto; border-radius: 999px; padding: 7px 12px; font-size: 13px; }
+    .rotasi { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 16px; margin-bottom: 20px; }
+    .rotasi form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .rotasi .rotasi-jadwal { margin-left: auto; }
+    .rotasi input[type=date], .rotasi select { width: auto; border-radius: 999px; padding: 5px 10px; font-size: 13px; }
     .rotasi.warn { background: #fff8e6; }
 
     .det-section { margin-bottom: 24px; padding: 0; overflow: hidden; }
@@ -97,32 +97,51 @@
 </div>
 
 <div @class(['card', 'rotasi', 'warn' => ! $grupPagi])>
-    <div class="rotasi-info">
-        @if ($grupPagi)
-            <span>{{ __('Rotasi pada :tanggal:', ['tanggal' => $tanggal->translatedFormat('d M Y')]) }}</span>
-            <span class="badge">{{ __('Grup :grup · pagi', ['grup' => $grupPagi]) }}</span>
-            <span class="badge">{{ __('Grup :grup · malam', ['grup' => \App\Modules\Hrms\Models\ShiftRotasi::grupMalam($tanggal)]) }}</span>
-            <span class="badge badge-off">{{ __('NS · 07.00 - 16.00') }}</span>
-            <span class="muted small">{{ __('Acuan terakhir: mulai :tanggal grup :grup pagi, bertukar tiap minggu.', ['tanggal' => $rotasiTerakhir->tanggal_mulai->translatedFormat('d M Y'), 'grup' => $rotasiTerakhir->grup_pagi]) }}</span>
-        @else
-            <strong>{{ __('Jadwal rotasi grup A/B belum diatur.') }}</strong>
-            <span class="muted">{{ __('Isi tanggal mulai dan grup yang masuk pagi supaya laporan shift A/B bisa dibuat.') }}</span>
-        @endif
-    </div>
-    <form method="POST" action="{{ route('hrms.absensi.rotasi') }}">
+    <form method="POST" action="{{ route('hrms.absensi.detail.grup') }}" title="{{ __('Hanya untuk laporan :tanggal. Grup malam dan pagi boleh sama, NS selalu ikut pagi.', ['tanggal' => $tanggal->translatedFormat('d M Y')]) }}">
         @csrf
         <input type="hidden" name="tanggal" value="{{ $tanggal->toDateString() }}">
-        <span class="small muted">{{ __('Mulai') }}</span>
+        <span class="small muted">{{ __('Malam :tanggal', ['tanggal' => $sections[0]['tanggal']->translatedFormat('d M')]) }}</span>
+        <select name="grup_malam" required aria-label="{{ __('Grup shift malam di laporan ini') }}">
+            @unless ($grupLaporan['malam']) <option value="" selected disabled>-</option> @endunless
+            @foreach ($grupOptions as $grup)
+                <option value="{{ $grup }}" @selected($grupLaporan['malam'] === $grup)>{{ $grup }}</option>
+            @endforeach
+        </select>
+        <span class="small muted">{{ __('Pagi :tanggal', ['tanggal' => $tanggal->translatedFormat('d M')]) }}</span>
+        <select name="grup_pagi" required aria-label="{{ __('Grup shift pagi di laporan ini') }}">
+            @unless ($grupLaporan['pagi']) <option value="" selected disabled>-</option> @endunless
+            @foreach ($grupOptions as $grup)
+                <option value="{{ $grup }}" @selected($grupLaporan['pagi'] === $grup)>{{ $grup }}</option>
+            @endforeach
+        </select>
+        <span class="small muted">{{ __('+ NS') }}</span>
+        <button type="submit" class="btn btn-sm">{{ __('Simpan') }}</button>
+    </form>
+    @if ($grupLaporan['diatur'])
+        <form method="POST" action="{{ route('hrms.absensi.detail.grup.destroy') }}">
+            @csrf
+            @method('DELETE')
+            <input type="hidden" name="tanggal" value="{{ $tanggal->toDateString() }}">
+            <button type="submit" class="btn btn-ghost btn-sm" title="{{ __('Kembali mengikuti jadwal rotasi') }}">{{ __('Reset') }}</button>
+        </form>
+    @endif
+
+    <form method="POST" action="{{ route('hrms.absensi.rotasi') }}" class="rotasi-jadwal" title="{{ $grupPagi ? __('Acuan terakhir: mulai :tanggal grup :grup pagi, bertukar tiap minggu.', ['tanggal' => $rotasiTerakhir->tanggal_mulai->translatedFormat('d M Y'), 'grup' => $rotasiTerakhir->grup_pagi]) : __('Isi tanggal mulai dan grup yang masuk pagi supaya laporan shift A/B bisa dibuat.') }}">
+        @csrf
+        <input type="hidden" name="tanggal" value="{{ $tanggal->toDateString() }}">
+        @unless ($grupPagi) <strong class="small">{{ __('Jadwal rotasi grup A/B belum diatur.') }}</strong> @endunless
+        <span class="small muted">{{ __('Rotasi mulai') }}</span>
         <input type="date" name="tanggal_mulai" value="{{ old('tanggal_mulai', $tanggal->toDateString()) }}" required aria-label="{{ __('Tanggal mulai rotasi') }}">
-        <span class="small muted">{{ __('grup pagi') }}</span>
+        <span class="small muted">{{ __('pagi') }}</span>
         <select name="grup_pagi" aria-label="{{ __('Grup shift pagi') }}">
             @foreach ($grupOptions as $grup)
                 <option value="{{ $grup }}" @selected(old('grup_pagi', $grupPagi) === $grup)>{{ $grup }}</option>
             @endforeach
         </select>
-        <button type="submit" class="btn btn-sm">{{ __('Simpan rotasi') }}</button>
+        <button type="submit" class="btn btn-ghost btn-sm">{{ __('Simpan rotasi') }}</button>
     </form>
     @error('tanggal_mulai') <div class="field-error" style="flex-basis: 100%;">{{ $message }}</div> @enderror
+    @error('grup_malam') <div class="field-error" style="flex-basis: 100%;">{{ $message }}</div> @enderror
     @error('grup_pagi') <div class="field-error" style="flex-basis: 100%;">{{ $message }}</div> @enderror
 </div>
 

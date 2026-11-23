@@ -4,6 +4,7 @@ namespace App\Modules\Hrms\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Hrms\Models\Absensi;
+use App\Modules\Hrms\Models\LaporanShiftGrup;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Modules\Hrms\Support\LaporanAbsensiShift;
 use Illuminate\Http\RedirectResponse;
@@ -93,8 +94,8 @@ class AbsensiDetailController extends Controller
             $sheet->setColumnWidth(13, 7 + count($kategoris));
 
             $writer->addRow(Row::fromValuesWithStyle(['Laporan Absensi Harian '.$tanggal->translatedFormat('l, d F Y')], $title));
-            $writer->addRow(Row::fromValues([$laporan['grupPagi']
-                ? "Rotasi: grup {$laporan['grupPagi']} pagi, grup ".ShiftRotasi::grupMalam($tanggal).' malam, NS 07.00 - 16.00'
+            $writer->addRow(Row::fromValues([$laporan['grupLaporan']['pagi'] || $laporan['grupLaporan']['malam']
+                ? 'Rotasi: grup '.($laporan['grupLaporan']['pagi'] ?? '-').' pagi, grup '.($laporan['grupLaporan']['malam'] ?? '-').' malam, NS 07.00 - 16.00'
                 : 'Jadwal rotasi grup A/B belum diatur']));
 
             foreach ($laporan['sections'] as $section) {
@@ -175,6 +176,52 @@ class AbsensiDetailController extends Controller
         return redirect()
             ->route('hrms.absensi.detail', ['tanggal' => $request->input('tanggal')])
             ->with('status', __('Jadwal rotasi shift disimpan.'));
+    }
+
+    /**
+     * Atur grup shift malam dan pagi untuk laporan satu tanggal saja. Keduanya boleh sama; NS selalu ikut pagi.
+     */
+    public function storeGrupLaporan(Request $request): RedirectResponse
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        $data = $request->validate([
+            'tanggal' => ['required', 'date_format:Y-m-d'],
+            'grup_malam' => ['required', Rule::in(ShiftRotasi::GRUP)],
+            'grup_pagi' => ['required', Rule::in(ShiftRotasi::GRUP)],
+        ], [
+            'grup_malam.required' => __('Grup shift malam wajib dipilih.'),
+            'grup_malam.in' => __('Grup shift malam harus A atau B.'),
+            'grup_pagi.required' => __('Grup shift pagi wajib dipilih.'),
+            'grup_pagi.in' => __('Grup pagi harus A atau B.'),
+        ]);
+
+        $pengaturan = LaporanShiftGrup::whereDate('tanggal', $data['tanggal'])->first() ?? new LaporanShiftGrup(['tanggal' => $data['tanggal']]);
+        $pengaturan->fill([
+            'grup_malam' => $data['grup_malam'],
+            'grup_pagi' => $data['grup_pagi'],
+            'updated_by' => $request->user()->id,
+        ])->save();
+
+        return redirect()
+            ->route('hrms.absensi.detail', ['tanggal' => $data['tanggal']])
+            ->with('status', __('Grup shift laporan disimpan.'));
+    }
+
+    /**
+     * Hapus pengaturan grup laporan satu tanggal, sehingga laporan kembali mengikuti jadwal rotasi.
+     */
+    public function destroyGrupLaporan(Request $request): RedirectResponse
+    {
+        Gate::authorize('manage-module', 'hrms');
+
+        $data = $request->validate(['tanggal' => ['required', 'date_format:Y-m-d']]);
+
+        LaporanShiftGrup::whereDate('tanggal', $data['tanggal'])->delete();
+
+        return redirect()
+            ->route('hrms.absensi.detail', ['tanggal' => $data['tanggal']])
+            ->with('status', __('Grup shift laporan kembali mengikuti rotasi.'));
     }
 
     private function parseDate(string $value): ?Carbon

@@ -4,6 +4,7 @@ namespace App\Modules\Hrms\Support;
 
 use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\LaporanShiftGrup;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -13,6 +14,7 @@ use Illuminate\Support\Collection;
  *  - Shift 2 (malam, 20.05 - 05.00) tanggal X-1 (Senin: hari Jumat): grup A/B yang sedang shift malam.
  *  - Shift 1 (pagi, 07.00 - 16.00) tanggal X: grup A/B yang sedang shift pagi + grup NS.
  *
+ * Grup tiap shift mengikuti rotasi, kecuali tanggal laporan itu punya pengaturan sendiri (LaporanShiftGrup). NS selalu ikut pagi.
  * Karyawan yang tidak absen di mesin tapi belum diberi keterangan oleh Admin Departemen dihitung sebagai Alpa.
  */
 class LaporanAbsensiShift
@@ -31,6 +33,9 @@ class LaporanAbsensiShift
 
     private Collection $rotasis;
 
+    /** @var Collection<string, LaporanShiftGrup> pengaturan grup per tanggal laporan (Y-m-d) */
+    private Collection $grupLaporan;
+
     /** @var array<string, int> jumlah karyawan per grup */
     private array $headcount;
 
@@ -40,6 +45,7 @@ class LaporanAbsensiShift
     public function __construct(private bool $denganGrafik = true, private bool $hitungCuti = true)
     {
         $this->rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
+        $this->grupLaporan = LaporanShiftGrup::all()->keyBy(fn (LaporanShiftGrup $grup) => $grup->tanggal->toDateString());
         $this->headcount = Karyawan::whereNotNull('group')
             ->selectRaw('`group`, count(*) as total')->groupBy('group')
             ->pluck('total', 'group')->map(fn ($total) => (int) $total)->all();
@@ -66,10 +72,10 @@ class LaporanAbsensiShift
             'pagi' => [__('Shift 1 · Pagi'), $pagi],
             'malam' => [__('Shift 2 · Malam'), $malam],
         ])
-            ->map(function (array $info, string $shift) use ($laporan) {
+            ->map(function (array $info, string $shift) use ($laporan, $pagi) {
                 [$label, $tanggal] = $info;
-                $grups = $laporan->grups($shift, $tanggal);
-                $point = $laporan->grafik($shift, $tanggal, $tanggal, $tanggal)['points'][0] ?? [];
+                $grups = $laporan->grups($shift, $tanggal, $pagi);
+                $point = $laporan->grafik($shift, $tanggal, $tanggal, $tanggal, $pagi)['points'][0] ?? [];
 
                 return [
                     'label' => $label.' · '.$tanggal->translatedFormat('d M'),
@@ -109,30 +115,46 @@ class LaporanAbsensiShift
         return [
             'grupPagi' => ShiftRotasi::grupPagi($tanggal, $this->rotasis),
             'rotasiTerakhir' => $this->rotasis->last(),
+            'grupLaporan' => [
+                'malam' => $this->grups('malam', $malam, $tanggal)[0] ?? null,
+                'pagi' => array_values(array_diff($this->grups('pagi', $tanggal, $tanggal), ['NS']))[0] ?? null,
+                'diatur' => $this->grupLaporan->has($tanggal->toDateString()),
+            ],
             'sections' => [
-                $this->section('malam', 'Shift 2', 'Shift malam · 20.05 - 05.00', $malam),
-                $this->section('pagi', 'Shift 1', 'Shift pagi & non shift · 07.00 - 16.00', $tanggal),
+                $this->section('malam', 'Shift 2', 'Shift malam · 20.05 - 05.00', $malam, $tanggal),
+                $this->section('pagi', 'Shift 1', 'Shift pagi & non shift · 07.00 - 16.00', $tanggal, $tanggal),
             ],
         ];
     }
 
     /**
-     * Grup yang bekerja di shift tersebut pada tanggal itu.
+     * Hari kerja (tanggal laporan) yang memuat shift tersebut.
+     */
+    private function hariKerja(string $shift, Carbon $tanggal): Carbon
+    {
+        return $shift === 'malam' ? ShiftRotasi::hariKerjaShiftMalam($tanggal) : $tanggal->copy();
+    }
+
+    /**
+     * Grup yang bekerja di shift tersebut: pengaturan tanggal laporan kalau ada, selain itu jadwal rotasi.
      *
      * @return list<string>
      */
-    private function grups(string $shift, Carbon $tanggal): array
+    private function grups(string $shift, Carbon $tanggal, ?Carbon $hariKerja = null): array
     {
+        $hariKerja ??= $this->hariKerja($shift, $tanggal);
+        $pengaturan = $this->grupLaporan->get($hariKerja->toDateString());
+
         if ($shift === 'malam') {
-            return array_values(array_filter([ShiftRotasi::grupMalam($tanggal, $this->rotasis)]));
+            return array_values(array_filter([$pengaturan?->grup_malam ?? ShiftRotasi::grupMalam($tanggal, $this->rotasis)]));
         }
 
-        return array_values(array_filter([ShiftRotasi::grupPagi($tanggal, $this->rotasis), 'NS']));
+        return array_values(array_filter([$pengaturan?->grup_pagi ?? ShiftRotasi::grupPagi($tanggal, $this->rotasis), 'NS']));
     }
 
-    private function section(string $shift, string $judul, string $keterangan, Carbon $tanggal): array
+    private function section(string $shift, string $judul, string $keterangan, Carbon $tanggal, Carbon $hariKerja): array
     {
-        $grups = $this->grups($shift, $tanggal);
+        $grups = $this->grups($shift, $tanggal, $hariKerja);
         $kategoris = array_keys(Absensi::KATEGORI);
         $urutan = array_flip($kategoris);
 
@@ -147,7 +169,9 @@ class LaporanAbsensiShift
 
         // Tidak absen di mesin + belum ada kode dari admin = Alpa.
         $karyawans = Karyawan::with('department')->whereIn('group', $grups)->get();
-        $tanpaKeterangan = KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $tanggal, $tanggal);
+        $tanpaKeterangan = KomparasiAbsensi::selBelumAdaKeteranganJadwal($karyawans, [
+            $tanggal->toDateString() => ['hariKerja' => $hariKerja->toDateString(), 'grups' => $grups],
+        ]);
 
         $rows = $absensis
             ->map(fn (Absensi $absensi) => [
@@ -184,7 +208,7 @@ class LaporanAbsensiShift
             'totals' => $totals,
             'headcount' => $headcount,
             'persen' => $headcount > 0 ? round($rows->count() / $headcount * 100, 1) : null,
-            'grafik' => $this->denganGrafik ? $this->grafik($shift, $tanggal) : null,
+            'grafik' => $this->denganGrafik ? $this->grafik($shift, $tanggal, hariKerjaTanggal: $hariKerja) : null,
         ];
     }
 
@@ -275,10 +299,19 @@ class LaporanAbsensiShift
      * Persentase ketidakhadiran shift ini per hari kerja (Senin - Jumat) dalam bulan tanggal laporan.
      * "tanpa_cuti" dan "leader" (Asst. Leader up) selalu tidak menghitung cuti. Hari setelah tanggal laporan dibiarkan kosong.
      */
-    private function grafik(string $shift, Carbon $tanggal, ?Carbon $start = null, ?Carbon $end = null): array
+    private function grafik(string $shift, Carbon $tanggal, ?Carbon $start = null, ?Carbon $end = null, ?Carbon $hariKerjaTanggal = null): array
     {
         $start ??= $tanggal->copy()->startOfMonth();
         $end ??= $tanggal->copy()->endOfMonth();
+
+        // [Y-m-d] => hari kerja dan grup shift ini, hanya hari kerja sampai tanggal laporan.
+        $jadwal = [];
+        for ($day = $start->copy(); $day->lte($end) && $day->lte($tanggal); $day->addDay()) {
+            if (! $day->isWeekend()) {
+                $hariKerja = $day->isSameDay($tanggal) && $hariKerjaTanggal ? $hariKerjaTanggal : $this->hariKerja($shift, $day);
+                $jadwal[$day->toDateString()] = ['hariKerja' => $hariKerja->toDateString(), 'grups' => $this->grups($shift, $day, $hariKerja)];
+            }
+        }
 
         // [Y-m-d][grup] => jumlah karyawan tidak hadir: semua kode, tanpa cuti, dan Asst. Leader up tanpa cuti.
         $counts = [];
@@ -309,7 +342,7 @@ class LaporanAbsensiShift
 
         // Ditambah karyawan yang tidak absen di mesin dan belum ada keterangan (dihitung Alpa).
         $karyawans = Karyawan::whereNotNull('group')->get(['id', 'nik', 'group', 'jabatan'])->keyBy('id');
-        foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $start, $end) as $karyawanId => $dates) {
+        foreach (KomparasiAbsensi::selBelumAdaKeteranganJadwal($karyawans, $jadwal) as $karyawanId => $dates) {
             foreach (array_keys($dates) as $key) {
                 $tambah($key, $karyawans[$karyawanId]->group, $karyawans[$karyawanId]->jabatan, false);
             }
@@ -333,8 +366,8 @@ class LaporanAbsensiShift
             $leader = null;
 
             if ($day->lte($tanggal)) {
-                $grups = $this->grups($shift, $day);
                 $key = $day->toDateString();
+                $grups = $jadwal[$key]['grups'];
                 $tanpaCuti = $persen($tanpaCutiCounts[$key] ?? [], $grups, $this->headcountOf($grups));
                 $actual = $this->hitungCuti ? $persen($counts[$key] ?? [], $grups, $this->headcountOf($grups)) : $tanpaCuti;
                 $leader = $persen($leaderCounts[$key] ?? [], $grups, $this->headcountOf($grups, $leaderHeadcount));
