@@ -132,7 +132,7 @@ class ProduktivitasHariIni
     private function perShift(): array
     {
         $grupPagi = ShiftRotasi::grupPagi($this->today);
-        $kemarin = $this->today->copy()->subDay();
+        $kemarin = ShiftRotasi::tanggalShiftMalam($this->today);
         $grupMalamKemarin = ($grupPagiKemarin = ShiftRotasi::grupPagi($kemarin)) ? ShiftRotasi::lawan($grupPagiKemarin) : null;
 
         if ($grupPagi === null && $grupMalamKemarin === null) {

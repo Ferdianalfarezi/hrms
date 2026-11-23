@@ -5,6 +5,7 @@ namespace App\Modules\Hrms\Imports;
 use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\ShiftRotasi;
 use DateTimeInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ use Throwable;
  * Isinya karyawan yang HADIR (tercatat di mesin). Satu upload = laporan satu hari kerja, yaitu tanggal terakhir di file.
  *
  * Attendance Date shift malam = tanggal mulai shift (mis. masuk 29/10 18:46, pulang 30/10 06:21 tercatat 29/10).
- * Jadi hari kerja X = baris tanggal X-1 yang masuk malam (Time In >= 12:00) + baris tanggal X yang masuk pagi.
+ * Jadi hari kerja X = baris tanggal X-1 (Senin: hari Jumat) yang masuk malam (Time In >= 12:00) + baris tanggal X yang masuk pagi.
  * Baris tanpa Time In dicatat di tanggal tap pulangnya, jadi dihitung untuk tanggal itu sendiri.
  * Shift dibaca dari jam masuk, bukan dari rotasi grup, supaya karyawan yang tukar shift / belum punya grup tetap terbaca.
  * Karyawan terdaftar yang tidak ditemukan dianggap tidak absen dan disimpan ke absensi_mesins.
@@ -90,7 +91,8 @@ class AbsensiMesinImport
         $now = now();
         $hariKerja = Carbon::createFromFormat('!Y-m-d', max([...array_keys($pagi), ...array_keys($malam)]));
         $tanggal = $hariKerja->toDateString();
-        $kemarin = $hariKerja->copy()->subDay()->toDateString();
+        $tanggalMalam = ShiftRotasi::tanggalShiftMalam($hariKerja);
+        $kemarin = $tanggalMalam->toDateString();
 
         // Hanya baris yang masuk ke hari kerja ini.
         $hadir = ($pagi[$tanggal] ?? []) + ($malam[$kemarin] ?? []);
@@ -110,7 +112,7 @@ class AbsensiMesinImport
             ->all();
 
         $peringatan = isset($pagi[$kemarin]) || isset($malam[$kemarin]) ? null
-            : __('File tidak berisi tanggal :tanggal, jadi shift malam dianggap tidak absen.', ['tanggal' => $hariKerja->copy()->subDay()->format('d/m/Y')]);
+            : __('File tidak berisi tanggal :tanggal, jadi shift malam dianggap tidak absen.', ['tanggal' => $tanggalMalam->format('d/m/Y')]);
 
         $terlambat = [
             ...$this->terlambat($pagi[$tanggal] ?? [], $tanggal, self::ACUAN_PAGI, 'pagi'),

@@ -222,6 +222,51 @@ class AbsensiKomparasiTest extends TestCase
         $this->assertSame(['0002'], AbsensiMesin::pluck('nik')->all());
     }
 
+    public function test_upload_hari_senin_mengambil_shift_malam_hari_jumat(): void
+    {
+        $malamJumat = $this->karyawan('0001', 'Agus Malam Jumat', 'A');
+        $malamMinggu = $this->karyawan('0002', 'Bayu Malam Minggu', 'A');
+        $this->karyawan('0003', 'Cici Pagi', 'B');
+
+        $this->actingAs($this->hrmsAdmin())
+            ->post(route('hrms.absensi.komparasi.store'), ['file' => $this->attendanceReport([
+                ['16/10/2026', '0001', 'Agus Malam Jumat', '20:45', '06:00'],
+                ['18/10/2026', '0002', 'Bayu Malam Minggu', '20:45', '06:00'],
+                ['19/10/2026', '0003', 'Cici Pagi', '06:30', '-'],
+            ])])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['0002'], AbsensiMesin::pluck('nik')->all());
+        $this->assertSame('2026-10-16', Absensi::where('karyawan_id', $malamJumat->id)->first()->tanggal->toDateString());
+        $this->assertFalse(Absensi::where('karyawan_id', $malamMinggu->id)->exists());
+    }
+
+    public function test_upload_senin_tanpa_tanggal_jumat_memberi_peringatan(): void
+    {
+        $this->karyawan('0001', 'Agus Pagi', 'A');
+
+        $this->actingAs($this->hrmsAdmin())
+            ->post(route('hrms.absensi.komparasi.store'), ['file' => $this->attendanceReport([
+                ['18/10/2026', '0001', 'Agus Pagi', '20:00', '06:00'],
+                ['19/10/2026', '0001', 'Agus Pagi', '06:20', '-'],
+            ])])
+            ->assertSessionHas('status', fn (string $status) => str_ends_with($status, 'File tidak berisi tanggal 16/10/2026, jadi shift malam dianggap tidak absen.'));
+    }
+
+    public function test_data_mesin_senin_ditandai_di_tanggal_jumat_untuk_grup_malam(): void
+    {
+        // 16 Okt grup B pagi, jadi grup A shift malam Jumat dan masuk hari kerja Senin 19 Okt.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $tidakAbsen = $this->karyawan('0001', 'Andi Tidak Absen', 'A');
+        $hadir = $this->karyawan('0002', 'Cici Hadir', 'A');
+        $this->mesin('2026-10-19', ['0001']);
+        $jumat = Carbon::parse('2026-10-16');
+        $karyawans = collect([$tidakAbsen, $hadir]);
+
+        $this->assertSame([$tidakAbsen->id => ['2026-10-16' => true]], KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $jumat, $jumat));
+        $this->assertSame([$hadir->id => ['2026-10-16' => true]], KomparasiAbsensi::selHadirDiMesin($karyawans, $jumat, $jumat));
+    }
+
     public function test_file_tanpa_header_mesin_ditolak(): void
     {
         $this->actingAs($this->hrmsAdmin())

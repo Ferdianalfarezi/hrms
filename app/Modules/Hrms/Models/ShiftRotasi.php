@@ -47,6 +47,22 @@ class ShiftRotasi extends Model
         return $putaran % 2 === 0 ? $acuan->grup_pagi : static::lawan($acuan->grup_pagi);
     }
 
+    /**
+     * Tanggal shift malam yang masuk ke hari kerja ini: sehari sebelumnya, kecuali Senin mengambil Jumat.
+     */
+    public static function tanggalShiftMalam(Carbon $hariKerja): Carbon
+    {
+        return $hariKerja->copy()->subDays($hariKerja->isMonday() ? 3 : 1);
+    }
+
+    /**
+     * Hari kerja yang memuat shift malam tanggal ini: besoknya, kecuali Jumat masuk ke Senin.
+     */
+    public static function hariKerjaShiftMalam(Carbon $tanggalMalam): Carbon
+    {
+        return $tanggalMalam->copy()->addDays($tanggalMalam->isFriday() ? 3 : 1);
+    }
+
     public static function lawan(string $grup): string
     {
         return $grup === 'A' ? 'B' : 'A';

@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Laporan detail absensi harian per shift. Laporan tanggal X berisi:
- *  - Shift 2 (malam, 20.05 - 05.00) tanggal X-1: grup A/B yang sedang shift malam.
+ *  - Shift 2 (malam, 20.05 - 05.00) tanggal X-1 (Senin: hari Jumat): grup A/B yang sedang shift malam.
  *  - Shift 1 (pagi, 07.00 - 16.00) tanggal X: grup A/B yang sedang shift pagi + grup NS.
  *
  * Karyawan yang tidak absen di mesin tapi belum diberi keterangan oleh Admin Departemen dihitung sebagai Alpa.
@@ -60,7 +60,7 @@ class LaporanAbsensiShift
     {
         $laporan = new self;
         $pagi = $tanggal->copy()->startOfDay();
-        $malam = $pagi->copy()->subDay();
+        $malam = ShiftRotasi::tanggalShiftMalam($pagi);
 
         return collect([
             'pagi' => [__('Shift 1 · Pagi'), $pagi],
@@ -104,7 +104,7 @@ class LaporanAbsensiShift
 
     private function report(Carbon $tanggal): array
     {
-        $malam = $tanggal->copy()->subDay();
+        $malam = ShiftRotasi::tanggalShiftMalam($tanggal);
 
         return [
             'grupPagi' => ShiftRotasi::grupPagi($tanggal, $this->rotasis),

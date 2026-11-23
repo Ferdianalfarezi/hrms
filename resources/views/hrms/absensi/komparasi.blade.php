@@ -46,7 +46,7 @@
 <div class="kmp-head">
     <div>
         <h1 style="font-size: clamp(24px, 3.5vw, 36px); font-weight: 500; letter-spacing: -.03em;">{{ __('Komparasi Mesin Absen') }}</h1>
-        <p class="muted" style="margin: 2px 0 0;">{{ __('Hari kerja :tanggal · shift malam :malam & shift pagi :pagi', ['tanggal' => $tanggal->translatedFormat('l, d F Y'), 'malam' => $tanggal->copy()->subDay()->translatedFormat('d M'), 'pagi' => $tanggal->translatedFormat('d M')]) }}</p>
+        <p class="muted" style="margin: 2px 0 0;">{{ __('Hari kerja :tanggal · shift malam :malam & shift pagi :pagi', ['tanggal' => $tanggal->translatedFormat('l, d F Y'), 'malam' => \App\Modules\Hrms\Models\ShiftRotasi::tanggalShiftMalam($tanggal)->translatedFormat('d M'), 'pagi' => $tanggal->translatedFormat('d M')]) }}</p>
     </div>
     <form method="GET">
         <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal hari kerja') }}">
@@ -61,7 +61,7 @@
                 {{ __('Upload Attendance Report') }}
                 <span @class(['up-state', 'done' => $uploaded])>{{ $uploaded ? __('Sudah diupload') : __('Belum diupload') }}</span>
             </div>
-            <div class="up-desc">{{ __('Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00) dan hari ini. Laporan untuk tanggal terakhir di file. Time In lewat 07:00 (pagi) / 20:05 (malam) otomatis dicatat DT.') }}</div>
+            <div class="up-desc">{{ __('Berisi 2 tanggal: kemarin (shift malam, Time In mulai 12:00; untuk hari Senin pakai hari Jumat) dan hari ini. Laporan untuk tanggal terakhir di file. Time In lewat 07:00 (pagi) / 20:05 (malam) otomatis dicatat DT.') }}</div>
         </div>
     </div>
 

@@ -16,8 +16,8 @@ use Illuminate\Support\Collection;
 /**
  * Karyawan yang tidak absen di mesin tapi belum diberi keterangan oleh Admin Departemen.
  *
- * Hari kerja tanggal X = shift malam tanggal X-1 + shift pagi tanggal X (sama seperti laporan Detail).
- * Jadi untuk grup yang shift malam pada X-1, keterangan admin dicari di tanggal X-1; karyawan lain di tanggal X.
+ * Hari kerja tanggal X = shift malam tanggal X-1 (Senin: hari Jumat) + shift pagi tanggal X (sama seperti laporan Detail).
+ * Jadi untuk grup yang shift malam pada tanggal itu, keterangan admin dicari di tanggal tersebut; karyawan lain di tanggal X.
  */
 class KomparasiAbsensi
 {
@@ -34,7 +34,7 @@ class KomparasiAbsensi
             ->orderByRaw('LENGTH(nik)')->orderBy('nik')
             ->get();
 
-        $sudahDiisi = self::sudahDiisi($karyawans->pluck('id')->all(), $tanggal->copy()->subDay(), $tanggal);
+        $sudahDiisi = self::sudahDiisi($karyawans->pluck('id')->all(), ShiftRotasi::tanggalShiftMalam($tanggal), $tanggal);
 
         return $karyawans
             ->map(fn (Karyawan $karyawan) => [
@@ -109,10 +109,10 @@ class KomparasiAbsensi
         $sudahDiisi = self::sudahDiisi($karyawans->pluck('id')->all(), $mulai, $sampai);
         $sel = [];
 
-        // Hari kerja sesudah tanggal terakhir ikut dibaca: shift malamnya jatuh di tanggal terakhir.
+        // Hari kerja sesudah tanggal terakhir ikut dibaca (sampai Senin berikutnya): shift malamnya jatuh di tanggal terakhir.
         AbsensiMesin::whereIn('nik', $byNik->keys())
             ->where('tanggal', '>=', $mulai->toDateString())
-            ->where('tanggal', '<', $sampai->copy()->addDays(2)->toDateString())
+            ->where('tanggal', '<', $sampai->copy()->addDays(4)->toDateString())
             ->get(['tanggal', 'nik'])
             ->each(function (AbsensiMesin $row) use ($byNik, $rotasis, $sudahDiisi, $mulai, $sampai, &$sel) {
                 $karyawan = $byNik[$row->nik];
@@ -141,7 +141,7 @@ class KomparasiAbsensi
         // [Y-m-d hari kerja][nik] => true
         $tidakAbsen = [];
         AbsensiMesin::where('tanggal', '>=', $mulai->toDateString())
-            ->where('tanggal', '<', $sampai->copy()->addDays(2)->toDateString())
+            ->where('tanggal', '<', $sampai->copy()->addDays(4)->toDateString())
             ->get(['tanggal', 'nik'])
             ->each(function (AbsensiMesin $row) use (&$tidakAbsen) {
                 $tidakAbsen[$row->tanggal->toDateString()][$row->nik] = true;
@@ -153,13 +153,14 @@ class KomparasiAbsensi
 
         $sel = [];
         for ($day = $mulai->copy(); $day->lte($sampai); $day->addDay()) {
-            // Grup yang shift malam pada tanggal ini melapor untuk hari kerja besok.
+            // Grup yang shift malam pada tanggal ini melapor untuk hari kerja berikutnya (Jumat ke Senin). Minggu malam tidak dipakai.
             $grupPagi = ShiftRotasi::grupPagi($day, $rotasis);
-            $grupMalam = $grupPagi !== null ? ShiftRotasi::lawan($grupPagi) : null;
+            $grupMalam = $grupPagi !== null && ! $day->isSunday() ? ShiftRotasi::lawan($grupPagi) : null;
             $key = $day->toDateString();
+            $hariKerjaMalam = ShiftRotasi::hariKerjaShiftMalam($day)->toDateString();
 
             foreach ($karyawans as $karyawan) {
-                $hariKerja = $grupMalam !== null && $karyawan->group === $grupMalam ? $day->copy()->addDay()->toDateString() : $key;
+                $hariKerja = $grupMalam !== null && $karyawan->group === $grupMalam ? $hariKerjaMalam : $key;
 
                 if (isset($tidakAbsen[$hariKerja]) && ! isset($tidakAbsen[$hariKerja][$karyawan->nik])) {
                     $sel[$karyawan->id][$key] = true;
@@ -171,11 +172,11 @@ class KomparasiAbsensi
     }
 
     /**
-     * Tanggal yang diisi Admin Departemen untuk hari kerja ini: grup shift malam = sehari sebelumnya.
+     * Tanggal yang diisi Admin Departemen untuk hari kerja ini: grup shift malam = sehari sebelumnya (Senin: Jumat).
      */
     public static function tanggalLaporan(Carbon $hariKerja, ?string $group, Collection $rotasis): Carbon
     {
-        $kemarin = $hariKerja->copy()->subDay();
+        $kemarin = ShiftRotasi::tanggalShiftMalam($hariKerja);
         $grupPagiKemarin = ShiftRotasi::grupPagi($kemarin, $rotasis);
 
         return $grupPagiKemarin !== null && $group === ShiftRotasi::lawan($grupPagiKemarin) ? $kemarin : $hariKerja->copy();

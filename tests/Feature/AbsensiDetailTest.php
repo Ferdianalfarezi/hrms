@@ -90,6 +90,21 @@ class AbsensiDetailTest extends TestCase
             ->assertDontSee('Sakit kemarin');
     }
 
+    public function test_laporan_senin_mengambil_shift_malam_hari_jumat(): void
+    {
+        // 16 Okt grup B pagi, jadi grup A shift malam Jumat dan masuk laporan Senin 19 Okt.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $malamJumat = $this->karyawan('0001', 'Andi Malam Jumat', 'A');
+        $this->karyawan('0002', 'Budi Pagi', 'B');
+        $this->absen($malamJumat, '2026-10-16', 'S', 'Sakit Jumat');
+
+        $shiftMalam = LaporanAbsensiShift::build(Carbon::parse('2026-10-19'))['sections'][0];
+
+        $this->assertSame('2026-10-16', $shiftMalam['tanggal']->toDateString());
+        $this->assertSame(['A'], $shiftMalam['grups']);
+        $this->assertSame([$malamJumat->id], $shiftMalam['rows']->pluck('karyawan.id')->all());
+    }
+
     public function test_tidak_absen_di_mesin_tanpa_keterangan_dihitung_alpa(): void
     {
         // 14 Okt grup B pagi: grup A shift malam 14 Okt (hari kerja 15 Okt).
