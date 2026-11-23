@@ -106,7 +106,7 @@ class HrmsDashboard
 
         return [
             ['label' => 'Shift Pagi', 'value' => $grupPagi, 'icon' => 'sun'],
-            ['label' => 'Shift Malam', 'value' => ShiftRotasi::lawan($grupPagi), 'icon' => 'moon'],
+            ['label' => 'Shift Malam', 'value' => ShiftRotasi::grupMalam(Carbon::today()), 'icon' => 'moon'],
         ];
     }
 

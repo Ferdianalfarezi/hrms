@@ -66,6 +66,17 @@ class AbsensiDetailTest extends TestCase
         $this->assertSame('A', ShiftRotasi::grupPagi(Carbon::parse('2026-10-19')));
     }
 
+    public function test_grup_malam_berganti_mulai_jumat_malam(): void
+    {
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+
+        $this->assertNull(ShiftRotasi::grupMalam(Carbon::parse('2026-10-09')));
+        $this->assertSame('A', ShiftRotasi::grupMalam(Carbon::parse('2026-10-15')));
+        $this->assertSame('B', ShiftRotasi::grupPagi(Carbon::parse('2026-10-16')));
+        $this->assertSame('B', ShiftRotasi::grupMalam(Carbon::parse('2026-10-16')));
+        $this->assertSame('B', ShiftRotasi::grupMalam(Carbon::parse('2026-10-19')));
+    }
+
     public function test_laporan_berisi_shift_malam_kemarin_dan_shift_pagi_hari_ini(): void
     {
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
@@ -92,16 +103,16 @@ class AbsensiDetailTest extends TestCase
 
     public function test_laporan_senin_mengambil_shift_malam_hari_jumat(): void
     {
-        // 16 Okt grup B pagi, jadi grup A shift malam Jumat dan masuk laporan Senin 19 Okt.
+        // Minggu 12 Okt grup B pagi, minggu 19 Okt grup A pagi. Pergantian mulai Jumat malam, jadi malam 16 Okt sudah grup B.
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
-        $malamJumat = $this->karyawan('0001', 'Andi Malam Jumat', 'A');
-        $this->karyawan('0002', 'Budi Pagi', 'B');
+        $malamJumat = $this->karyawan('0001', 'Andi Malam Jumat', 'B');
+        $this->karyawan('0002', 'Budi Pagi', 'A');
         $this->absen($malamJumat, '2026-10-16', 'S', 'Sakit Jumat');
 
         $shiftMalam = LaporanAbsensiShift::build(Carbon::parse('2026-10-19'))['sections'][0];
 
         $this->assertSame('2026-10-16', $shiftMalam['tanggal']->toDateString());
-        $this->assertSame(['A'], $shiftMalam['grups']);
+        $this->assertSame(['B'], $shiftMalam['grups']);
         $this->assertSame([$malamJumat->id], $shiftMalam['rows']->pluck('karyawan.id')->all());
     }
 

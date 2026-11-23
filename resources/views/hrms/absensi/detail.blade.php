@@ -101,7 +101,7 @@
         @if ($grupPagi)
             <span>{{ __('Rotasi pada :tanggal:', ['tanggal' => $tanggal->translatedFormat('d M Y')]) }}</span>
             <span class="badge">{{ __('Grup :grup · pagi', ['grup' => $grupPagi]) }}</span>
-            <span class="badge">{{ __('Grup :grup · malam', ['grup' => \App\Modules\Hrms\Models\ShiftRotasi::lawan($grupPagi)]) }}</span>
+            <span class="badge">{{ __('Grup :grup · malam', ['grup' => \App\Modules\Hrms\Models\ShiftRotasi::grupMalam($tanggal)]) }}</span>
             <span class="badge badge-off">{{ __('NS · 07.00 - 16.00') }}</span>
             <span class="muted small">{{ __('Acuan terakhir: mulai :tanggal grup :grup pagi, bertukar tiap minggu.', ['tanggal' => $rotasiTerakhir->tanggal_mulai->translatedFormat('d M Y'), 'grup' => $rotasiTerakhir->grup_pagi]) }}</span>
         @else

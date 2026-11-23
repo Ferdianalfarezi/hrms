@@ -133,7 +133,7 @@ class ProduktivitasHariIni
     {
         $grupPagi = ShiftRotasi::grupPagi($this->today);
         $kemarin = ShiftRotasi::tanggalShiftMalam($this->today);
-        $grupMalamKemarin = ($grupPagiKemarin = ShiftRotasi::grupPagi($kemarin)) ? ShiftRotasi::lawan($grupPagiKemarin) : null;
+        $grupMalamKemarin = ShiftRotasi::grupMalam($kemarin);
 
         if ($grupPagi === null && $grupMalamKemarin === null) {
             $grups = $this->karyawans->pluck('group')->map(fn (?string $grup) => $grup ?: '-')->unique()->sort()->values();

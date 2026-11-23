@@ -255,10 +255,10 @@ class AbsensiKomparasiTest extends TestCase
 
     public function test_data_mesin_senin_ditandai_di_tanggal_jumat_untuk_grup_malam(): void
     {
-        // 16 Okt grup B pagi, jadi grup A shift malam Jumat dan masuk hari kerja Senin 19 Okt.
+        // Pergantian mulai Jumat malam: malam 16 Okt sudah grup B dan masuk hari kerja Senin 19 Okt.
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
-        $tidakAbsen = $this->karyawan('0001', 'Andi Tidak Absen', 'A');
-        $hadir = $this->karyawan('0002', 'Cici Hadir', 'A');
+        $tidakAbsen = $this->karyawan('0001', 'Andi Tidak Absen', 'B');
+        $hadir = $this->karyawan('0002', 'Cici Hadir', 'B');
         $this->mesin('2026-10-19', ['0001']);
         $jumat = Carbon::parse('2026-10-16');
         $karyawans = collect([$tidakAbsen, $hadir]);

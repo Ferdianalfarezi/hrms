@@ -94,7 +94,7 @@ class AbsensiDetailController extends Controller
 
             $writer->addRow(Row::fromValuesWithStyle(['Laporan Absensi Harian '.$tanggal->translatedFormat('l, d F Y')], $title));
             $writer->addRow(Row::fromValues([$laporan['grupPagi']
-                ? "Rotasi: grup {$laporan['grupPagi']} pagi, grup ".ShiftRotasi::lawan($laporan['grupPagi']).' malam, NS 07.00 - 16.00'
+                ? "Rotasi: grup {$laporan['grupPagi']} pagi, grup ".ShiftRotasi::grupMalam($tanggal).' malam, NS 07.00 - 16.00'
                 : 'Jadwal rotasi grup A/B belum diatur']));
 
             foreach ($laporan['sections'] as $section) {

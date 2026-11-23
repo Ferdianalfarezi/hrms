@@ -269,7 +269,7 @@ class HrmsDashboardTest extends TestCase
 
     public function test_hari_pergantian_rotasi_grup_yang_sama_masuk_shift_2_kemarin_dan_shift_1_hari_ini(): void
     {
-        // Senin 19 Okt: A pagi. Shift malam yang diambil Jumat 16 Okt, juga grup A (minggu 12 - 18: B pagi, A malam).
+        // Senin 19 Okt: A pagi. Shift malam yang diambil Jumat 16 Okt: pergantian mulai Jumat malam, jadi sudah grup B.
         Carbon::setTestNow('2026-10-19 10:00:00');
         ShiftRotasi::create(['tanggal_mulai' => '2026-10-05', 'grup_pagi' => 'A']);
         foreach (['0001' => 'A', '0002' => 'NS', '0003' => 'B', '0004' => 'A'] as $nik => $grup) {
@@ -279,10 +279,9 @@ class HrmsDashboardTest extends TestCase
 
         $shifts = HrmsDashboard::build($this->hrmsAdmin())['hariIni']['perShift'];
 
-        // Grup B (pagi kemarin, malam nanti) tidak di shift mana pun dan bukan "Tanpa grup".
         $this->assertSame(['Shift 1 · Pagi · 19 Okt', 'Shift 2 · Malam · 16 Okt'], array_column($shifts, 'label'));
-        $this->assertSame([3, 2], array_column($shifts, 'total'));
-        $this->assertSame([2, 2], array_column($shifts, 'hadir'));       // sakit hari ini tidak mengurangi malam kemarin
+        $this->assertSame([3, 1], array_column($shifts, 'total'));
+        $this->assertSame([2, 1], array_column($shifts, 'hadir'));       // sakit hari ini tidak mengurangi malam Jumat
     }
 
     public function test_tren_kehadiran_tujuh_hari_kerja_sampai_hari_ini_per_jenis(): void

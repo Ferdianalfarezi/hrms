@@ -123,13 +123,11 @@ class LaporanAbsensiShift
      */
     private function grups(string $shift, Carbon $tanggal): array
     {
-        $grupPagi = ShiftRotasi::grupPagi($tanggal, $this->rotasis);
-
         if ($shift === 'malam') {
-            return $grupPagi ? [ShiftRotasi::lawan($grupPagi)] : [];
+            return array_values(array_filter([ShiftRotasi::grupMalam($tanggal, $this->rotasis)]));
         }
 
-        return array_values(array_filter([$grupPagi, 'NS']));
+        return array_values(array_filter([ShiftRotasi::grupPagi($tanggal, $this->rotasis), 'NS']));
     }
 
     private function section(string $shift, string $judul, string $keterangan, Carbon $tanggal): array

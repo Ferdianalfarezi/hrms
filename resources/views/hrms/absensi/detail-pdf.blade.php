@@ -65,7 +65,7 @@
     <h1>{{ __('LAPORAN ABSENSI HARIAN') }}</h1>
     <p class="sub">
         {{ $tanggal->translatedFormat('l, d F Y') }}
-        · {{ $grupPagi ? __('Rotasi: grup :pagi pagi, grup :malam malam, NS 07.00 - 16.00', ['pagi' => $grupPagi, 'malam' => \App\Modules\Hrms\Models\ShiftRotasi::lawan($grupPagi)]) : __('Jadwal rotasi grup A/B belum diatur') }}
+        · {{ $grupPagi ? __('Rotasi: grup :pagi pagi, grup :malam malam, NS 07.00 - 16.00', ['pagi' => $grupPagi, 'malam' => \App\Modules\Hrms\Models\ShiftRotasi::grupMalam($tanggal)]) : __('Jadwal rotasi grup A/B belum diatur') }}
         @unless ($hitungCuti) · cuti tidak dihitung @endunless
     </p>
 

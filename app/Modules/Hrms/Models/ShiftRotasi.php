@@ -48,6 +48,24 @@ class ShiftRotasi extends Model
     }
 
     /**
+     * Grup yang masuk shift malam pada tanggal tersebut. Pergantian shift dimulai Jumat malam,
+     * jadi malam Jumat sudah diisi grup yang shift malam pada minggu berikutnya.
+     *
+     * @param  Collection<int, self>|null  $rotasis  daftar acuan yang sudah dimuat (urut tanggal_mulai), supaya tidak query per hari
+     */
+    public static function grupMalam(Carbon $tanggal, $rotasis = null): ?string
+    {
+        $rotasis ??= static::orderBy('tanggal_mulai')->get();
+        $grupPagi = static::grupPagi($tanggal, $rotasis);
+
+        if ($grupPagi === null) {
+            return null;
+        }
+
+        return static::lawan($tanggal->isFriday() ? static::grupPagi($tanggal->copy()->addDays(3), $rotasis) : $grupPagi);
+    }
+
+    /**
      * Tanggal shift malam yang masuk ke hari kerja ini: sehari sebelumnya, kecuali Senin mengambil Jumat.
      */
     public static function tanggalShiftMalam(Carbon $hariKerja): Carbon

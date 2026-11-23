@@ -154,8 +154,7 @@ class KomparasiAbsensi
         $sel = [];
         for ($day = $mulai->copy(); $day->lte($sampai); $day->addDay()) {
             // Grup yang shift malam pada tanggal ini melapor untuk hari kerja berikutnya (Jumat ke Senin). Minggu malam tidak dipakai.
-            $grupPagi = ShiftRotasi::grupPagi($day, $rotasis);
-            $grupMalam = $grupPagi !== null && ! $day->isSunday() ? ShiftRotasi::lawan($grupPagi) : null;
+            $grupMalam = $day->isSunday() ? null : ShiftRotasi::grupMalam($day, $rotasis);
             $key = $day->toDateString();
             $hariKerjaMalam = ShiftRotasi::hariKerjaShiftMalam($day)->toDateString();
 
@@ -177,9 +176,9 @@ class KomparasiAbsensi
     public static function tanggalLaporan(Carbon $hariKerja, ?string $group, Collection $rotasis): Carbon
     {
         $kemarin = ShiftRotasi::tanggalShiftMalam($hariKerja);
-        $grupPagiKemarin = ShiftRotasi::grupPagi($kemarin, $rotasis);
+        $grupMalam = ShiftRotasi::grupMalam($kemarin, $rotasis);
 
-        return $grupPagiKemarin !== null && $group === ShiftRotasi::lawan($grupPagiKemarin) ? $kemarin : $hariKerja->copy();
+        return $grupMalam !== null && $group === $grupMalam ? $kemarin : $hariKerja->copy();
     }
 
     /**
