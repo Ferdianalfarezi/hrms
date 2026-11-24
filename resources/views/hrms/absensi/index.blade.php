@@ -408,10 +408,17 @@
         var wrap = document.getElementById('abs-wrap');
         var selectedDay = {{ $tanggal->day }};
         var headcount = {{ $karyawans->count() }};
+        // Ringkasan Hadir / Tidak hadir selalu dari seluruh karyawan yang bisa dilihat user, tidak ikut filter.
+        var ringkasan = {{ Js::from($ringkasanHarian) }};
 
         function setNumber(cell, value) {
             cell.textContent = value;
             cell.classList.toggle('zero', !value || value === '0');
+        }
+
+        function isTidakHadir(cell) {
+            var kode = cell.dataset.kode;
+            return kode ? !!(kodes[kode] && !kodes[kode].hadir) : 'tanpaKet' in cell.dataset;
         }
 
         // Hitung ulang rekap per karyawan, detail per tanggal, dan ringkasan tanggal terpilih.
@@ -441,14 +448,12 @@
                 else setNumber(cell, day[cell.dataset.foot] || 0);
             });
 
-            // Ringkasan tanggal terpilih cukup hadir & tidak hadir. Tidak hadir = kode tidak hadir
+            // Ringkasan tanggal terpilih: hadir & tidak hadir dari keseluruhan karyawan. Tidak hadir = kode tidak hadir
             // + tidak masuk di mesin absen yang belum ada keterangan (sel merah).
-            var today = perDay[selectedDay] || { _absen: 0 };
-            var tanpaKet = table.querySelectorAll('tbody tr[data-row] .cell.tanpa-ket[data-day="' + selectedDay + '"]').length;
-            var tidakHadir = today._absen + tanpaKet;
-            var hadir = headcount - tidakHadir;
+            var tidakHadir = ringkasan.tidakHadir;
+            var hadir = ringkasan.total - tidakHadir;
             var pct = function (value) {
-                return headcount ? (Math.round(value * 1000 / headcount) / 10).toString().replace('.', ',') + '%' : '0%';
+                return ringkasan.total ? (Math.round(value * 1000 / ringkasan.total) / 10).toString().replace('.', ',') + '%' : '0%';
             };
             document.getElementById('day-summary').innerHTML =
                 '<span class="chip hadir">' + __t('Hadir') + ' <b>' + hadir + '</b><span class="pct">' + pct(hadir) + '</span></span>'
@@ -600,6 +605,7 @@
                 var kode = result.body.kode || '';
                 var ket = result.body.keterangan || '';
                 var menit = result.body.menit_terlambat || '';
+                var sebelumnyaTidakHadir = isTidakHadir(activeCell);
                 activeCell.dataset.kode = kode;
                 if (menit) activeCell.dataset.menit = menit; else delete activeCell.dataset.menit;
                 activeCell.dataset.ket = ket;
@@ -611,6 +617,7 @@
                     : kode ? kodes[kode].label + (menit ? ' · ' + __t(':menit menit', { menit: menit }) : '') + (ket ? ' · ' + ket : '') : (tanpaKet ? __t('Tidak masuk · belum ada keterangan') : __t('Masuk'));
                 if (Number(activeCell.dataset.day) === selectedDay) {
                     activeCell.closest('tr').querySelector('[data-ket-selected]').textContent = ket;
+                    ringkasan.tidakHadir += (isTidakHadir(activeCell) ? 1 : 0) - (sebelumnyaTidakHadir ? 1 : 0);
                 }
                 void activeCell.offsetWidth;
                 activeCell.classList.add('saved');

@@ -227,6 +227,28 @@ class AbsensiTest extends TestCase
             ->assertDontSee('Budi PWD');
     }
 
+    public function test_ringkasan_harian_tidak_ikut_filter(): void
+    {
+        $citra = Karyawan::create(['nik' => '0003', 'nama' => 'Citra Terlambat', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Perempuan', 'status' => 'Tetap', 'group' => 'NS']);
+        $dodi = Karyawan::create(['nik' => '0004', 'nama' => 'Dodi Mesin', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'group' => 'NS']);
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $this->budi->id, 'tanggal' => '2026-10-14', 'kode' => 'I']);
+        Absensi::create(['karyawan_id' => $citra->id, 'tanggal' => '2026-10-14', 'kode' => 'DT<', 'menit_terlambat' => 10]);
+        AbsensiMesin::create(['tanggal' => '2026-10-14', 'nik' => $dodi->nik]);
+        $keseluruhan = ['total' => 4, 'tidakHadir' => 3];
+
+        foreach (['', '&status=terlambat', '&status=tidak_masuk', '&group=NS', '&department='.$this->pwd->id] as $filter) {
+            $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=2026-10-14'.$filter)
+                ->assertOk()
+                ->assertViewHas('ringkasanHarian', $keseluruhan);
+        }
+
+        // Admin Departemen tetap hanya menghitung karyawan departemennya.
+        $this->actingAs($this->deptAdmin($this->psd))->get(route('hrms.absensi.timeline', ['tanggal' => '2026-10-14', 'status' => 'terlambat']))
+            ->assertOk()
+            ->assertViewHas('ringkasanHarian', ['total' => 3, 'tidakHadir' => 2]);
+    }
+
     public function test_group_filter_and_access_control(): void
     {
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?group=NS')
