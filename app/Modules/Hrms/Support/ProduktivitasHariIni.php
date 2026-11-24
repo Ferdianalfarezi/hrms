@@ -4,6 +4,7 @@ namespace App\Modules\Hrms\Support;
 
 use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\LaporanShiftGrup;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use Closure;
 use Illuminate\Support\Carbon;
@@ -117,21 +118,23 @@ class ProduktivitasHariIni
 
     /**
      * Grup & tanggal yang dihitung untuk satu hari kerja: grup pagi (+ NS) di tanggal itu, grup malam di tanggal shift malamnya.
+     * Grupnya sama seperti Laporan Detail: pengaturan grup tanggal laporan itu kalau ada, selain itu jadwal rotasi.
      * pagi & malam null = rotasi belum diatur (semua karyawan dihitung di tanggal itu).
      *
      * @param  Collection<int, ShiftRotasi>|null  $rotasis  jadwal rotasi yang sudah dimuat, supaya tidak query per hari
+     * @param  Collection<string, LaporanShiftGrup>|null  $pengaturan  dari ShiftRotasi::pengaturanLaporan()
      * @return array{tanggal: string, pagi: ?string, malam: ?string, tanggalMalam: string}
      */
-    public static function jadwalHariKerja(Carbon $tanggal, ?Collection $rotasis = null): array
+    public static function jadwalHariKerja(Carbon $tanggal, ?Collection $rotasis = null, ?Collection $pengaturan = null): array
     {
         $rotasis ??= ShiftRotasi::orderBy('tanggal_mulai')->get();
-        $tanggalMalam = ShiftRotasi::tanggalShiftMalam($tanggal);
+        $pengaturan ??= ShiftRotasi::pengaturanLaporan();
 
         return [
             'tanggal' => $tanggal->toDateString(),
-            'pagi' => ShiftRotasi::grupPagi($tanggal, $rotasis),
-            'malam' => ShiftRotasi::grupMalam($tanggalMalam, $rotasis),
-            'tanggalMalam' => $tanggalMalam->toDateString(),
+            'pagi' => ShiftRotasi::grupPagiHariKerja($tanggal, $rotasis, $pengaturan),
+            'malam' => ShiftRotasi::grupMalamHariKerja($tanggal, $rotasis, $pengaturan),
+            'tanggalMalam' => ShiftRotasi::tanggalShiftMalam($tanggal)->toDateString(),
         ];
     }
 

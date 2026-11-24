@@ -66,6 +66,43 @@ class ShiftRotasi extends Model
     }
 
     /**
+     * Pengaturan grup shift per tanggal laporan dari halaman Laporan Detail: [Y-m-d] => LaporanShiftGrup.
+     *
+     * @return Collection<string, LaporanShiftGrup>
+     */
+    public static function pengaturanLaporan(): Collection
+    {
+        return LaporanShiftGrup::all()->keyBy(fn (LaporanShiftGrup $grup) => $grup->tanggal->toDateString());
+    }
+
+    /**
+     * Grup shift pagi untuk hari kerja ini, sama seperti Laporan Detail: pengaturan tanggal laporan itu kalau ada, selain itu rotasi.
+     *
+     * @param  Collection<int, self>|null  $rotasis
+     * @param  Collection<string, LaporanShiftGrup>|null  $pengaturan  dari pengaturanLaporan()
+     */
+    public static function grupPagiHariKerja(Carbon $hariKerja, $rotasis = null, ?Collection $pengaturan = null): ?string
+    {
+        $pengaturan ??= static::pengaturanLaporan();
+
+        return $pengaturan->get($hariKerja->toDateString())?->grup_pagi ?? static::grupPagi($hariKerja, $rotasis);
+    }
+
+    /**
+     * Grup shift malam yang dilaporkan di hari kerja ini (malam sebelumnya, Senin: Jumat malam), sama seperti Laporan Detail:
+     * pengaturan tanggal laporan itu kalau ada, selain itu rotasi.
+     *
+     * @param  Collection<int, self>|null  $rotasis
+     * @param  Collection<string, LaporanShiftGrup>|null  $pengaturan  dari pengaturanLaporan()
+     */
+    public static function grupMalamHariKerja(Carbon $hariKerja, $rotasis = null, ?Collection $pengaturan = null): ?string
+    {
+        $pengaturan ??= static::pengaturanLaporan();
+
+        return $pengaturan->get($hariKerja->toDateString())?->grup_malam ?? static::grupMalam(static::tanggalShiftMalam($hariKerja), $rotasis);
+    }
+
+    /**
      * Tanggal shift malam yang masuk ke hari kerja ini: sehari sebelumnya, kecuali Senin mengambil Jumat.
      */
     public static function tanggalShiftMalam(Carbon $hariKerja): Carbon

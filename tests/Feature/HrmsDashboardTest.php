@@ -7,8 +7,10 @@ use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\LaporanShiftGrup;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Modules\Hrms\Support\HrmsDashboard;
+use App\Modules\Hrms\Support\KomparasiAbsensi;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -276,6 +278,31 @@ class HrmsDashboardTest extends TestCase
         // Shift 1 di atas Shift 2; persen tidak hadir per shift di baris bawah.
         $this->actingAs($this->hrmsAdmin())->get('/hrms')->assertOk()
             ->assertSeeInOrder(['Man-hour Hari Ini', 'Absensi 15 Okt', 'Shift 1 · Pagi · 15 Okt', 'Shift 2 · Malam · 14 Okt', 'Keterlambatan Hari Ini', 'Tidak Hadir per Shift']);
+    }
+
+    public function test_grup_shift_mengikuti_pengaturan_laporan_detail(): void
+    {
+        // Rotasi: minggu 12 - 18 Okt B pagi, A malam. Laporan Detail 15 Okt diatur: malam B, pagi A.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-05', 'grup_pagi' => 'A']);
+        LaporanShiftGrup::create(['tanggal' => '2026-10-15', 'grup_malam' => 'B', 'grup_pagi' => 'A']);
+        foreach (['0001' => 'B', '0002' => 'NS', '0003' => 'A', '0004' => 'B'] as $nik => $grup) {
+            Karyawan::where('nik', $nik)->update(['group' => $grup]);
+        }
+        $id = fn (string $nik) => Karyawan::where('nik', $nik)->value('id');
+        Absensi::create(['karyawan_id' => $id('0001'), 'tanggal' => '2026-10-14', 'kode' => 'S']);   // grup B malam 14 Okt
+        AbsensiMesin::create(['tanggal' => '2026-10-15', 'nik' => '0004']);                          // grup B, belum ada keterangan
+
+        $dashboard = HrmsDashboard::build($this->hrmsAdmin());
+        $shifts = $dashboard['hariIni']['perShift'];
+
+        $this->assertSame(['Grup A + NS · 07.00 - 16.00', 'Grup B · 20.05 - 05.00'], array_column($shifts, 'sub'));
+        $this->assertSame([2, 2], array_column($shifts, 'total'));
+        $this->assertSame([2, 0], array_column($shifts, 'hadir'));                                 // sakit + Alpa jatuh di malam 14 Okt
+        $this->assertSame('50%', $dashboard['composition']['value']);
+
+        // Sel merah karyawan 0004 ikut pindah ke tanggal shift malam (14 Okt), sama seperti Laporan Detail.
+        $hariIni = Carbon::parse('2026-10-15');
+        $this->assertSame([$id('0004') => ['2026-10-14' => true]], KomparasiAbsensi::selBelumAdaKeterangan(Karyawan::all(), $hariIni->copy()->subDay(), $hariIni));
     }
 
     public function test_hari_pergantian_rotasi_grup_yang_sama_masuk_shift_2_kemarin_dan_shift_1_hari_ini(): void

@@ -102,8 +102,10 @@ class AbsensiController extends Controller
 
         // Baris bawah tabel dihitung per hari kerja seperti dashboard: tiap tanggal = grup pagi + NS di tanggal itu
         // + grup malam di tanggal shift malamnya (bisa jatuh di bulan sebelumnya, jadi statusnya dikirim terpisah).
+        // Grup tiap hari sama seperti Laporan Detail: pengaturan grup tanggal laporan kalau ada, selain itu rotasi.
         $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
-        $jadwalBulan = $days->mapWithKeys(fn (array $day) => [$day['day'] => ProduktivitasHariIni::jadwalHariKerja(Carbon::parse($day['date']), $rotasis)])->all();
+        $pengaturan = ShiftRotasi::pengaturanLaporan();
+        $jadwalBulan = $days->mapWithKeys(fn (array $day) => [$day['day'] => ProduktivitasHariIni::jadwalHariKerja(Carbon::parse($day['date']), $rotasis, $pengaturan)])->all();
 
         // [karyawan_id][hari] => ['kode' => ..., 'keterangan' => ...]
         $marks = [];
@@ -135,7 +137,7 @@ class AbsensiController extends Controller
             // Chip Hadir / Tidak hadir: seluruh karyawan yang bisa dilihat user (tidak ikut filter), dihitung per hari kerja
             // seperti kartu per shift di dashboard: grup pagi + NS di tanggal itu, grup malam di tanggal shift malamnya.
             'ringkasanHarian' => ProduktivitasHariIni::ringkasanHariKerja(fn () => Karyawan::query()->visibleTo($user), $tanggal),
-            'jadwalHariKerja' => ProduktivitasHariIni::jadwalHariKerja($tanggal, $rotasis),
+            'jadwalHariKerja' => ProduktivitasHariIni::jadwalHariKerja($tanggal, $rotasis, $pengaturan),
             'jadwalBulan' => $jadwalBulan,
             'statusLuarBulan' => $this->statusLuarBulan($karyawans, $jadwalBulan, $monthStart),
             'canFilterDepartment' => $canFilterDepartment,

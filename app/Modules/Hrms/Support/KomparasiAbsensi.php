@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\LaporanShiftGrup;
 use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Modules\Hrms\Notifications\AbsensiBelumAdaKeterangan;
 use Illuminate\Notifications\DatabaseNotification;
@@ -27,6 +28,7 @@ class KomparasiAbsensi
     public static function belumAdaKeterangan(Carbon $tanggal): Collection
     {
         $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
+        $pengaturan = ShiftRotasi::pengaturanLaporan();
 
         // NIK di mesin yang tidak ada di data karyawan diabaikan.
         $karyawans = Karyawan::with('department')
@@ -39,7 +41,7 @@ class KomparasiAbsensi
         return $karyawans
             ->map(fn (Karyawan $karyawan) => [
                 'karyawan' => $karyawan,
-                'tanggalLaporan' => self::tanggalLaporan($tanggal, $karyawan->group, $rotasis),
+                'tanggalLaporan' => self::tanggalLaporan($tanggal, $karyawan->group, $rotasis, $pengaturan),
             ])
             ->reject(fn (array $item) => isset($sudahDiisi[$item['karyawan']->id][$item['tanggalLaporan']->toDateString()]))
             ->values();
@@ -104,6 +106,7 @@ class KomparasiAbsensi
     public static function selBelumAdaKeterangan(Collection $karyawans, Carbon $mulai, Carbon $sampai): array
     {
         $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
+        $pengaturan = ShiftRotasi::pengaturanLaporan();
         $bebas = array_flip(Karyawan::whereIn('id', $karyawans->pluck('id'))->bebasAbsenMesin()->pluck('id')->all());
         $byNik = $karyawans->reject(fn (Karyawan $karyawan) => isset($bebas[$karyawan->id]))->keyBy('nik');
         $sudahDiisi = self::sudahDiisi($karyawans->pluck('id')->all(), $mulai, $sampai);
@@ -114,9 +117,9 @@ class KomparasiAbsensi
             ->where('tanggal', '>=', $mulai->toDateString())
             ->where('tanggal', '<', $sampai->copy()->addDays(4)->toDateString())
             ->get(['tanggal', 'nik'])
-            ->each(function (AbsensiMesin $row) use ($byNik, $rotasis, $sudahDiisi, $mulai, $sampai, &$sel) {
+            ->each(function (AbsensiMesin $row) use ($byNik, $rotasis, $pengaturan, $sudahDiisi, $mulai, $sampai, &$sel) {
                 $karyawan = $byNik[$row->nik];
-                $tanggal = self::tanggalLaporan($row->tanggal, $karyawan->group, $rotasis);
+                $tanggal = self::tanggalLaporan($row->tanggal, $karyawan->group, $rotasis, $pengaturan);
                 $key = $tanggal->toDateString();
 
                 if ($tanggal->between($mulai, $sampai) && ! isset($sudahDiisi[$karyawan->id][$key])) {
@@ -180,6 +183,7 @@ class KomparasiAbsensi
     public static function selHadirDiMesin(Collection $karyawans, Carbon $mulai, Carbon $sampai): array
     {
         $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
+        $pengaturan = ShiftRotasi::pengaturanLaporan();
 
         // [Y-m-d hari kerja][nik] => true
         $tidakAbsen = [];
@@ -197,9 +201,11 @@ class KomparasiAbsensi
         $sel = [];
         for ($day = $mulai->copy(); $day->lte($sampai); $day->addDay()) {
             // Grup yang shift malam pada tanggal ini melapor untuk hari kerja berikutnya (Jumat ke Senin). Minggu malam tidak dipakai.
-            $grupMalam = $day->isSunday() ? null : ShiftRotasi::grupMalam($day, $rotasis);
+            // Grupnya mengikuti pengaturan Laporan Detail untuk hari kerja itu kalau ada.
+            $hariKerjaMalamTanggal = ShiftRotasi::hariKerjaShiftMalam($day);
+            $grupMalam = $day->isSunday() ? null : ShiftRotasi::grupMalamHariKerja($hariKerjaMalamTanggal, $rotasis, $pengaturan);
             $key = $day->toDateString();
-            $hariKerjaMalam = ShiftRotasi::hariKerjaShiftMalam($day)->toDateString();
+            $hariKerjaMalam = $hariKerjaMalamTanggal->toDateString();
 
             foreach ($karyawans as $karyawan) {
                 $hariKerja = $grupMalam !== null && $karyawan->group === $grupMalam ? $hariKerjaMalam : $key;
@@ -215,13 +221,15 @@ class KomparasiAbsensi
 
     /**
      * Tanggal yang diisi Admin Departemen untuk hari kerja ini: grup shift malam = sehari sebelumnya (Senin: Jumat).
+     * Grup malamnya sama seperti Laporan Detail: pengaturan grup tanggal laporan itu kalau ada, selain itu rotasi.
+     *
+     * @param  Collection<string, LaporanShiftGrup>|null  $pengaturan  dari ShiftRotasi::pengaturanLaporan()
      */
-    public static function tanggalLaporan(Carbon $hariKerja, ?string $group, Collection $rotasis): Carbon
+    public static function tanggalLaporan(Carbon $hariKerja, ?string $group, Collection $rotasis, ?Collection $pengaturan = null): Carbon
     {
-        $kemarin = ShiftRotasi::tanggalShiftMalam($hariKerja);
-        $grupMalam = ShiftRotasi::grupMalam($kemarin, $rotasis);
+        $grupMalam = ShiftRotasi::grupMalamHariKerja($hariKerja, $rotasis, $pengaturan);
 
-        return $grupMalam !== null && $group === $grupMalam ? $kemarin : $hariKerja->copy();
+        return $grupMalam !== null && $group === $grupMalam ? ShiftRotasi::tanggalShiftMalam($hariKerja) : $hariKerja->copy();
     }
 
     /**
