@@ -7,6 +7,7 @@ use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiApproval;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\ShiftRotasi;
 use App\Modules\Hrms\Support\KomparasiAbsensi;
 use App\Modules\Hrms\Support\ProduktivitasHariIni;
 use Closure;
@@ -99,6 +100,11 @@ class AbsensiController extends Controller
                 'worked' => ! $date->isWeekend() && $date->lte(Carbon::today())];
         });
 
+        // Baris bawah tabel dihitung per hari kerja seperti dashboard: tiap tanggal = grup pagi + NS di tanggal itu
+        // + grup malam di tanggal shift malamnya (bisa jatuh di bulan sebelumnya, jadi statusnya dikirim terpisah).
+        $rotasis = ShiftRotasi::orderBy('tanggal_mulai')->get();
+        $jadwalBulan = $days->mapWithKeys(fn (array $day) => [$day['day'] => ProduktivitasHariIni::jadwalHariKerja(Carbon::parse($day['date']), $rotasis)])->all();
+
         // [karyawan_id][hari] => ['kode' => ..., 'keterangan' => ...]
         $marks = [];
         Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
@@ -129,7 +135,9 @@ class AbsensiController extends Controller
             // Chip Hadir / Tidak hadir: seluruh karyawan yang bisa dilihat user (tidak ikut filter), dihitung per hari kerja
             // seperti kartu per shift di dashboard: grup pagi + NS di tanggal itu, grup malam di tanggal shift malamnya.
             'ringkasanHarian' => ProduktivitasHariIni::ringkasanHariKerja(fn () => Karyawan::query()->visibleTo($user), $tanggal),
-            'jadwalHariKerja' => ProduktivitasHariIni::jadwalHariKerja($tanggal),
+            'jadwalHariKerja' => ProduktivitasHariIni::jadwalHariKerja($tanggal, $rotasis),
+            'jadwalBulan' => $jadwalBulan,
+            'statusLuarBulan' => $this->statusLuarBulan($karyawans, $jadwalBulan, $monthStart),
             'canFilterDepartment' => $canFilterDepartment,
             'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'groupOptions' => Karyawan::query()->visibleTo($user)->whereNotNull('group')->distinct()->orderBy('group')->pluck('group'),
@@ -507,7 +515,28 @@ class AbsensiController extends Controller
     }
 
     /**
-     * Karyawan yang tidak masuk pada tanggal itu: punya kode tidak hadir (bukan DT/PC),
+     * Anggota tiap shift di hari kerja $tanggal beserta tanggal datanya: grup pagi + NS di tanggal itu,
+     * grup malam di tanggal shift malamnya. Tanpa rotasi: semua karyawan di tanggal itu.
+     *
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @return list<array{0: Collection<int, Karyawan>, 1: Carbon}>
+     */
+    private function shiftHariKerja(Collection $karyawans, Carbon $tanggal): array
+    {
+        $jadwal = ProduktivitasHariIni::jadwalHariKerja($tanggal);
+
+        if ($jadwal['pagi'] === null && $jadwal['malam'] === null) {
+            return [[$karyawans, $tanggal]];
+        }
+
+        return [
+            [$karyawans->filter(fn (Karyawan $karyawan) => $karyawan->group === 'NS' || $karyawan->group === $jadwal['pagi']), $tanggal],
+            [$karyawans->filter(fn (Karyawan $karyawan) => $karyawan->group === $jadwal['malam']), Carbon::parse($jadwal['tanggalMalam'])],
+        ];
+    }
+
+    /**
+     * Karyawan yang tidak masuk di hari kerja itu (per shift, sama seperti dashboard): punya kode tidak hadir (bukan DT/PC),
      * atau tidak masuk di mesin absen tapi belum ada keterangan.
      *
      * @param  Collection<int, Karyawan>  $karyawans
@@ -515,35 +544,87 @@ class AbsensiController extends Controller
      */
     private function tidakMasuk(Collection $karyawans, Carbon $tanggal): Collection
     {
-        $berkode = Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
-            ->whereDate('tanggal', $tanggal->toDateString())
-            ->whereIn('kode', Absensi::kodeTidakHadir())
-            ->pluck('karyawan_id')
-            ->flip();
-        $tanpaKeterangan = KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $tanggal, $tanggal);
+        $ids = [];
+        foreach ($this->shiftHariKerja($karyawans, $tanggal) as [$anggota, $tanggalData]) {
+            $date = $tanggalData->toDateString();
+            $berkode = Absensi::whereIn('karyawan_id', $anggota->pluck('id'))
+                ->whereDate('tanggal', $date)
+                ->whereIn('kode', Absensi::kodeTidakHadir())
+                ->pluck('karyawan_id');
+            $tanpaKeterangan = KomparasiAbsensi::selBelumAdaKeterangan($anggota->values(), $tanggalData, $tanggalData);
 
-        return $karyawans
-            ->filter(fn (Karyawan $karyawan) => $berkode->has($karyawan->id) || isset($tanpaKeterangan[$karyawan->id][$tanggal->toDateString()]))
-            ->values();
+            foreach ($berkode as $id) {
+                $ids[$id] = true;
+            }
+            foreach ($anggota as $karyawan) {
+                if (isset($tanpaKeterangan[$karyawan->id][$date])) {
+                    $ids[$karyawan->id] = true;
+                }
+            }
+        }
+
+        return $karyawans->filter(fn (Karyawan $karyawan) => isset($ids[$karyawan->id]))->values();
     }
 
     /**
-     * Karyawan yang datang terlambat pada tanggal itu (kode DT< / DT>).
+     * Karyawan yang datang terlambat (kode DT< / DT>) di hari kerja itu, per shift seperti dashboard.
      *
      * @param  Collection<int, Karyawan>  $karyawans
      * @return Collection<int, Karyawan>
      */
     private function terlambat(Collection $karyawans, Carbon $tanggal): Collection
     {
-        $terlambat = Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
-            ->whereDate('tanggal', $tanggal->toDateString())
-            ->whereIn('kode', Absensi::KODE_TERLAMBAT)
-            ->pluck('karyawan_id')
-            ->flip();
+        $ids = [];
+        foreach ($this->shiftHariKerja($karyawans, $tanggal) as [$anggota, $tanggalData]) {
+            Absensi::whereIn('karyawan_id', $anggota->pluck('id'))
+                ->whereDate('tanggal', $tanggalData->toDateString())
+                ->whereIn('kode', Absensi::KODE_TERLAMBAT)
+                ->pluck('karyawan_id')
+                ->each(function ($id) use (&$ids) {
+                    $ids[$id] = true;
+                });
+        }
 
-        return $karyawans
-            ->filter(fn (Karyawan $karyawan) => $terlambat->has($karyawan->id))
-            ->values();
+        return $karyawans->filter(fn (Karyawan $karyawan) => isset($ids[$karyawan->id]))->values();
+    }
+
+    /**
+     * Status karyawan grup malam di tanggal shift malam yang jatuh sebelum bulan tampil (mis. tanggal 1 = malam
+     * tanggal terakhir bulan lalu), supaya baris bawah tabel tetap bisa dihitung per hari kerja di browser.
+     *
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @param  array<int, array{tanggal: string, pagi: ?string, malam: ?string, tanggalMalam: string}>  $jadwalBulan
+     * @return array<int, array<string, array{kode: string, absen: bool}>>
+     */
+    private function statusLuarBulan(Collection $karyawans, array $jadwalBulan, Carbon $monthStart): array
+    {
+        $status = [];
+
+        foreach ($jadwalBulan as $jadwal) {
+            $malam = Carbon::parse($jadwal['tanggalMalam']);
+            if ($jadwal['malam'] === null || ! $malam->lt($monthStart)) {
+                continue;
+            }
+
+            $date = $malam->toDateString();
+            $anggota = $karyawans->filter(fn (Karyawan $karyawan) => $karyawan->group === $jadwal['malam'])->values();
+            Absensi::whereIn('karyawan_id', $anggota->pluck('id'))
+                ->whereDate('tanggal', $date)
+                ->get(['karyawan_id', 'kode'])
+                ->each(function (Absensi $absensi) use (&$status, $date) {
+                    $status[$absensi->karyawan_id][$date] = [
+                        'kode' => $absensi->kode,
+                        'absen' => ! (Absensi::KODE[$absensi->kode]['hadir'] ?? true),
+                    ];
+                });
+            foreach (KomparasiAbsensi::selBelumAdaKeterangan($anggota, $malam, $malam) as $id => $tanggals) {
+                if (isset($tanggals[$date]) && ! isset($status[$id][$date])) {
+                    $status[$id][$date] = ['kode' => '', 'absen' => true];
+                }
+            }
+        }
+
+        return $status;
     }
 
     private function parseMonth(string $value): ?Carbon

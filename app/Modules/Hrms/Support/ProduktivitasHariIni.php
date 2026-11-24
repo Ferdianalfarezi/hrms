@@ -78,9 +78,19 @@ class ProduktivitasHariIni
      */
     public static function ringkasanHariKerja(Closure $visible, Carbon $tanggal): array
     {
-        $jumlah = self::jumlahkanShift((new self($visible, $tanggal))->perShift());
+        $jumlah = self::rekapHariKerja($visible, $tanggal);
 
         return ['total' => $jumlah['total'], 'tidakHadir' => $jumlah['total'] - $jumlah['hadir']];
+    }
+
+    /**
+     * Rekap satu hari kerja (gabungan Shift 1 + Shift 2) lengkap dengan rincian kategori tidak hadir.
+     *
+     * @return array{total: int, hadir: int, perKategori: array<string, int>}
+     */
+    public static function rekapHariKerja(Closure $visible, Carbon $tanggal): array
+    {
+        return self::jumlahkanShift((new self($visible, $tanggal))->perShift());
     }
 
     /**
@@ -109,16 +119,18 @@ class ProduktivitasHariIni
      * Grup & tanggal yang dihitung untuk satu hari kerja: grup pagi (+ NS) di tanggal itu, grup malam di tanggal shift malamnya.
      * pagi & malam null = rotasi belum diatur (semua karyawan dihitung di tanggal itu).
      *
+     * @param  Collection<int, ShiftRotasi>|null  $rotasis  jadwal rotasi yang sudah dimuat, supaya tidak query per hari
      * @return array{tanggal: string, pagi: ?string, malam: ?string, tanggalMalam: string}
      */
-    public static function jadwalHariKerja(Carbon $tanggal): array
+    public static function jadwalHariKerja(Carbon $tanggal, ?Collection $rotasis = null): array
     {
+        $rotasis ??= ShiftRotasi::orderBy('tanggal_mulai')->get();
         $tanggalMalam = ShiftRotasi::tanggalShiftMalam($tanggal);
 
         return [
             'tanggal' => $tanggal->toDateString(),
-            'pagi' => ShiftRotasi::grupPagi($tanggal),
-            'malam' => ShiftRotasi::grupMalam($tanggalMalam),
+            'pagi' => ShiftRotasi::grupPagi($tanggal, $rotasis),
+            'malam' => ShiftRotasi::grupMalam($tanggalMalam, $rotasis),
             'tanggalMalam' => $tanggalMalam->toDateString(),
         ];
     }

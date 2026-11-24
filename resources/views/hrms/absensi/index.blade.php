@@ -329,7 +329,7 @@
                     <td colspan="{{ count($kodes) + 2 }}"></td>
                 </tr>
                 <tr class="foot-total">
-                    <td class="foot-label" colspan="5"><strong style="color: var(--text);">{{ __('% tidak hadir') }}</strong> <span class="small">{{ __('dari :count karyawan', ['count' => $karyawans->count()]) }}</span></td>
+                    <td class="foot-label" colspan="5"><strong style="color: var(--text);">{{ __('% tidak hadir') }}</strong> <span class="small">{{ __('per hari kerja (Shift 1 + Shift 2 malam sebelumnya)') }}</span></td>
                     @foreach ($days as $day)
                         <td @class(['day', 'sun' => $day['weekend'], 'sel' => $day['selected']]) data-foot="persen" data-day="{{ $day['day'] }}">0</td>
                     @endforeach
@@ -407,19 +407,34 @@
         var table = document.getElementById('abs-table');
         var wrap = document.getElementById('abs-wrap');
         var selectedDay = {{ $tanggal->day }};
-        var headcount = {{ $karyawans->count() }};
-        // Ringkasan Hadir / Tidak hadir dari seluruh karyawan yang bisa dilihat user (tidak ikut filter), per hari kerja:
-        // grup pagi + NS di tanggal terpilih, grup malam di tanggal shift malamnya (sama seperti kartu per shift di dashboard).
+        // Semua angka dihitung per hari kerja seperti dashboard: grup pagi + NS di tanggal itu, grup malam di tanggal
+        // shift malamnya. Chip Hadir / Tidak hadir dari seluruh karyawan yang bisa dilihat user (tidak ikut filter).
         var ringkasan = {{ Js::from($ringkasanHarian) }};
         var hariKerja = {{ Js::from($jadwalHariKerja) }};
+        // [hari] => jadwal hari kerja; status grup malam yang tanggal shiftnya jatuh di bulan lalu: [karyawan_id][Y-m-d].
+        var jadwalBulan = {{ Js::from((object) $jadwalBulan) }};
+        var statusLuarBulan = {{ Js::from((object) $statusLuarBulan) }};
+        var monthPrefix = table.dataset.month + '-';
+        var barisKaryawan = Array.prototype.map.call(table.querySelectorAll('tbody tr[data-row]'), function (row) {
+            var cells = {};
+            row.querySelectorAll('.cell').forEach(function (cell) { cells[cell.dataset.day] = cell; });
+            return { id: row.dataset.row, group: row.querySelector('.c-group').textContent.trim(), cells: cells };
+        });
 
-        // Sel ini ikut dihitung di ringkasan hari kerja? (Tanpa rotasi: semua karyawan di tanggal terpilih.)
+        // Tanggal data yang dihitung untuk karyawan grup ini di satu hari kerja (tanpa rotasi: tanggal itu saja).
+        function tanggalDihitung(group, jadwal) {
+            if (jadwal.pagi === null && jadwal.malam === null) return [jadwal.tanggal];
+            var tanggal = [];
+            if (group === 'NS' || group === jadwal.pagi) tanggal.push(jadwal.tanggal);
+            if (group === jadwal.malam) tanggal.push(jadwal.tanggalMalam);
+            return tanggal;
+        }
+
+        // Sel ini ikut dihitung di chip ringkasan tanggal terpilih?
         function ikutRingkasan(cell) {
-            var date = table.dataset.month + '-' + String(cell.dataset.day).padStart(2, '0');
+            var date = monthPrefix + String(cell.dataset.day).padStart(2, '0');
             var group = cell.closest('tr').querySelector('.c-group').textContent.trim();
-            if (hariKerja.pagi === null && hariKerja.malam === null) return date === hariKerja.tanggal;
-            return (date === hariKerja.tanggal && (group === 'NS' || group === hariKerja.pagi))
-                || (date === hariKerja.tanggalMalam && group === hariKerja.malam);
+            return tanggalDihitung(group, hariKerja).indexOf(date) !== -1;
         }
 
         function setNumber(cell, value) {
@@ -432,9 +447,17 @@
             return kode ? !!(kodes[kode] && !kodes[kode].hadir) : 'tanpaKet' in cell.dataset;
         }
 
-        // Hitung ulang rekap per karyawan, detail per tanggal, dan ringkasan tanggal terpilih.
+        // Kode & status tidak hadir karyawan di satu tanggal data (sel di tabel, atau status bulan lalu untuk grup malam).
+        function statusPada(baris, date) {
+            if (date.indexOf(monthPrefix) === 0) {
+                var cell = baris.cells[Number(date.slice(-2))];
+                return cell ? { kode: cell.dataset.kode || '', absen: isTidakHadir(cell) } : null;
+            }
+            return (statusLuarBulan[baris.id] || {})[date] || { kode: '', absen: false };
+        }
+
+        // Hitung ulang rekap per karyawan, detail per hari kerja (baris bawah tabel), dan ringkasan tanggal terpilih.
         function recalc() {
-            var perDay = {};
             table.querySelectorAll('tbody tr[data-row]').forEach(function (row) {
                 var counts = {}, total = 0;
                 row.querySelectorAll('.cell').forEach(function (cell) {
@@ -442,20 +465,32 @@
                     if (!kode) return;
                     counts[kode] = (counts[kode] || 0) + 1;
                     total++;
-                    var day = cell.dataset.day;
-                    perDay[day] = perDay[day] || { _absen: 0 };
-                    perDay[day][kode] = (perDay[day][kode] || 0) + 1;
-                    if (kodes[kode] && !kodes[kode].hadir) perDay[day]._absen++;
                 });
                 row.querySelectorAll('[data-sum]').forEach(function (cell) {
                     setNumber(cell, cell.dataset.sum === 'total' ? total : (counts[cell.dataset.sum] || 0));
                 });
             });
 
+            // Tidak hadir = kode tidak hadir + sel merah (tidak masuk di mesin, belum ada keterangan), sama seperti dashboard.
+            var perDay = {};
+            Object.keys(jadwalBulan).forEach(function (day) {
+                var rekap = { _absen: 0, _total: 0 };
+                barisKaryawan.forEach(function (baris) {
+                    tanggalDihitung(baris.group, jadwalBulan[day]).forEach(function (date) {
+                        var status = statusPada(baris, date);
+                        if (!status) return;
+                        rekap._total++;
+                        if (status.kode) rekap[status.kode] = (rekap[status.kode] || 0) + 1;
+                        if (status.absen) rekap._absen++;
+                    });
+                });
+                perDay[day] = rekap;
+            });
+
             table.querySelectorAll('tfoot [data-foot]').forEach(function (cell) {
-                var day = perDay[cell.dataset.day] || { _absen: 0 };
+                var day = perDay[cell.dataset.day] || { _absen: 0, _total: 0 };
                 if (cell.dataset.foot === 'absen') setNumber(cell, day._absen);
-                else if (cell.dataset.foot === 'persen') setNumber(cell, headcount ? (Math.round(day._absen * 1000 / headcount) / 10).toString().replace('.', ',') : 0);
+                else if (cell.dataset.foot === 'persen') setNumber(cell, day._total ? (Math.round(day._absen * 1000 / day._total) / 10).toString().replace('.', ',') : 0);
                 else setNumber(cell, day[cell.dataset.foot] || 0);
             });
 

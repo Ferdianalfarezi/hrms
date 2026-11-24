@@ -1358,5 +1358,6 @@
     "kasus": "件",
     "temuan": "件",
     "Tanggal terlambat": "遅刻日",
-    "Tidak ada karyawan yang terlambat di tanggal ini.": "この日に遅刻した従業員はいません。"
+    "Tidak ada karyawan yang terlambat di tanggal ini.": "この日に遅刻した従業員はいません。",
+    "per hari kerja (Shift 1 + Shift 2 malam sebelumnya)": "勤務日ベース（シフト1 + 前夜のシフト2）"
 }

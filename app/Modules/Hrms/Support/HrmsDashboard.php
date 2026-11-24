@@ -328,7 +328,8 @@ class HrmsDashboard
     }
 
     /**
-     * Rekap kehadiran per hari. Jumlah karyawan per hari hanya yang sudah masuk pada hari itu.
+     * Rekap kehadiran per hari kerja, sama seperti kartu Absensi hari ini: Shift 1 pagi tanggal itu + Shift 2 malam sebelumnya.
+     * Jumlah karyawan per hari hanya yang sudah masuk pada hari itu.
      * Tidak hadir = kode tidak hadir dari admin, atau tidak absen di mesin dan belum ada keterangan.
      *
      * @param  Collection<int, Carbon>  $days  urut dari yang paling lama
@@ -336,39 +337,18 @@ class HrmsDashboard
      */
     private static function rekapPerHari(\Closure $visible, Collection $days): Collection
     {
-        $mulai = $days->first();
-        $sampai = $days->last();
-        $karyawans = $visible()->get(['id', 'nik', 'group', 'tanggal_masuk']);
-
-        // [Y-m-d][kategori] => jumlah karyawan
-        $tidakHadir = [];
-        Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
-            ->where('tanggal', '>=', $mulai->toDateString())
-            ->where('tanggal', '<', $sampai->copy()->addDay()->toDateString())
-            ->whereIn('kode', Absensi::kodeTidakHadir())
-            ->get(['karyawan_id', 'tanggal', 'kode'])
-            ->unique(fn (Absensi $absensi) => $absensi->karyawan_id.'|'.$absensi->tanggal->toDateString())
-            ->each(function (Absensi $absensi) use (&$tidakHadir) {
-                $kategori = Absensi::kategori($absensi->kode);
-                $tidakHadir[$absensi->tanggal->toDateString()][$kategori] = ($tidakHadir[$absensi->tanggal->toDateString()][$kategori] ?? 0) + 1;
-            });
-        foreach (KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $mulai, $sampai) as $tanggal) {
-            foreach (array_keys($tanggal) as $key) {
-                $tidakHadir[$key]['Alpa'] = ($tidakHadir[$key]['Alpa'] ?? 0) + 1;
-            }
-        }
-
-        return $days->map(function (Carbon $day) use ($karyawans, $tidakHadir) {
-            $total = $karyawans->filter(fn (Karyawan $karyawan) => $karyawan->tanggal_masuk === null || $karyawan->tanggal_masuk->lte($day))->count();
-            $rincian = self::rincianTidakHadir($tidakHadir[$day->toDateString()] ?? []);
-            $jumlahTidakHadir = min($rincian->sum('count'), $total);
+        return $days->map(function (Carbon $day) use ($visible) {
+            $sudahMasuk = fn () => $visible()->where(fn ($query) => $query
+                ->whereNull('tanggal_masuk')
+                ->orWhereDate('tanggal_masuk', '<=', $day->toDateString()));
+            $rekap = ProduktivitasHariIni::rekapHariKerja($sudahMasuk, $day);
 
             return [
                 'day' => $day,
-                'total' => $total,
-                'hadir' => $total - $jumlahTidakHadir,
-                'tidakHadir' => $jumlahTidakHadir,
-                'rincian' => $rincian->all(),
+                'total' => $rekap['total'],
+                'hadir' => $rekap['hadir'],
+                'tidakHadir' => $rekap['total'] - $rekap['hadir'],
+                'rincian' => self::rincianTidakHadir($rekap['perKategori'])->all(),
             ];
         })->values();
     }

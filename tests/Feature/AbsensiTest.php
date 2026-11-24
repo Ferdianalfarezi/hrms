@@ -265,6 +265,36 @@ class AbsensiTest extends TestCase
             ->assertViewHas('jadwalHariKerja', ['tanggal' => '2026-10-14', 'pagi' => 'B', 'malam' => 'A', 'tanggalMalam' => '2026-10-13']);
     }
 
+    public function test_filter_dan_detail_bawah_mengikuti_hari_kerja_shift(): void
+    {
+        // Minggu 28 Sep & 12 Okt grup B pagi, jadi grup A shift malam pada 30 Sep dan 13 Okt.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-09-28', 'grup_pagi' => 'B']);
+        $citra = Karyawan::create(['nik' => '0003', 'nama' => 'Citra Malam', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Perempuan', 'status' => 'Tetap', 'group' => 'A']);
+        $dodi = Karyawan::create(['nik' => '0004', 'nama' => 'Dodi Pagi', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'group' => 'B']);
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-13', 'kode' => 'S']);    // malam 13 Okt = hari kerja 14 Okt
+        Absensi::create(['karyawan_id' => $citra->id, 'tanggal' => '2026-10-14', 'kode' => 'CT']);         // malam 14 Okt = hari kerja 15 Okt
+        Absensi::create(['karyawan_id' => $citra->id, 'tanggal' => '2026-10-13', 'kode' => 'DT<', 'menit_terlambat' => 10]);
+        Absensi::create(['karyawan_id' => $dodi->id, 'tanggal' => '2026-10-14', 'kode' => 'I']);
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-09-30', 'kode' => 'S']);    // malam 30 Sep = hari kerja 1 Okt
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?status=tidak_masuk&tanggal=2026-10-14')
+            ->assertOk()
+            ->assertSee('2 karyawan tidak masuk')
+            ->assertSee('Andi PSD')
+            ->assertSee('Dodi Pagi')
+            ->assertDontSee('Citra Malam');
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?status=terlambat&tanggal=2026-10-14')
+            ->assertOk()
+            ->assertSee('1 karyawan terlambat')
+            ->assertSee('Citra Malam')
+            ->assertDontSee('Dodi Pagi');
+
+        $response = $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=2026-10-14')->assertOk();
+        $this->assertSame(['tanggal' => '2026-10-01', 'pagi' => 'B', 'malam' => 'A', 'tanggalMalam' => '2026-09-30'], $response->viewData('jadwalBulan')[1]);
+        $this->assertSame([$this->andi->id => ['2026-09-30' => ['kode' => 'S', 'absen' => true]]], $response->viewData('statusLuarBulan'));
+    }
+
     public function test_group_filter_and_access_control(): void
     {
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?group=NS')
