@@ -4,6 +4,7 @@ namespace App\Modules\Sms\Support;
 
 use App\Modules\Sms\Models\CrossPatrol;
 use App\Modules\Sms\Models\DailyPatrol;
+use App\Modules\Sms\Models\Kecelakaan;
 use Illuminate\Support\Carbon;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -124,6 +125,32 @@ class DashboardPatrolExport
         $spreadsheet->setActiveSheetIndex(0);
 
         return self::download($spreadsheet, 'Temuan Cross Patrol '.$year.'.xlsx');
+    }
+
+    /**
+     * Kecelakaan: Work / Traffic / Total per bulan, sama dengan tabel detail di dashboard.
+     */
+    public static function kecelakaan(int $year): StreamedResponse
+    {
+        $chart = GrafikKecelakaan::build(Carbon::today());
+        $entry = $chart['data'][$year] ?? GrafikKecelakaan::emptyYear();
+        $work = $entry[Kecelakaan::TIPE_WORK];
+        $traffic = $entry[Kecelakaan::TIPE_TRAFFIC];
+        $total = array_map(fn (int $workCount, int $trafficCount) => $workCount + $trafficCount, $work, $traffic);
+        $months = GrafikKecelakaan::MONTHS;
+
+        $spreadsheet = self::spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet()->setTitle('Per Bulan');
+        self::title($sheet, 'Kecelakaan per Bulan · Tahun '.$year);
+        self::simpleTable($sheet, 3, ['', ...$months, 'Jumlah'], [
+            [Kecelakaan::TIPE[Kecelakaan::TIPE_WORK]['label'], ...$work, array_sum($work)],
+            [Kecelakaan::TIPE[Kecelakaan::TIPE_TRAFFIC]['label'], ...$traffic, array_sum($traffic)],
+            ['Total', ...$total, array_sum($total)],
+        ]);
+        $sheet->getStyle('A6:'.Coordinate::stringFromColumnIndex(count($months) + 2).'6')->getFont()->setBold(true);
+        self::widths($sheet, ['A' => 18]);
+
+        return self::download($spreadsheet, 'Kecelakaan '.$year.'.xlsx');
     }
 
     public static function period(int $year, ?int $month): string

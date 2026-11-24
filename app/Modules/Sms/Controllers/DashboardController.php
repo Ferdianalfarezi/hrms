@@ -20,9 +20,9 @@ class DashboardController extends Controller
     {
         return view('sms.dashboard', [
             ...ModuleDashboard::build('sms', $request->user()),
-            // Kartu "Status Akun" di dashboard SMS diganti 2 kartu: Hari Tanpa Work Accident & Hari Tanpa Traffic Accident.
-            'hariTanpa' => $this->hariTanpaKecelakaan(),
-            // Grafik Work & Traffic Accident menggantikan kartu Data Diri & kalender akun baru.
+            // Hari tanpa Work Accident & Traffic Accident tampil sebagai angka besar di header dashboard.
+            'bigStats' => $this->hariTanpaKecelakaan(),
+            // Bar chart kecelakaan per bulan + tabel detail menggantikan kartu Data Diri & kalender akun baru.
             'grafikKecelakaan' => GrafikKecelakaan::build(Carbon::today()),
             // Grafik temuan Daily Patrol per departemen menggantikan kartu "User Terbaru".
             'grafikTemuan' => GrafikTemuanPatrol::build(Carbon::today()),
@@ -64,6 +64,18 @@ class DashboardController extends Controller
         );
     }
 
+    /**
+     * Export Excel tabel detail kecelakaan per bulan untuk tahun terpilih.
+     */
+    public function exportKecelakaan(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'year' => ['required', 'integer', 'between:2000,2100'],
+        ]);
+
+        return DashboardPatrolExport::kecelakaan((int) $validated['year']);
+    }
+
     private function monthOrNull(?string $month): ?int
     {
         return $month === null || $month === 'all' ? null : (int) $month;
@@ -72,7 +84,9 @@ class DashboardController extends Controller
     /**
      * Hari tanpa kecelakaan per tipe (Work / Traffic), dihitung dari tanggal kecelakaan terakhir tipe itu sampai hari ini.
      *
-     * @return list<array{tipe: string, label: string, days: ?int, value: string, note: string}>
+     * Detail kecelakaan terakhir tampil sebagai tooltip angkanya.
+     *
+     * @return list<array{label: string, value: int|string, icon: string, title: string}>
      */
     private function hariTanpaKecelakaan(): array
     {
@@ -81,11 +95,10 @@ class DashboardController extends Controller
             $last = $since['last'];
 
             return [
-                'tipe' => $tipe,
-                'label' => $info['label'],
-                'days' => $since['days'],
-                'value' => $since['days'] !== null ? __(':count hari', ['count' => number_format($since['days'], 0, ',', '.')]) : '–',
-                'note' => $last
+                'label' => __('Hari Tanpa :jenis', ['jenis' => __($info['label'])]),
+                'value' => $since['days'] ?? '–',
+                'icon' => $tipe === Kecelakaan::TIPE_TRAFFIC ? 'car' : 'shield',
+                'title' => $last
                     ? __('Terakhir :tanggal', ['tanggal' => $last->waktu->translatedFormat('d F Y')])
                         .(filled($last->nama_korban) ? ' · '.$last->nama_korban : '')
                         .($last->department ? ' · '.$last->department->name : '')

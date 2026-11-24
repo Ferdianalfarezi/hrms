@@ -27,22 +27,21 @@
 
     #chart-modal { width: min(1100px, calc(100% - 32px)); }
 
-    /* Susunan dashboard SMS: baris atas profil | temuan Daily Patrol | Cross Patrol | hari tanpa kecelakaan (pojok kanan),
-       lalu grafik Work Accident dan Traffic Accident bersebelahan. */
+    /* Susunan dashboard SMS: baris atas profil | temuan Daily Patrol | Cross Patrol, lalu bar chart kecelakaan selebar halaman. */
     .dash-grid {
-        grid-template-areas: "profile temuan cross hari" "work work traffic traffic";
+        grid-template-areas: "profile temuan cross cross" "kecelakaan kecelakaan kecelakaan kecelakaan";
     }
     .dash-grid .a-side { display: contents; }
-    .a-hari { grid-area: hari; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-    .a-hari > .card { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .a-kecelakaan { grid-area: kecelakaan; }
     .a-temuan { grid-area: temuan; }
     .a-cross { grid-area: cross; }
     .a-cross .chart-plot-sm { flex: 1 1 auto; height: auto; min-height: 160px; }
+    .bigstat .lbl { max-width: 120px; line-height: 1.3; }
     @media (max-width: 1100px) {
-        .dash-grid { grid-template-areas: "profile hari" "temuan cross" "work traffic"; }
+        .dash-grid { grid-template-areas: "profile temuan" "cross cross" "kecelakaan kecelakaan"; }
     }
     @media (max-width: 640px) {
-        .dash-grid { grid-template-areas: "profile" "temuan" "cross" "hari" "work" "traffic"; }
+        .dash-grid { grid-template-areas: "profile" "temuan" "cross" "kecelakaan"; }
     }
 
     /* Kartu temuan Daily Patrol per departemen (kolom kanan): bar mendatar Open + Close, total di ujung. */
@@ -149,23 +148,12 @@
 @endsection
 
 @section('grid-bottom')
-    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['work'], 'area' => 'work', 'index' => 5, 'key' => 'work'])
-    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan['traffic'], 'area' => 'traffic', 'index' => 6, 'key' => 'traffic'])
+    @include('sms.partials.grafik-kecelakaan', ['chart' => $grafikKecelakaan, 'index' => 5])
 @endsection
 
 @section('side-top')
-    {{-- Kartu "Status Akun" diganti 2 kartu: hari tanpa Work Accident & hari tanpa Traffic Accident. --}}
-    <div class="a-hari">
-    @foreach ($hariTanpa as $item)
-        <div class="card" style="--i: 2;" data-hari-tanpa="{{ $item['tipe'] }}">
-            <div class="status-top" style="gap: 12px;">
-                <h2 class="card-title" style="min-width: 0;">{{ __('Hari Tanpa :jenis', ['jenis' => __($item['label'])]) }}</h2>
-                <b data-count style="white-space: nowrap;">{{ $item['value'] }}</b>
-            </div>
-            <div class="muted small" style="margin-top: 10px;">{{ __($item['note']) }}</div>
-        </div>
-    @endforeach
-    </div>
+    {{-- Hari tanpa kecelakaan pindah ke angka besar di header. @hasSection butuh isi yang tidak kosong, jadi diisi komentar HTML. --}}
+    <!-- Kartu komposisi tidak dipakai di dashboard SMS -->
 @endsection
 
 @section('side-bottom')
@@ -213,216 +201,12 @@
 </dialog>
 
 <script>
-    // Grafik garis 12 bulan (SVG): garis melengkung halus, area bergradasi di bawah seri tahun berjalan,
-    // titik di ujung garis & saat hover. Saat dashboard dibuka garis "tergambar" dari kiri ke kanan.
     var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     (function () {
-        var NS = 'http://www.w3.org/2000/svg';
-        var uid = 0;
-
-        function el(name, attrs, parent) {
-            var node = document.createElementNS(NS, name);
-            Object.keys(attrs).forEach(function (key) { node.setAttribute(key, attrs[key]); });
-            if (parent) parent.appendChild(node);
-            return node;
-        }
-
-        // Kurva monoton (Fritsch-Carlson): halus tapi tidak melewati titik data, jadi garis akumulasi tidak pernah turun.
-        function smoothPath(points) {
-            if (points.length < 2) return points.length ? 'M' + points[0][0] + ' ' + points[0][1] : '';
-            var n = points.length, dx = [], m = [], t = [], i;
-            for (i = 0; i < n - 1; i++) {
-                dx[i] = points[i + 1][0] - points[i][0];
-                m[i] = (points[i + 1][1] - points[i][1]) / dx[i];
-            }
-            t[0] = m[0];
-            t[n - 1] = m[n - 2];
-            for (i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
-            for (i = 0; i < n - 1; i++) {
-                if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
-                var a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
-                if (s > 9) { var k = 3 / Math.sqrt(s); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
-            }
-            var d = 'M' + points[0][0] + ' ' + points[0][1];
-            for (i = 0; i < n - 1; i++) {
-                d += 'C' + (points[i][0] + dx[i] / 3) + ' ' + (points[i][1] + t[i] * dx[i] / 3) + ' '
-                    + (points[i + 1][0] - dx[i] / 3) + ' ' + (points[i + 1][1] - t[i + 1] * dx[i] / 3) + ' '
-                    + points[i + 1][0] + ' ' + points[i + 1][1];
-            }
-            return d;
-        }
-
-        function lastIndex(values) {
-            for (var i = values.length - 1; i >= 0; i--) if (values[i] !== null) return i;
-            return -1;
-        }
-
-        function draw(plot, animateDelay) {
-            var data = JSON.parse(plot.dataset.chart);
-            var tip = plot.querySelector('.chart-tip');
-            var old = plot.querySelector('svg');
-            if (old) old.remove();
-
-            var width = plot.clientWidth, height = plot.clientHeight;
-            var pad = { top: 12, right: 14, bottom: 24, left: 26 };
-            var innerW = width - pad.left - pad.right, innerH = height - pad.top - pad.bottom;
-            if (innerW <= 0 || innerH <= 0) return;
-
-            // Skala Y: bilangan bulat, minimal sampai 1, maksimal +- 5 garis bantu.
-            var max = 1;
-            data.series.forEach(function (s) { s.values.forEach(function (v) { if (v !== null && v > max) max = v; }); });
-            var step = Math.max(1, Math.ceil(max / 5));
-            var top = Math.ceil(max / step) * step;
-            var slot = innerW / 11;
-            var x = function (i) { return pad.left + slot * i; };
-            var y = function (v) { return pad.top + innerH - innerH * v / top; };
-            var base = pad.top + innerH;
-            // Kartu sempit: label bulan ditampilkan selang-seling supaya tidak bertumpuk.
-            var labelEvery = slot < 26 ? 3 : (slot < 38 ? 2 : 1);
-            var id = 'lc' + (++uid);
-
-            var svg = el('svg', { width: width, height: height, 'aria-hidden': 'true' });
-            plot.insertBefore(svg, tip);
-            var defs = el('defs', {}, svg);
-            // Garis & area dibuka dari kiri ke kanan lewat clipPath.
-            var clip = el('clipPath', { id: id + '-clip' }, defs);
-            var reveal = el('rect', { x: 0, y: 0, width: animateDelay === null ? width : 0, height: height }, clip);
-
-            var grid = el('g', { class: 'grid' }, svg);
-            var axis = el('g', { class: 'axis' }, svg);
-            for (var t = 0; t <= top; t += step) {
-                el('line', { x1: pad.left, x2: width - pad.right, y1: y(t), y2: y(t), 'stroke-dasharray': t === 0 ? 'none' : '3 4' }, grid);
-                el('text', { x: pad.left - 8, y: y(t) + 4, 'text-anchor': 'end' }, axis).textContent = t;
-            }
-            data.months.forEach(function (month, i) {
-                if (i % labelEvery !== 0) return;
-                el('text', { x: x(i), y: height - 6, 'text-anchor': i === 0 ? 'start' : (i === 11 ? 'end' : 'middle') }, axis).textContent = month;
-            });
-
-            var plotLayer = el('g', { 'clip-path': 'url(#' + id + '-clip)' }, svg);
-            var primary = data.series.length - 1; // seri terakhir = akumulasi tahun berjalan
-
-            data.series.forEach(function (s, index) {
-                // Potong per bagian bulan yang ada nilainya (bulan null tidak digambar).
-                var runs = [], run = [];
-                s.values.forEach(function (v, i) {
-                    if (v === null) { if (run.length) runs.push(run); run = []; return; }
-                    run.push([x(i), y(v)]);
-                });
-                if (run.length) runs.push(run);
-
-                runs.forEach(function (points) {
-                    var d = smoothPath(points);
-                    if (index === primary && points.length > 1) {
-                        var gradient = el('linearGradient', { id: id + '-fill', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-                        el('stop', { offset: '0%', 'stop-color': s.color, 'stop-opacity': 0.22 }, gradient);
-                        el('stop', { offset: '100%', 'stop-color': s.color, 'stop-opacity': 0 }, gradient);
-                        el('path', { d: d + 'L' + points[points.length - 1][0] + ' ' + base + 'L' + points[0][0] + ' ' + base + 'Z', fill: 'url(#' + id + '-fill)' }, plotLayer);
-                    }
-                    el('path', {
-                        d: d, fill: 'none', stroke: s.color, 'stroke-width': s.target ? 1.5 : (index === primary ? 2.5 : 2),
-                        'stroke-dasharray': s.target ? '5 4' : 'none', 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
-                    }, plotLayer);
-                });
-
-                // Titik di ujung garis (nilai terakhir yang ada).
-                var last = lastIndex(s.values);
-                if (!s.target && last >= 0) el('circle', { cx: x(last), cy: y(s.values[last]), r: 4, fill: s.color, stroke: '#fff', 'stroke-width': 2 }, plotLayer);
-            });
-
-            // Animasi buka dari kiri ke kanan (hanya saat pertama dibuka, bukan saat resize).
-            if (animateDelay !== null) {
-                setTimeout(function () {
-                    var start = null, duration = 1300;
-                    function frame(now) {
-                        start = start || now;
-                        var p = Math.min((now - start) / duration, 1);
-                        reveal.setAttribute('width', width * (1 - Math.pow(1 - p, 3)));
-                        if (p < 1) requestAnimationFrame(frame);
-                    }
-                    requestAnimationFrame(frame);
-                }, animateDelay);
-            }
-
-            // Hover per bulan: garis bantu vertikal, titik semua seri di bulan itu, dan tooltip.
-            var cross = el('line', { class: 'crosshair', y1: pad.top, y2: base, visibility: 'hidden' }, svg);
-            var dots = el('g', { visibility: 'hidden' }, svg);
-            data.months.forEach(function (month, i) {
-                var hit = el('rect', { x: x(i) - slot / 2, y: 0, width: slot, height: height, fill: 'transparent' }, svg);
-                hit.addEventListener('mouseenter', function () {
-                    cross.setAttribute('x1', x(i));
-                    cross.setAttribute('x2', x(i));
-                    cross.setAttribute('visibility', 'visible');
-                    while (dots.firstChild) dots.removeChild(dots.firstChild);
-                    data.series.forEach(function (s) {
-                        if (!s.target && s.values[i] !== null) el('circle', { cx: x(i), cy: y(s.values[i]), r: 4, fill: s.color, stroke: '#fff', 'stroke-width': 2 }, dots);
-                    });
-                    dots.setAttribute('visibility', 'visible');
-                    tip.innerHTML = '';
-                    var title = document.createElement('b');
-                    title.textContent = month;
-                    tip.appendChild(title);
-                    data.series.forEach(function (s) {
-                        var row = document.createElement('div');
-                        var swatch = document.createElement('i');
-                        swatch.className = 'swatch' + (s.target ? ' swatch-target' : '');
-                        swatch.style.setProperty('--c', s.color);
-                        var label = document.createElement('span');
-                        label.textContent = s.label;
-                        var value = document.createElement('span');
-                        value.textContent = s.values[i] === null ? '–' : s.values[i];
-                        row.append(swatch, label, value);
-                        tip.appendChild(row);
-                    });
-                    tip.hidden = false;
-                    var left = x(i) + 14;
-                    if (left + tip.offsetWidth > width) left = x(i) - tip.offsetWidth - 14;
-                    tip.style.left = Math.max(0, left) + 'px';
-                    tip.style.top = pad.top + 'px';
-                });
-                hit.addEventListener('mouseleave', function () {
-                    cross.setAttribute('visibility', 'hidden');
-                    dots.setAttribute('visibility', 'hidden');
-                    tip.hidden = true;
-                });
-            });
-        }
-
-        // animateDelay: ms sebelum animasi mulai, atau null = langsung tampil penuh.
-        function watch(plot, animateDelay) {
-            draw(plot, reduceMotion ? null : animateDelay);
-            if (!('ResizeObserver' in window)) return;
-            var lastWidth = plot.clientWidth;
-            new ResizeObserver(function () {
-                if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; draw(plot, null); }
-            }).observe(plot);
-        }
-
-        // Kartu dashboard muncul bertahap (animasi kartu +- 0,8 dtk), jadi garis mulai digambar setelah kartunya tampil.
-        document.querySelectorAll('.chart-card > .chart-plot[data-chart]').forEach(function (plot, index) {
-            watch(plot, 900 + index * 150);
-        });
-
-        // Icon perbesar: salin isi lengkap (legenda, grafik besar, tabel) ke modal, lalu gambar grafiknya.
+        // Modal perbesar dipakai bersama kartu Daily & Cross Patrol.
         var modal = document.getElementById('chart-modal');
         var body = document.getElementById('chart-modal-body');
-        document.querySelectorAll('[data-chart-expand]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var template = document.getElementById('chart-full-' + button.dataset.chartExpand);
-                document.getElementById('chart-modal-title').textContent = template.dataset.title;
-                document.getElementById('chart-modal-sub').textContent = template.dataset.subtitle;
-                body.innerHTML = '';
-                body.appendChild(template.content.cloneNode(true));
-                var plot = body.querySelector('.chart-plot');
-                var series = JSON.parse(plot.dataset.chart).series;
-                body.insertBefore(PatrolImage.chartActions(plot, template.dataset.title + ' · ' + template.dataset.subtitle, series.map(function (s) {
-                    return { label: s.label, color: s.color, dashed: s.target };
-                })), body.firstChild);
-                modal.showModal();
-                watch(plot, 150);
-            });
-        });
         modal.querySelector('[data-close]').addEventListener('click', function () { modal.close(); });
         modal.addEventListener('click', function (event) { if (event.target === modal) modal.close(); });
         modal.addEventListener('close', function () { body.innerHTML = ''; });
@@ -1460,6 +1244,220 @@
                 var chartActions = modalBody.querySelector('.chart-actions');
                 chartActions.insertBefore(exportLink, chartActions.querySelector('.icon-action'));
             });
+        }
+    })();
+    // Bar chart kecelakaan per bulan (Work vs Traffic) + tabel detail yang bisa disalin ke Excel / diunduh .xlsx.
+    (function () {
+        var card = document.querySelector('[data-kecelakaan]');
+        if (!card) return;
+
+        var NS = 'http://www.w3.org/2000/svg';
+        var years = JSON.parse(card.dataset.kecelakaan);
+        var SERIES = JSON.parse(card.dataset.kecelakaanSeries);
+        var MONTHS = {{ Js::from(array_map(fn (string $bulan) => __($bulan), \App\Modules\Sms\Support\GrafikKecelakaan::MONTHS)) }};
+        var MONTH_NAMES = {{ Js::from(collect(range(1, 12))->map(fn (int $bulan) => \Illuminate\Support\Carbon::create(2000, $bulan, 1)->translatedFormat('F'))) }};
+        var select = card.querySelector('[data-kecelakaan-year]');
+        var plot = card.querySelector('[data-kecelakaan-plot]');
+        var tip = plot.querySelector('.chart-tip');
+        var tableBox = card.querySelector('[data-kecelakaan-table]');
+        var copyNote = card.querySelector('[data-kecelakaan-copy-note]');
+        var today = new Date();
+
+        function el(name, attrs, parent) {
+            var node = document.createElementNS(NS, name);
+            Object.keys(attrs).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+            if (parent) parent.appendChild(node);
+            return node;
+        }
+
+        function html(tag, className, text) {
+            var node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        }
+
+        function sum(values) { return values.reduce(function (n, v) { return n + v; }, 0); }
+
+        function current() { return years[select.value]; }
+
+        function totals(entry) {
+            return MONTHS.map(function (_, i) {
+                return SERIES.reduce(function (n, s) { return n + entry[s.key][i]; }, 0);
+            });
+        }
+
+        function barPath(x, y, w, h) {
+            var r = Math.min(4, w / 2, h);
+            return 'M' + x + ' ' + (y + h) + 'V' + (y + r) + 'Q' + x + ' ' + y + ' ' + (x + r) + ' ' + y
+                + 'H' + (x + w - r) + 'Q' + (x + w) + ' ' + y + ' ' + (x + w) + ' ' + (y + r) + 'V' + (y + h) + 'Z';
+        }
+
+        function showTip(entry, i, center, slot, width, top) {
+            tip.innerHTML = '';
+            tip.appendChild(html('b', '', MONTH_NAMES[i] + ' ' + select.value));
+            SERIES.forEach(function (s) {
+                var row = html('div');
+                var swatch = html('i', 'swatch');
+                swatch.style.setProperty('--c', s.color);
+                row.append(swatch, html('span', '', s.label), html('span', '', entry[s.key][i]));
+                tip.appendChild(row);
+            });
+            var total = html('div');
+            total.append(html('span', '', __t('Total')), html('span', '', totals(entry)[i]));
+            tip.appendChild(total);
+            tip.hidden = false;
+            var left = center + slot / 2 + 6;
+            if (left + tip.offsetWidth > width) left = center - slot / 2 - tip.offsetWidth - 6;
+            tip.style.left = Math.max(0, left) + 'px';
+            tip.style.top = top + 'px';
+        }
+
+        // animateDelay: ms sebelum batang tumbuh, atau null = langsung tampil penuh.
+        function draw(animateDelay) {
+            var entry = current();
+            var old = plot.querySelector('svg');
+            if (old) old.remove();
+            tip.hidden = true;
+            var width = plot.clientWidth, height = plot.clientHeight;
+            var pad = { top: 20, right: 8, bottom: 26, left: 28 };
+            var innerW = width - pad.left - pad.right, innerH = height - pad.top - pad.bottom;
+            if (innerW <= 0 || innerH <= 0) return;
+
+            var max = 5;
+            SERIES.forEach(function (s) { entry[s.key].forEach(function (v) { if (v > max) max = v; }); });
+            var step = Math.ceil(max / 5);
+            var top = Math.ceil(max / step) * step;
+            var y = function (v) { return pad.top + innerH - innerH * v / top; };
+            var base = pad.top + innerH;
+            var slot = innerW / MONTHS.length;
+            var barW = Math.max(5, Math.min(22, (slot * 0.62 - 2) / SERIES.length));
+            var labelEvery = slot < 24 ? 3 : (slot < 34 ? 2 : 1);
+            var nowIndex = Number(select.value) === today.getFullYear() ? today.getMonth() : -1;
+
+            var svg = el('svg', { width: width, height: height, 'aria-hidden': 'true' });
+            plot.insertBefore(svg, tip);
+            var grid = el('g', { class: 'grid' }, svg), axis = el('g', { class: 'axis' }, svg);
+            for (var t = 0; t <= top; t += step) {
+                el('line', { x1: pad.left, x2: width - pad.right, y1: y(t), y2: y(t), 'stroke-dasharray': t === 0 ? 'none' : '3 4' }, grid);
+                el('text', { x: pad.left - 8, y: y(t) + 4, 'text-anchor': 'end' }, axis).textContent = t;
+            }
+
+            MONTHS.forEach(function (month, i) {
+                var center = pad.left + slot * i + slot / 2;
+                var start = center - (barW * SERIES.length + 2 * (SERIES.length - 1)) / 2;
+                if (i % labelEvery === 0) {
+                    el('text', { x: center, y: height - 6, 'text-anchor': 'middle', class: i === nowIndex ? 'now' : '' }, axis).textContent = month;
+                }
+
+                SERIES.forEach(function (s, k) {
+                    var value = entry[s.key][i];
+                    if (!value) return;
+                    var x = start + k * (barW + 2);
+                    var bar = el('path', { d: barPath(x, y(value), barW, base - y(value)), fill: s.color }, svg);
+                    if (animateDelay !== null) { bar.setAttribute('class', 'bar-grow'); bar.style.animationDelay = (animateDelay + i * 45 + k * 40) + 'ms'; }
+                    el('text', { x: x + barW / 2, y: y(value) - 5, 'text-anchor': 'middle', 'font-weight': 600 }, axis).textContent = value;
+                });
+
+                var hit = el('rect', { x: center - slot / 2, y: 0, width: slot, height: base, fill: 'transparent' }, svg);
+                hit.addEventListener('mouseenter', function () { showTip(entry, i, center, slot, width, pad.top); });
+                hit.addEventListener('mouseleave', function () { tip.hidden = true; });
+            });
+        }
+
+        function tableRows() {
+            var entry = current();
+            var rows = SERIES.map(function (s) { return { label: s.label, color: s.color, values: entry[s.key] }; });
+            rows.push({ label: __t('Total'), values: totals(entry) });
+            return rows;
+        }
+
+        function renderTable() {
+            var table = html('table', 'chart-table');
+            var headRow = html('tr');
+            headRow.appendChild(html('th'));
+            MONTHS.forEach(function (month) { headRow.appendChild(html('th', '', month)); });
+            headRow.appendChild(html('th', '', __t('Jumlah')));
+            table.appendChild(html('thead')).appendChild(headRow);
+            var body = table.appendChild(html('tbody'));
+            tableRows().forEach(function (row) {
+                var tr = html('tr');
+                var name = html('td', 'series-name');
+                if (row.color) {
+                    var swatch = html('i', 'swatch');
+                    swatch.style.setProperty('--c', row.color);
+                    name.appendChild(swatch);
+                }
+                name.append(row.label);
+                tr.appendChild(name);
+                row.values.forEach(function (value) { tr.appendChild(html('td', '', value)); });
+                var all = html('td', '', sum(row.values));
+                all.style.fontWeight = '700';
+                tr.appendChild(all);
+                body.appendChild(tr);
+            });
+            tableBox.innerHTML = '';
+            tableBox.appendChild(table);
+        }
+
+        // Format teks bertab supaya saat di-paste ke Excel langsung terpisah per sel.
+        function tableText() {
+            var lines = [[''].concat(MONTHS, [__t('Jumlah')]).join('\t')];
+            tableRows().forEach(function (row) {
+                lines.push([row.label].concat(row.values, [sum(row.values)]).join('\t'));
+            });
+            return lines.join('\n');
+        }
+
+        // Clipboard API hanya ada di HTTPS / localhost; di alamat lain memakai cara lama lewat textarea.
+        function copyText(text) {
+            if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(text);
+            return new Promise(function (resolve, reject) {
+                var area = document.createElement('textarea');
+                area.value = text;
+                area.style.position = 'fixed';
+                area.style.opacity = '0';
+                document.body.appendChild(area);
+                area.select();
+                var copied = document.execCommand('copy');
+                area.remove();
+                if (copied) resolve(); else reject(new Error('copy failed'));
+            });
+        }
+
+        function flashCopy(text) {
+            copyNote.textContent = text;
+            setTimeout(function () { if (copyNote.textContent === text) copyNote.textContent = ''; }, 3000);
+        }
+
+        var exportLink = PatrolImage.exportLink();
+        var imageButtons = PatrolImage.imageActions(function () {
+            return PatrolImage.chartCanvas(plot, __t('Kecelakaan') + ' · ' + __t('Tahun :tahun', { tahun: select.value }), SERIES);
+        }, function () { return 'grafik-kecelakaan-' + select.value; });
+        imageButtons.insertBefore(exportLink, imageButtons.querySelector('.icon-action'));
+        card.querySelector('[data-kecelakaan-actions]').appendChild(imageButtons);
+
+        card.querySelector('[data-kecelakaan-copy]').addEventListener('click', function () {
+            copyText(tableText())
+                .then(function () { flashCopy(__t('Tabel tersalin, tinggal paste.')); })
+                .catch(function () { flashCopy(__t('Gagal menyalin tabel.')); });
+        });
+
+        function refresh(animateDelay) {
+            card.querySelector('[data-kecelakaan-subtitle]').textContent = __t('Per bulan · Tahun :tahun', { tahun: select.value });
+            exportLink.href = @json(route('sms.dashboard.export.kecelakaan')) + '?' + new URLSearchParams({ year: select.value });
+            renderTable();
+            draw(reduceMotion ? null : animateDelay);
+        }
+
+        select.addEventListener('change', function () { refresh(0); });
+        refresh(900);
+
+        if ('ResizeObserver' in window) {
+            var lastWidth = plot.clientWidth;
+            new ResizeObserver(function () {
+                if (plot.isConnected && plot.clientWidth !== lastWidth) { lastWidth = plot.clientWidth; draw(null); }
+            }).observe(plot);
         }
     })();
 </script>

@@ -9,6 +9,7 @@ use App\Modules\Sms\Support\GrafikKecelakaan;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class KecelakaanTest extends TestCase
@@ -132,14 +133,14 @@ class KecelakaanTest extends TestCase
         $staff = User::factory()->create();
         $staff->assignRole('sms', 'staff');
 
-        // Kartu "Status Akun" diganti 2 kartu: Work & Traffic Accident.
+        // Hari tanpa kecelakaan tampil sebagai angka besar di header, detail terakhir di tooltip.
         $this->actingAs($staff)->get('/sms')->assertOk()
             ->assertDontSee('<h2 class="card-title">Status Akun</h2>', false)
             ->assertDontSee('Hari Tanpa Kecelakaan')
             ->assertSeeInOrder([
-                'Hari Tanpa Work Accident', '–', 'Belum ada Work Accident yang tercatat.',
-                'Hari Tanpa Traffic Accident', '–', 'Belum ada Traffic Accident yang tercatat.',
-            ]);
+                'title="Belum ada Work Accident yang tercatat."', 'Hari Tanpa Work Accident', '<div class="num">–</div>',
+                'title="Belum ada Traffic Accident yang tercatat."', 'Hari Tanpa Traffic Accident', '<div class="num">–</div>',
+            ], false);
 
         // Tiap kartu dihitung dari kecelakaan terakhir tipenya (seluruh perusahaan).
         $this->kecelakaan($this->pwd, ['waktu' => '2026-10-01 08:00', 'tipe' => 'traffic', 'kategori' => 'menabrak']);
@@ -147,45 +148,64 @@ class KecelakaanTest extends TestCase
 
         $this->actingAs($staff)->get('/sms')
             ->assertSeeInOrder([
-                'Hari Tanpa Work Accident', '<b data-count style="white-space: nowrap;">6 hari</b>', 'Terakhir 15 Oktober 2026 · Korban PSD · PSD',
-                'Hari Tanpa Traffic Accident', '<b data-count style="white-space: nowrap;">20 hari</b>', 'Terakhir 01 Oktober 2026 · Korban PWD · PWD',
+                'title="Terakhir 15 Oktober 2026 · Korban PSD · PSD"', 'Hari Tanpa Work Accident', '<div class="num" data-count>6</div>',
+                'title="Terakhir 01 Oktober 2026 · Korban PWD · PWD"', 'Hari Tanpa Traffic Accident', '<div class="num" data-count>20</div>',
             ], false);
 
         Carbon::setTestNow();
     }
 
-    public function test_dashboard_charts_replace_profile_and_calendar_cards(): void
+    public function test_dashboard_bar_chart_counts_accidents_per_month_and_year(): void
     {
         Carbon::setTestNow('2026-03-10 10:00:00');
         $staff = User::factory()->create();
         $staff->assignRole('sms', 'staff');
 
-        $this->kecelakaan($this->psd, ['waktu' => '2026-02-03 08:00']);                                          // work Feb 2026
-        $this->kecelakaan($this->psd, ['waktu' => '2025-08-11 08:00']);                                          // work Agu 2025
+        $this->kecelakaan($this->psd, ['waktu' => '2026-02-03 08:00']);
+        $this->kecelakaan($this->psd, ['waktu' => '2025-08-11 08:00']);
         $this->kecelakaan($this->psd, ['waktu' => '2026-01-20 08:00', 'tipe' => 'traffic', 'kategori' => 'tunggal']);
-        $this->kecelakaan($this->psd, ['waktu' => '2026-03-01 08:00', 'tipe' => 'traffic', 'kategori' => 'tunggal']);
+        $this->kecelakaan($this->psd, ['waktu' => '2026-01-25 08:00', 'tipe' => 'traffic', 'kategori' => 'menabrak']);
 
-        $charts = GrafikKecelakaan::build(Carbon::today());
-        $work = collect($charts['work']['series'])->keyBy('label');
-        $traffic = collect($charts['traffic']['series'])->keyBy('label');
+        $chart = GrafikKecelakaan::build(Carbon::today());
 
-        $this->assertSame([0, 1, 0, null, null, null, null, null, null, null, null, null], $work['Accident 2026']['values']);
-        $this->assertSame([0, 1, 1, null, null, null, null, null, null, null, null, null], $work['Acc.Accident 2026']['values']);
-        $this->assertSame([0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1], $work['Acc.Accident 2025']['values']);
-        $this->assertSame([1, 1, 2], array_slice($traffic['Kecelakaan Tunggal']['values'], 0, 3));
-        $this->assertSame([0, 0, 0], array_slice($traffic['Menabrak']['values'], 0, 3));
-        $this->assertSame(array_fill(0, 12, 0), $traffic['Target']['values']);
+        $this->assertSame([2026, 2025], $chart['years']);
+        $this->assertSame([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], $chart['data'][2026]['work']);
+        $this->assertSame([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], $chart['data'][2026]['traffic']);
+        $this->assertSame([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], $chart['data'][2025]['work']);
 
         $this->actingAs($staff)->get('/sms')->assertOk()
-            ->assertSee('Work Accident')
-            ->assertSee('Traffic Accident')
-            ->assertSee('data-chart=', false)
-            ->assertSee('data-chart-expand="work"', false)
-            ->assertSee('id="chart-full-traffic"', false)
+            ->assertSee('data-kecelakaan=', false)
+            ->assertSee('Detail per Bulan')
             ->assertDontSee('<summary>Data Diri</summary>', false)
             ->assertDontSee('Akun karyawan yang dibuat minggu ini.');
 
-        // Dashboard HRMS tetap memakai kartu bawaan.
+        Carbon::setTestNow();
+    }
+
+    public function test_kecelakaan_excel_export_contains_selected_year(): void
+    {
+        Carbon::setTestNow('2026-03-10 10:00:00');
+        $staff = User::factory()->create();
+        $staff->assignRole('sms', 'staff');
+        $this->kecelakaan($this->psd, ['waktu' => '2026-02-03 08:00']);
+        $this->kecelakaan($this->psd, ['waktu' => '2026-02-04 08:00', 'tipe' => 'traffic', 'kategori' => 'tunggal']);
+        $this->kecelakaan($this->psd, ['waktu' => '2025-02-03 08:00']);
+
+        $response = $this->actingAs($staff)->get('/sms/dashboard/export/kecelakaan?year=2026')->assertOk();
+        $this->assertStringContainsString('Kecelakaan 2026.xlsx', $response->headers->get('Content-Disposition'));
+
+        $path = tempnam(sys_get_temp_dir(), 'kecelakaan');
+        file_put_contents($path, $response->streamedContent());
+        $spreadsheet = IOFactory::load($path);
+        unlink($path);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $this->assertSame(['Work Accident', 1, 1], [$sheet->getCell('A4')->getValue(), $sheet->getCell('C4')->getValue(), $sheet->getCell('N4')->getValue()]);
+        $this->assertSame(['Traffic Accident', 1, 1], [$sheet->getCell('A5')->getValue(), $sheet->getCell('C5')->getValue(), $sheet->getCell('N5')->getValue()]);
+        $this->assertSame(['Total', 2, 2], [$sheet->getCell('A6')->getValue(), $sheet->getCell('C6')->getValue(), $sheet->getCell('N6')->getValue()]);
+
+        $this->actingAs($staff)->get('/sms/dashboard/export/kecelakaan?year=abc')->assertSessionHasErrors('year');
+
         Carbon::setTestNow();
     }
 
