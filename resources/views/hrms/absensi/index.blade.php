@@ -102,10 +102,12 @@
 
 @section('content')
 @php
-    // Filter "Tidak masuk" bernavigasi per tanggal; tampilan biasa per bulan.
+    // Filter "Tidak masuk" & "Terlambat" bernavigasi per tanggal; tampilan biasa per bulan.
     $tidakMasuk = $status === 'tidak_masuk';
-    $prev = $tidakMasuk ? ['tanggal' => $tanggal->copy()->subDay()->toDateString()] : ['bulan' => $tanggal->copy()->subMonthNoOverflow()->format('Y-m')];
-    $next = $tidakMasuk ? ['tanggal' => $tanggal->copy()->addDay()->toDateString()] : ['bulan' => $tanggal->copy()->addMonthNoOverflow()->format('Y-m')];
+    $terlambat = $status === 'terlambat';
+    $perTanggal = $tidakMasuk || $terlambat;
+    $prev = $perTanggal ? ['tanggal' => $tanggal->copy()->subDay()->toDateString()] : ['bulan' => $tanggal->copy()->subMonthNoOverflow()->format('Y-m')];
+    $next = $perTanggal ? ['tanggal' => $tanggal->copy()->addDay()->toDateString()] : ['bulan' => $tanggal->copy()->addMonthNoOverflow()->format('Y-m')];
     $keepFilters = array_filter(['department' => $department, 'group' => $group, 'status' => $status]);
     // Kelas kolom tanggal dihitung sekali per hari, bukan per sel.
     $days = $days->map(fn (array $day) => [...$day, 'tdClass' => 'day'.($day['weekend'] ? ' sun' : '').($day['selected'] ? ' sel' : '')]);
@@ -117,6 +119,8 @@
         <p class="muted" style="margin: 2px 0 0;">
             @if ($tidakMasuk)
                 {{ $tanggal->translatedFormat('l, d F Y') }} · {{ __(':count karyawan tidak masuk', ['count' => $karyawans->count()]) }}
+            @elseif ($terlambat)
+                {{ $tanggal->translatedFormat('l, d F Y') }} · {{ __(':count karyawan terlambat', ['count' => $karyawans->count()]) }}
             @else
                 {{ $tanggal->translatedFormat('F Y') }} · {{ __(':count karyawan', ['count' => $karyawans->count()]) }}
             @endif
@@ -151,18 +155,19 @@
 <div class="abs-toolbar-row">
 <form method="GET" class="abs-toolbar" id="abs-filter">
     <span class="day-nav">
-        <a href="{{ route($routeName, [...$prev, ...$keepFilters]) }}" title="{{ $tidakMasuk ? __('Hari sebelumnya') : __('Bulan sebelumnya') }}">&lsaquo;</a>
-        <a href="{{ route($routeName, $keepFilters) }}">{{ $tidakMasuk ? __('Hari ini') : __('Bulan ini') }}</a>
-        <a href="{{ route($routeName, [...$next, ...$keepFilters]) }}" title="{{ $tidakMasuk ? __('Hari berikutnya') : __('Bulan berikutnya') }}">&rsaquo;</a>
+        <a href="{{ route($routeName, [...$prev, ...$keepFilters]) }}" title="{{ $perTanggal ? __('Hari sebelumnya') : __('Bulan sebelumnya') }}">&lsaquo;</a>
+        <a href="{{ route($routeName, $keepFilters) }}">{{ $perTanggal ? __('Hari ini') : __('Bulan ini') }}</a>
+        <a href="{{ route($routeName, [...$next, ...$keepFilters]) }}" title="{{ $perTanggal ? __('Hari berikutnya') : __('Bulan berikutnya') }}">&rsaquo;</a>
     </span>
-    @if ($tidakMasuk)
-        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Tanggal tidak masuk') }}">
+    @if ($perTanggal)
+        <input type="date" name="tanggal" value="{{ $tanggal->toDateString() }}" onchange="this.form.requestSubmit()" aria-label="{{ $terlambat ? __('Tanggal terlambat') : __('Tanggal tidak masuk') }}">
     @else
         <input type="month" name="bulan" value="{{ $tanggal->format('Y-m') }}" onchange="this.form.requestSubmit()" aria-label="{{ __('Bulan') }}">
     @endif
     <select name="status" onchange="this.form.requestSubmit()" aria-label="{{ __('Status') }}">
         <option value="">{{ __('Semua karyawan') }}</option>
         <option value="tidak_masuk" @selected($tidakMasuk)>{{ __('Tidak masuk') }}</option>
+        <option value="terlambat" @selected($terlambat)>{{ __('Terlambat') }}</option>
     </select>
     @if ($canFilterDepartment)
         <select name="department" onchange="this.form.requestSubmit()">
@@ -297,7 +302,7 @@
             @empty
                 <tr>
                     <td colspan="{{ 6 + $days->count() + count($kodes) + 1 }}" class="muted" style="text-align: left; padding: 32px;">
-                        {{ $tidakMasuk ? __('Tidak ada karyawan yang tidak masuk di tanggal ini.') : __('Tidak ada karyawan untuk ditampilkan.') }}
+                        {{ $tidakMasuk ? __('Tidak ada karyawan yang tidak masuk di tanggal ini.') : ($terlambat ? __('Tidak ada karyawan yang terlambat di tanggal ini.') : __('Tidak ada karyawan untuk ditampilkan.')) }}
                     </td>
                 </tr>
             @endforelse

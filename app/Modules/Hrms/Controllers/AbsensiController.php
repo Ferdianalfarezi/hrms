@@ -61,7 +61,7 @@ class AbsensiController extends Controller
         $canFilterDepartment = $isAdmin || $lockedDepartments->count() > 1;
         $department = $canFilterDepartment ? (string) $request->query('department') : '';
         $group = (string) $request->query('group');
-        $status = $request->query('status') === 'tidak_masuk' ? 'tidak_masuk' : '';
+        $status = in_array($request->query('status'), ['tidak_masuk', 'terlambat'], true) ? $request->query('status') : '';
 
         // Filter bulan tanpa tanggal: bulan berjalan menyorot hari ini, bulan lain menyorot tanggal 1.
         $bulan = $this->parseMonth((string) $request->query('bulan'));
@@ -83,6 +83,8 @@ class AbsensiController extends Controller
 
         if ($status === 'tidak_masuk') {
             $karyawans = $this->tidakMasuk($karyawans, $tanggal);
+        } elseif ($status === 'terlambat') {
+            $karyawans = $this->terlambat($karyawans, $tanggal);
         }
 
         $monthStart = $tanggal->copy()->startOfMonth();
@@ -517,6 +519,25 @@ class AbsensiController extends Controller
 
         return $karyawans
             ->filter(fn (Karyawan $karyawan) => $berkode->has($karyawan->id) || isset($tanpaKeterangan[$karyawan->id][$tanggal->toDateString()]))
+            ->values();
+    }
+
+    /**
+     * Karyawan yang datang terlambat pada tanggal itu (kode DT< / DT>).
+     *
+     * @param  Collection<int, Karyawan>  $karyawans
+     * @return Collection<int, Karyawan>
+     */
+    private function terlambat(Collection $karyawans, Carbon $tanggal): Collection
+    {
+        $terlambat = Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
+            ->whereDate('tanggal', $tanggal->toDateString())
+            ->whereIn('kode', Absensi::KODE_TERLAMBAT)
+            ->pluck('karyawan_id')
+            ->flip();
+
+        return $karyawans
+            ->filter(fn (Karyawan $karyawan) => $terlambat->has($karyawan->id))
             ->values();
     }
 

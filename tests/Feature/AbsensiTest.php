@@ -204,6 +204,29 @@ class AbsensiTest extends TestCase
             ->assertDontSee('Citra Terlambat');
     }
 
+    public function test_terlambat_filter_lists_only_late_employees_on_that_date(): void
+    {
+        $citra = Karyawan::create(['nik' => '0003', 'nama' => 'Citra Terlambat', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Perempuan', 'status' => 'Tetap', 'group' => 'NS']);
+        $dewi = Karyawan::create(['nik' => '0004', 'nama' => 'Dewi Telat Lama', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Perempuan', 'status' => 'Tetap', 'group' => 'NS']);
+        $eko = Karyawan::create(['nik' => '0005', 'nama' => 'Eko Pulang Cepat', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Laki-laki', 'status' => 'Tetap', 'group' => 'NS']);
+        Absensi::create(['karyawan_id' => $citra->id, 'tanggal' => '2026-10-14', 'kode' => 'DT<', 'menit_terlambat' => 10]);
+        Absensi::create(['karyawan_id' => $dewi->id, 'tanggal' => '2026-10-14', 'kode' => 'DT>', 'menit_terlambat' => 45]);
+        Absensi::create(['karyawan_id' => $eko->id, 'tanggal' => '2026-10-14', 'kode' => 'PC<', 'menit_terlambat' => 10]);
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => 'S']);
+        Absensi::create(['karyawan_id' => $this->budi->id, 'tanggal' => '2026-10-13', 'kode' => 'DT<', 'menit_terlambat' => 5]);
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?status=terlambat&tanggal=2026-10-14')
+            ->assertOk()
+            ->assertSee('Rabu, 14 Oktober 2026 · 2 karyawan terlambat')
+            ->assertSee('name="tanggal" value="2026-10-14"', false)
+            ->assertSee('<option value="terlambat" selected>', false)
+            ->assertSee('Citra Terlambat')
+            ->assertSee('Dewi Telat Lama')
+            ->assertDontSee('Eko Pulang Cepat')
+            ->assertDontSee('Andi PSD')
+            ->assertDontSee('Budi PWD');
+    }
+
     public function test_group_filter_and_access_control(): void
     {
         $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?group=NS')

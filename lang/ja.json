@@ -1356,5 +1356,7 @@
     "Kasus per bulan": "月別件数",
     "Belum ada kecelakaan.": "事故はまだありません。",
     "kasus": "件",
-    "temuan": "件"
+    "temuan": "件",
+    "Tanggal terlambat": "遅刻日",
+    "Tidak ada karyawan yang terlambat di tanggal ini.": "この日に遅刻した従業員はいません。"
 }
