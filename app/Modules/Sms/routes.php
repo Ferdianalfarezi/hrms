@@ -8,10 +8,9 @@ use App\Modules\Sms\Controllers\KecelakaanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class)->name('dashboard');
-// Export Excel isi modal perbesar grafik Daily Patrol & Cross Patrol, serta tabel kecelakaan di dashboard.
+// Export Excel isi modal perbesar grafik Daily Patrol & Cross Patrol di dashboard.
 Route::get('dashboard/export/daily', [DashboardController::class, 'exportDaily'])->name('dashboard.export.daily');
 Route::get('dashboard/export/cross', [DashboardController::class, 'exportCross'])->name('dashboard.export.cross');
-Route::get('dashboard/export/kecelakaan', [DashboardController::class, 'exportKecelakaan'])->name('dashboard.export.kecelakaan');
 
 // Pencarian karyawan untuk isian PIC / Patroler (dipanggil saat mengetik di form temuan).
 Route::get('karyawan-options', KaryawanOptionController::class)->name('karyawan-options');

@@ -1,42 +1,63 @@
 {{--
-    Kartu bar chart kecelakaan per bulan (Work vs Traffic Accident) + tabel detail yang bisa disalin / diunduh Excel.
-    Butuh: $chart (dari GrafikKecelakaan), $index (urutan animasi). SVG & tabel digambar oleh JS di dashboard SMS.
+    Kartu grafik ringkas (Work / Traffic Accident) + isi modal "perbesar" (grafik besar, legenda, tabel angka).
+    Butuh: $chart (dari GrafikKecelakaan), $area (nama grid-area), $index (urutan animasi), $key (id unik).
+    SVG digambar oleh JS di dashboard SMS supaya tajam di semua lebar layar.
 --}}
-<div class="card chart-card a-kecelakaan" style="--i: {{ $index }};"
-     data-kecelakaan="{{ json_encode($chart['data']) }}" data-kecelakaan-series="{{ json_encode($chart['series']) }}">
-    <div class="card-head" style="margin-bottom: 8px; flex-wrap: wrap;">
+@php
+    $chartData = json_encode(['months' => \App\Modules\Sms\Support\GrafikKecelakaan::MONTHS, 'series' => $chart['series']]);
+@endphp
+<div class="card chart-card" style="grid-area: {{ $area }}; --i: {{ $index }};">
+    <div class="card-head" style="margin-bottom: 2px;">
         <div style="min-width: 0;">
-            <h2 class="card-title">{{ __('Kecelakaan') }}</h2>
-            <div class="muted small" data-kecelakaan-subtitle></div>
+            <h2 class="card-title">{{ $chart['title'] }}</h2>
+            <div class="muted small">{{ $chart['subtitle'] }}</div>
         </div>
-        <div class="recap-actions" data-kecelakaan-actions>
-            <div class="temuan-tools">
-                <select data-kecelakaan-year aria-label="{{ __('Tahun') }}">
-                    @foreach ($chart['years'] as $year)
-                        <option value="{{ $year }}" @selected($year === $chart['selected'])>{{ $year }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
+        <button type="button" class="mini-btn" data-chart-expand="{{ $key }}" title="{{ __('Perbesar') }}" aria-label="Perbesar grafik {{ $chart['title'] }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        </button>
     </div>
 
-    <div class="chart-legend">
-        @foreach ($chart['series'] as $series)
-            <span><i class="swatch" style="--c: {{ $series['color'] }};"></i>{{ $series['label'] }}</span>
-        @endforeach
-    </div>
-    <div class="chart-plot chart-plot-lg" data-kecelakaan-plot role="img" aria-label="{{ __('Grafik') }} {{ __('Kecelakaan') }}">
+    <div class="chart-plot chart-plot-sm" data-chart="{{ $chartData }}" role="img"
+         aria-label="{{ __('Grafik :judul, :sub. Klik perbesar untuk tabel angka.', ['judul' => $chart['title'], 'sub' => $chart['subtitle']]) }}">
         <div class="chart-tip" hidden></div>
     </div>
-
-    <div class="recap-head">
-        <h3 class="card-title">{{ __('Detail per Bulan') }}</h3>
-        <div class="recap-actions">
-            <span class="recap-note" data-kecelakaan-copy-note aria-live="polite"></span>
-            <button type="button" class="mini-btn icon-action" data-kecelakaan-copy title="{{ __('Salin tabel') }}" aria-label="{{ __('Salin tabel') }}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-            </button>
-        </div>
+    <div class="chart-legend chart-legend-sm">
+        @foreach ($chart['series'] as $series)
+            <span><i @class(['swatch', 'swatch-target' => $series['target']]) style="--c: {{ $series['color'] }};"></i>{{ $series['label'] }}</span>
+        @endforeach
     </div>
-    <div class="table-wrap" data-kecelakaan-table></div>
+
+    {{-- Isi modal perbesar, disalin ke #chart-modal saat icon perbesar diklik. --}}
+    <template id="chart-full-{{ $key }}" data-title="{{ $chart['title'] }}" data-subtitle="{{ $chart['subtitle'] }}">
+        <div class="chart-legend">
+            @foreach ($chart['series'] as $series)
+                <span><i @class(['swatch', 'swatch-target' => $series['target']]) style="--c: {{ $series['color'] }};"></i>{{ $series['label'] }}</span>
+            @endforeach
+        </div>
+        <div class="chart-plot chart-plot-lg" data-chart="{{ $chartData }}" role="img" aria-label="{{ __('Grafik') }} {{ $chart['title'] }}">
+            <div class="chart-tip" hidden></div>
+        </div>
+        <div class="table-wrap">
+            <table class="chart-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        @foreach (\App\Modules\Sms\Support\GrafikKecelakaan::MONTHS as $month)
+                            <th>{{ __($month) }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($chart['series'] as $series)
+                        <tr>
+                            <td class="series-name"><i @class(['swatch', 'swatch-target' => $series['target']]) style="--c: {{ $series['color'] }};"></i>{{ $series['label'] }}</td>
+                            @foreach ($series['values'] as $value)
+                                <td>{{ $value ?? '–' }}</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </template>
 </div>

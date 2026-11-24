@@ -1350,9 +1350,5 @@
     "Excel": "Excel",
     "Otomatis = dihitung dari menu Absensi Harian tanggal itu: Total = semua karyawan, Cuti = CT/CK/CH/CB/IMP, S+I = kode tidak hadir lainnya (Cuti + S+I = Total tidak hadir di Harian). Tanggal yang belum ada data absensinya memakai data file HRD (2026 summary).": "自動 = その日の日別勤怠から計算：Total = 全従業員、Cuti = CT/CK/CH/CB/IMP、S+I = その他の欠勤コード（Cuti + S+I = 日別の欠勤合計）。勤怠データがない日は人事ファイル（2026 summary）のデータを使用。",
     "Tidak Hadir per Shift": "シフト別欠勤率",
-    "Persen tidak hadir, sama seperti grafik di Laporan Detail. Merah = di atas target.": "欠勤率（詳細レポートのグラフと同じ）。赤 = 目標超過。",
-    "Detail per Bulan": "月別詳細",
-    "Salin tabel": "表をコピー",
-    "Tabel tersalin, tinggal paste.": "表をコピーしました。貼り付けできます。",
-    "Gagal menyalin tabel.": "表のコピーに失敗しました。"
+    "Persen tidak hadir, sama seperti grafik di Laporan Detail. Merah = di atas target.": "欠勤率（詳細レポートのグラフと同じ）。赤 = 目標超過。"
 }
