@@ -22,6 +22,9 @@ class GrafikKecelakaan
 
     private const KATEGORI_COLORS = ['menabrak' => '#1baf7a', 'ditabrak' => '#eda100', 'tunggal' => '#e87ba4', 'tabrakan' => '#008300'];
 
+    /** Warna bar chart kecelakaan per bulan, tetap per tipe. */
+    private const TIPE_COLORS = [Kecelakaan::TIPE_WORK => '#2a78d6', Kecelakaan::TIPE_TRAFFIC => '#d9414c'];
+
     public const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
     /**
@@ -65,6 +68,73 @@ class GrafikKecelakaan
                     self::series("Acc.Accident {$year}", self::COLOR_THIS_YEAR, self::cutOff(self::cumulative(self::monthly($traffic, $year)), $currentMonth)),
                 ],
             ],
+        ];
+    }
+
+    /**
+     * Bar chart jumlah kecelakaan per bulan untuk tiap tahun, dengan rincian per departemen untuk modal perbesar.
+     * Tahun berjalan selalu tersedia walaupun belum ada kasus.
+     *
+     * @return array{
+     *     years: list<int>,
+     *     selected: int,
+     *     series: list<array{key: string, label: string, color: string}>,
+     *     data: array<int, array{work: list<int>, traffic: list<int>, departments: list<array{department: string, values: list<int>, total: int, work: int, traffic: int}>}>
+     * }
+     */
+    public static function perBulan(Carbon $today): array
+    {
+        $data = [$today->year => self::emptyYear()];
+        $departments = [];
+
+        foreach (Kecelakaan::query()->with('department:id,name')->get(['tipe', 'waktu', 'department_id']) as $kecelakaan) {
+            $year = $kecelakaan->waktu->year;
+            $monthIndex = $kecelakaan->waktu->month - 1;
+            $tipe = $kecelakaan->tipe;
+            $department = $kecelakaan->department?->name ?? __('Tanpa departemen');
+
+            $data[$year] ??= self::emptyYear();
+            $data[$year][$tipe][$monthIndex]++;
+
+            $departments[$year][$department] ??= [
+                'department' => $department,
+                'values' => array_fill(0, 12, 0),
+                'total' => 0,
+                Kecelakaan::TIPE_WORK => 0,
+                Kecelakaan::TIPE_TRAFFIC => 0,
+            ];
+            $departments[$year][$department]['values'][$monthIndex]++;
+            $departments[$year][$department]['total']++;
+            $departments[$year][$department][$tipe]++;
+        }
+
+        foreach ($departments as $year => $rows) {
+            ksort($rows);
+            $data[$year]['departments'] = array_values($rows);
+        }
+        krsort($data);
+
+        return [
+            'years' => array_keys($data),
+            'selected' => $today->year,
+            'series' => collect(Kecelakaan::TIPE)->map(fn (array $info, string $tipe) => [
+                'key' => $tipe,
+                'label' => __($info['label']),
+                'color' => self::TIPE_COLORS[$tipe],
+            ])->values()->all(),
+            'data' => $data,
+        ];
+    }
+
+    /**
+     * @return array{work: list<int>, traffic: list<int>, departments: list<array<string, mixed>>}
+     */
+    public static function emptyYear(): array
+    {
+        return [
+            Kecelakaan::TIPE_WORK => array_fill(0, 12, 0),
+            Kecelakaan::TIPE_TRAFFIC => array_fill(0, 12, 0),
+            'departments' => [],
         ];
     }
 

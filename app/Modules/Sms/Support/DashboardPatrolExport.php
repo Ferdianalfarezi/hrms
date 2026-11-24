@@ -4,6 +4,7 @@ namespace App\Modules\Sms\Support;
 
 use App\Modules\Sms\Models\CrossPatrol;
 use App\Modules\Sms\Models\DailyPatrol;
+use App\Modules\Sms\Models\Kecelakaan;
 use Illuminate\Support\Carbon;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -124,6 +125,45 @@ class DashboardPatrolExport
         $spreadsheet->setActiveSheetIndex(0);
 
         return self::download($spreadsheet, 'Temuan Cross Patrol '.$year.'.xlsx');
+    }
+
+    /**
+     * Kecelakaan: Work / Traffic / Total per bulan dan rincian per departemen, sama dengan modal perbesar.
+     */
+    public static function kecelakaan(int $year): StreamedResponse
+    {
+        $chart = GrafikKecelakaan::perBulan(Carbon::today());
+        $entry = $chart['data'][$year] ?? GrafikKecelakaan::emptyYear();
+        $work = $entry[Kecelakaan::TIPE_WORK];
+        $traffic = $entry[Kecelakaan::TIPE_TRAFFIC];
+        $total = array_map(fn (int $workCount, int $trafficCount) => $workCount + $trafficCount, $work, $traffic);
+        $months = GrafikKecelakaan::MONTHS;
+        $workLabel = Kecelakaan::TIPE[Kecelakaan::TIPE_WORK]['label'];
+        $trafficLabel = Kecelakaan::TIPE[Kecelakaan::TIPE_TRAFFIC]['label'];
+
+        $spreadsheet = self::spreadsheet();
+
+        $monthly = $spreadsheet->getActiveSheet()->setTitle('Per Bulan');
+        self::title($monthly, 'Grafik Kecelakaan · Per bulan · Tahun '.$year);
+        self::simpleTable($monthly, 3, ['', ...$months, 'Jumlah'], [
+            [$workLabel, ...$work, array_sum($work)],
+            [$trafficLabel, ...$traffic, array_sum($traffic)],
+            ['Total', ...$total, array_sum($total)],
+        ]);
+        $monthly->getStyle('A6:'.Coordinate::stringFromColumnIndex(count($months) + 2).'6')->getFont()->setBold(true);
+        self::widths($monthly, ['A' => 18]);
+
+        $departments = $spreadsheet->createSheet()->setTitle('Per Departemen');
+        self::title($departments, 'Kecelakaan per Departemen · Tahun '.$year);
+        $table = array_map(fn (array $row) => [
+            $row['department'], ...$row['values'], $row['total'], $row[Kecelakaan::TIPE_WORK], $row[Kecelakaan::TIPE_TRAFFIC],
+        ], $entry['departments']);
+        self::simpleTable($departments, 3, ['Departemen', ...$months, 'Jumlah', $workLabel, $trafficLabel], $table, 'Total', 'Belum ada kecelakaan.');
+        self::widths($departments, ['A' => 22, 'O' => 14, 'P' => 15]);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        return self::download($spreadsheet, 'Kecelakaan '.$year.'.xlsx');
     }
 
     public static function period(int $year, ?int $month): string

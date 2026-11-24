@@ -322,13 +322,13 @@ class DailyPatrolTest extends TestCase
 
     public function test_dashboard_layout_has_no_seven_day_daily_card(): void
     {
-        // Baris atas: profil, temuan Daily Patrol, Cross Patrol, hari tanpa kecelakaan; lalu Work & Traffic Accident bersebelahan.
+        // Hari tanpa kecelakaan di header; baris atas: Cross Patrol, kecelakaan per bulan, temuan Daily Patrol; lalu Work & Traffic Accident.
         $this->actingAs($this->smsAdmin())->get('/sms')->assertOk()
             ->assertDontSee('<h2 class="card-title">Pertumbuhan</h2>', false)
             ->assertDontSee('<h2 class="card-title">Jam Kerja</h2>', false)
             ->assertDontSee('7 hari terakhir')
             ->assertDontSee('data-stack-card="daily"', false)
-            ->assertSeeInOrder(['class="a-hari"', 'a-temuan', 'grid-area: work;', 'grid-area: traffic;'], false)
+            ->assertSeeInOrder(['class="bigstats"', 'class="card a-kecelakaan stack-card"', 'class="card temuan-card a-temuan"', 'grid-area: work;', 'grid-area: traffic;'], false)
             ->assertSee('class="card a-cross stack-card"', false);
     }
 

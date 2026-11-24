@@ -27,22 +27,22 @@
 
     #chart-modal { width: min(1100px, calc(100% - 32px)); }
 
-    /* Susunan dashboard SMS: baris atas profil | temuan Daily Patrol | Cross Patrol | hari tanpa kecelakaan (pojok kanan),
-       lalu grafik Work Accident dan Traffic Accident bersebelahan. */
+    /* Susunan dashboard SMS: baris atas profil | temuan Daily Patrol | Cross Patrol | kecelakaan per bulan (pojok kanan),
+       lalu grafik Work Accident dan Traffic Accident bersebelahan. Hari tanpa kecelakaan ada di header. */
     .dash-grid {
-        grid-template-areas: "profile temuan cross hari" "work work traffic traffic";
+        grid-template-areas: "profile temuan cross kecelakaan" "work work traffic traffic";
     }
     .dash-grid .a-side { display: contents; }
-    .a-hari { grid-area: hari; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-    .a-hari > .card { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .a-kecelakaan { grid-area: kecelakaan; }
     .a-temuan { grid-area: temuan; }
     .a-cross { grid-area: cross; }
-    .a-cross .chart-plot-sm { flex: 1 1 auto; height: auto; min-height: 160px; }
+    .a-cross .chart-plot-sm, .a-kecelakaan .chart-plot-sm { flex: 1 1 auto; height: auto; min-height: 160px; }
+    .bigstat .lbl { max-width: 120px; line-height: 1.3; }
     @media (max-width: 1100px) {
-        .dash-grid { grid-template-areas: "profile hari" "temuan cross" "work traffic"; }
+        .dash-grid { grid-template-areas: "profile kecelakaan" "temuan cross" "work traffic"; }
     }
     @media (max-width: 640px) {
-        .dash-grid { grid-template-areas: "profile" "temuan" "cross" "hari" "work" "traffic"; }
+        .dash-grid { grid-template-areas: "profile" "temuan" "cross" "kecelakaan" "work" "traffic"; }
     }
 
     /* Kartu temuan Daily Patrol per departemen (kolom kanan): bar mendatar Open + Close, total di ujung. */
@@ -154,17 +154,34 @@
 @endsection
 
 @section('side-top')
-    {{-- Kartu "Status Akun" diganti 2 kartu: hari tanpa Work Accident & hari tanpa Traffic Accident. --}}
-    <div class="a-hari">
-    @foreach ($hariTanpa as $item)
-        <div class="card" style="--i: 2;" data-hari-tanpa="{{ $item['tipe'] }}">
-            <div class="status-top" style="gap: 12px;">
-                <h2 class="card-title" style="min-width: 0;">{{ __('Hari Tanpa :jenis', ['jenis' => __($item['label'])]) }}</h2>
-                <b data-count style="white-space: nowrap;">{{ $item['value'] }}</b>
+    {{-- Slot kartu hari tanpa kecelakaan: bar chart jumlah kecelakaan per bulan, detail per departemen di modal perbesar. --}}
+    <div class="card a-kecelakaan stack-card" style="--i: 2;" data-stack-card="kecelakaan"
+         data-stack-years="{{ json_encode($grafikKecelakaanBulanan['data']) }}" data-stack-series="{{ json_encode($grafikKecelakaanBulanan['series']) }}">
+        <div class="card-head">
+            <div style="min-width: 0;">
+                <h2 class="card-title">{{ __('Kecelakaan') }}</h2>
+                <div class="muted small">{{ __('Kasus per bulan') }}</div>
             </div>
-            <div class="muted small" style="margin-top: 10px;">{{ __($item['note']) }}</div>
+            <div class="temuan-tools">
+                <select data-stack-year aria-label="{{ __('Tahun') }}">
+                    @foreach ($grafikKecelakaanBulanan['years'] as $year)
+                        <option value="{{ $year }}" @selected($year === $grafikKecelakaanBulanan['selected'])>{{ $year }}</option>
+                    @endforeach
+                </select>
+                <button type="button" class="mini-btn" data-stack-expand title="{{ __('Perbesar') }}" aria-label="{{ __('Perbesar') }} {{ __('Grafik Kecelakaan') }}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                </button>
+            </div>
         </div>
-    @endforeach
+        <div class="chart-plot chart-plot-sm" data-stack-plot role="img" aria-label="{{ __('Grafik Kecelakaan') }}">
+            <div class="chart-tip" hidden></div>
+        </div>
+        <div class="chart-legend chart-legend-sm">
+            @foreach ($grafikKecelakaanBulanan['series'] as $series)
+                <span><i class="swatch" style="--c: {{ $series['color'] }};"></i>{{ $series['label'] }}</span>
+            @endforeach
+            <span>{{ __('Total') }} <b data-stack-total></b></span>
+        </div>
     </div>
 @endsection
 
@@ -1110,6 +1127,12 @@
 
         function sum(values) { return values.reduce(function (n, v) { return n + v; }, 0); }
 
+        function totalsOf(chart) {
+            return chart.labels.map(function (_, i) {
+                return chart.series.reduce(function (n, s) { return n + chart[s.key][i]; }, 0);
+            });
+        }
+
         // Ujung atas membulat 4px (hanya segmen teratas), dasar rata.
         function barPath(x, y, w, h, round) {
             var r = round ? Math.min(4, w / 2, h) : 0;
@@ -1117,7 +1140,7 @@
                 + 'H' + (x + w - r) + 'Q' + (x + w) + ' ' + y + ' ' + (x + w) + ' ' + (y + r) + 'V' + (y + h) + 'Z';
         }
 
-        // chart: { labels, titles, highlight, open: [], close: [], details?: [[{name, count}]] }
+        // chart: { labels, titles, highlight, series: [{key, label, color}], <key seri>: [], details?: [[{name, count}]] }
         function draw(plot, chart, animateDelay) {
             var tip = plot.querySelector('.chart-tip');
             var old = plot.querySelector('svg');
@@ -1128,7 +1151,7 @@
             if (innerW <= 0 || innerH <= 0) return;
 
             var n = chart.labels.length;
-            var totals = chart.labels.map(function (_, i) { return chart.open[i] + chart.close[i]; });
+            var totals = totalsOf(chart);
             var max = Math.max.apply(null, totals.concat([1]));
             var step = Math.max(1, Math.ceil(max / 4));
             var top = Math.ceil(max / step) * step;
@@ -1154,7 +1177,7 @@
 
                 // Open di bawah, Close di atas; celah 2px antar segmen.
                 var bottom = 0;
-                var parts = SERIES.filter(function (s) { return chart[s.key][i] > 0; });
+                var parts = chart.series.filter(function (s) { return chart[s.key][i] > 0; });
                 parts.forEach(function (s, k) {
                     var value = chart[s.key][i];
                     var yTop = y(bottom + value), h = y(bottom) - yTop - (k > 0 ? 2 : 0);
@@ -1168,7 +1191,7 @@
                 hit.addEventListener('mouseenter', function () {
                     tip.innerHTML = '';
                     tip.appendChild(html('b', '', chart.titles[i]));
-                    SERIES.forEach(function (s) {
+                    chart.series.forEach(function (s) {
                         var row = html('div');
                         row.append(swatch(s.color), html('span', '', s.label), html('span', '', chart[s.key][i]));
                         tip.appendChild(row);
@@ -1217,8 +1240,8 @@
             headRow.appendChild(html('th', '', __t('Jumlah')));
             table.appendChild(html('thead')).appendChild(headRow);
             var body = table.appendChild(html('tbody'));
-            SERIES.concat([{ key: 'total', label: __t('Total') }]).forEach(function (s) {
-                var values = s.key === 'total' ? chart.labels.map(function (_, i) { return chart.open[i] + chart.close[i]; }) : chart[s.key];
+            chart.series.concat([{ key: 'total', label: __t('Total') }]).forEach(function (s) {
+                var values = s.key === 'total' ? totalsOf(chart) : chart[s.key];
                 var tr = html('tr');
                 var name = html('td', 'series-name');
                 if (s.color) name.appendChild(swatch(s.color));
@@ -1246,11 +1269,11 @@
             return details;
         }
 
-        // Heatmap departemen x kolom (hari untuk Daily, bulan untuk Cross).
-        function heatTable(departments, labels, titles) {
+        // Heatmap departemen x kolom bulan. options: { series, unit, empty }.
+        function heatTable(departments, labels, titles, options) {
             var wrap = html('div', 'table-wrap');
             if (!departments.length) {
-                wrap.appendChild(html('p', 'muted', __t('Belum ada temuan.')));
+                wrap.appendChild(html('p', 'muted', options.empty));
                 return wrap;
             }
             var max = Math.max.apply(null, departments.map(function (d) { return Math.max.apply(null, d.values); }).concat([1]));
@@ -1259,7 +1282,7 @@
             headRow.appendChild(html('th', '', __t('Departemen')));
             labels.forEach(function (label) { headRow.appendChild(html('th', '', label)); });
             headRow.appendChild(html('th', '', __t('Jumlah')));
-            SERIES.forEach(function (s) {
+            options.series.forEach(function (s) {
                 var th = html('th', 'status-col');
                 th.append(swatch(s.color), s.label);
                 headRow.appendChild(th);
@@ -1267,7 +1290,7 @@
             table.appendChild(html('thead')).appendChild(headRow);
             var body = table.appendChild(html('tbody'));
             var monthTotals = labels.map(function () { return 0; });
-            var statusTotals = { open: 0, close: 0 };
+            var statusTotals = {};
             departments.forEach(function (d) {
                 var tr = html('tr');
                 tr.appendChild(html('td', 'dept-name', d.department));
@@ -1279,19 +1302,19 @@
                         td.style.setProperty('--h', HEAT[level]);
                         if (level >= 3) td.style.setProperty('--hc', '#fff');
                     }
-                    td.title = d.department + ' · ' + titles[i] + ': ' + v + ' temuan';
+                    td.title = d.department + ' · ' + titles[i] + ': ' + v + ' ' + options.unit;
                     tr.appendChild(td);
                 });
                 var all = html('td', '', d.total);
                 all.style.fontWeight = '700';
                 tr.appendChild(all);
-                // Dari jumlah itu, berapa yang masih Open & sudah Close.
-                SERIES.forEach(function (s) {
+                // Dari jumlah itu, rincian per seri (Open/Close atau Work/Traffic).
+                options.series.forEach(function (s) {
                     var v = d[s.key] || 0;
-                    statusTotals[s.key] += v;
+                    statusTotals[s.key] = (statusTotals[s.key] || 0) + v;
                     var td = html('td', 'status-col', v);
                     td.style.color = s.color;
-                    td.title = d.department + ' · ' + s.label + ': ' + v + ' temuan';
+                    td.title = d.department + ' · ' + s.label + ': ' + v + ' ' + options.unit;
                     tr.appendChild(td);
                 });
                 body.appendChild(tr);
@@ -1300,8 +1323,8 @@
             sumRow.appendChild(html('td', 'dept-name', __t('Total')));
             monthTotals.forEach(function (v) { sumRow.appendChild(html('td', '', v)); });
             sumRow.appendChild(html('td', '', sum(monthTotals)));
-            SERIES.forEach(function (s) {
-                var td = html('td', 'status-col', statusTotals[s.key]);
+            options.series.forEach(function (s) {
+                var td = html('td', 'status-col', statusTotals[s.key] || 0);
                 td.style.color = s.color;
                 sumRow.appendChild(td);
             });
@@ -1316,20 +1339,20 @@
             return wrap;
         }
 
-        function openModal(title, subtitle, chart, extra) {
+        function openModal(title, subtitle, chart, extra, extraTitle) {
             var modal = document.getElementById('chart-modal');
             var body = document.getElementById('chart-modal-body');
             document.getElementById('chart-modal-title').textContent = title;
             document.getElementById('chart-modal-sub').textContent = subtitle;
             body.innerHTML = '';
             var legend = html('div', 'chart-legend');
-            SERIES.forEach(function (s) { var item = html('span'); item.append(swatch(s.color), s.label); legend.appendChild(item); });
+            chart.series.forEach(function (s) { var item = html('span'); item.append(swatch(s.color), s.label); legend.appendChild(item); });
             var plot = html('div', 'chart-plot chart-plot-lg');
             plot.innerHTML = '<div class="chart-tip" hidden></div>';
-            body.append(PatrolImage.chartActions(plot, title + ' · ' + subtitle, SERIES), legend, plot);
+            body.append(PatrolImage.chartActions(plot, title + ' · ' + subtitle, chart.series), legend, plot);
             body.appendChild(totalsTable(chart));
             if (extra) {
-                var heading = html('h3', 'card-title', __t('Temuan per Departemen'));
+                var heading = html('h3', 'card-title', extraTitle);
                 heading.style.margin = '20px 0 8px';
                 body.append(heading, extra);
             }
@@ -1428,6 +1451,7 @@
                     labels: MONTHS,
                     titles: MONTH_NAMES.map(function (m) { return m + ' ' + year; }),
                     highlight: year === today.getFullYear() ? today.getMonth() : -1,
+                    series: SERIES,
                     open: data.open,
                     close: data.close,
                     details: detailsOf(data.departments, MONTHS.length),
@@ -1442,7 +1466,7 @@
             watch(crossPlot, crossChart, 1050);
             select.addEventListener('change', function () { showTotal(); draw(crossPlot, crossChart(), reduceMotion ? null : 0); });
             crossCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
-                openModal(__t('Grafik Temuan Cross Patrol'), __t('Per bulan · Tahun :tahun', { tahun: select.value }), crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles));
+                openModal(__t('Grafik Temuan Cross Patrol'), __t('Per bulan · Tahun :tahun', { tahun: select.value }), crossChart(), heatTable(years[select.value].departments, MONTHS, crossChart().titles, { series: SERIES, unit: __t('temuan'), empty: __t('Belum ada temuan.') }), __t('Temuan per Departemen'));
                 var progress = crossProgressSection(years, select.value);
                 var modalBody = document.getElementById('chart-modal-body');
                 modalBody.appendChild(progress);
@@ -1458,6 +1482,50 @@
                 progress.querySelectorAll('select').forEach(function (s) { s.addEventListener('change', updateExport); });
                 updateExport();
                 var chartActions = modalBody.querySelector('.chart-actions');
+                chartActions.insertBefore(exportLink, chartActions.querySelector('.icon-action'));
+            });
+        }
+
+        // Kecelakaan per bulan: pola sama dengan Cross Patrol, seri Work + Traffic, detail per departemen di modal.
+        var accidentCard = document.querySelector('[data-stack-card="kecelakaan"]');
+        if (accidentCard) {
+            var accidentYears = JSON.parse(accidentCard.dataset.stackYears);
+            var ACCIDENT_SERIES = JSON.parse(accidentCard.dataset.stackSeries);
+            var accidentSelect = accidentCard.querySelector('[data-stack-year]');
+            var accidentPlot = accidentCard.querySelector('[data-stack-plot]');
+
+            var accidentChart = function () {
+                var year = Number(accidentSelect.value);
+                var data = accidentYears[year];
+                var chart = {
+                    labels: MONTHS,
+                    titles: MONTH_NAMES.map(function (m) { return m + ' ' + year; }),
+                    highlight: year === today.getFullYear() ? today.getMonth() : -1,
+                    series: ACCIDENT_SERIES,
+                    details: detailsOf(data.departments, MONTHS.length),
+                };
+                ACCIDENT_SERIES.forEach(function (s) { chart[s.key] = data[s.key]; });
+                return chart;
+            };
+            var showAccidentTotal = function () {
+                var chart = accidentChart();
+                accidentCard.querySelector('[data-stack-total]').textContent = sum(totalsOf(chart));
+            };
+
+            showAccidentTotal();
+            watch(accidentPlot, accidentChart, 1000);
+            accidentSelect.addEventListener('change', function () { showAccidentTotal(); draw(accidentPlot, accidentChart(), reduceMotion ? null : 0); });
+            accidentCard.querySelector('[data-stack-expand]').addEventListener('click', function () {
+                var year = accidentSelect.value;
+                var chart = accidentChart();
+                var detail = heatTable(accidentYears[year].departments, MONTHS, chart.titles, {
+                    series: ACCIDENT_SERIES, unit: __t('kasus'), empty: __t('Belum ada kecelakaan.'),
+                });
+                openModal(__t('Grafik Kecelakaan'), __t('Per bulan · Tahun :tahun', { tahun: year }), chart, detail, __t('Kecelakaan per Departemen'));
+
+                var exportLink = PatrolImage.exportLink();
+                exportLink.href = @json(route('sms.dashboard.export.kecelakaan')) + '?' + new URLSearchParams({ year: year });
+                var chartActions = document.getElementById('chart-modal-body').querySelector('.chart-actions');
                 chartActions.insertBefore(exportLink, chartActions.querySelector('.icon-action'));
             });
         }
