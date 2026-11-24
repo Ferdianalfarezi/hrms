@@ -8,6 +8,7 @@ use App\Modules\Hrms\Models\AbsensiApproval;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
 use App\Modules\Hrms\Support\KomparasiAbsensi;
+use App\Modules\Hrms\Support\ProduktivitasHariIni;
 use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -125,8 +126,10 @@ class AbsensiController extends Controller
             'department' => $department,
             'group' => $group,
             'status' => $status,
-            // Chip Hadir / Tidak hadir selalu dari seluruh karyawan yang bisa dilihat user, tidak ikut filter.
-            'ringkasanHarian' => $this->ringkasanHarian(Karyawan::query()->visibleTo($user)->get(['id', 'nik', 'group']), $tanggal),
+            // Chip Hadir / Tidak hadir: seluruh karyawan yang bisa dilihat user (tidak ikut filter), dihitung per hari kerja
+            // seperti kartu per shift di dashboard: grup pagi + NS di tanggal itu, grup malam di tanggal shift malamnya.
+            'ringkasanHarian' => ProduktivitasHariIni::ringkasanHariKerja(fn () => Karyawan::query()->visibleTo($user), $tanggal),
+            'jadwalHariKerja' => ProduktivitasHariIni::jadwalHariKerja($tanggal),
             'canFilterDepartment' => $canFilterDepartment,
             'departments' => $isAdmin ? Department::orderBy('name')->get() : $lockedDepartments,
             'groupOptions' => Karyawan::query()->visibleTo($user)->whereNotNull('group')->distinct()->orderBy('group')->pluck('group'),
@@ -541,32 +544,6 @@ class AbsensiController extends Controller
         return $karyawans
             ->filter(fn (Karyawan $karyawan) => $terlambat->has($karyawan->id))
             ->values();
-    }
-
-    /**
-     * Jumlah karyawan dan yang tidak hadir pada tanggal itu: punya kode tidak hadir,
-     * atau tidak masuk di mesin absen dan belum ada keterangan.
-     *
-     * @param  Collection<int, Karyawan>  $karyawans
-     * @return array{total: int, tidakHadir: int}
-     */
-    private function ringkasanHarian(Collection $karyawans, Carbon $tanggal): array
-    {
-        $date = $tanggal->toDateString();
-        $kodes = Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
-            ->whereDate('tanggal', $date)
-            ->pluck('kode', 'karyawan_id');
-        $tanpaKeterangan = KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $tanggal, $tanggal);
-
-        $tidakHadir = $karyawans->filter(function (Karyawan $karyawan) use ($kodes, $tanpaKeterangan, $date) {
-            $kode = $kodes[$karyawan->id] ?? null;
-
-            return $kode !== null
-                ? ! (Absensi::KODE[$kode]['hadir'] ?? true)
-                : isset($tanpaKeterangan[$karyawan->id][$date]);
-        })->count();
-
-        return ['total' => $karyawans->count(), 'tidakHadir' => $tidakHadir];
     }
 
     private function parseMonth(string $value): ?Carbon

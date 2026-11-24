@@ -252,7 +252,13 @@ class HrmsDashboardTest extends TestCase
         Absensi::create(['karyawan_id' => $id('0003'), 'tanggal' => '2026-10-15', 'kode' => 'S']);
         AbsensiMesin::create(['tanggal' => '2026-10-15', 'nik' => '0004']);                                      // tidak absen, belum ada keterangan
 
-        $shifts = HrmsDashboard::build($this->hrmsAdmin())['composition']['shifts'];
+        $composition = HrmsDashboard::build($this->hrmsAdmin())['composition'];
+        $shifts = $composition['shifts'];
+
+        // Angka utama = gabungan per shift (hari kerja): sakit grup A hari ini tidak dihitung, cuti malam kemarin dihitung.
+        $this->assertSame('25%', $composition['value']);
+        $this->assertSame(['Hadir' => 1, 'Tidak hadir' => 3, 'Sakit' => 1, 'Izin' => 0, 'Cuti' => 1, 'WFH' => 0, 'Alpa' => 1],
+            array_column($composition['segments'], 'count', 'label'));
 
         $this->assertSame(['Shift 1 · Pagi · 15 Okt', 'Shift 2 · Malam · 14 Okt'], array_column($shifts, 'label'));
         $this->assertSame(['33,3%', '0%'], array_column($shifts, 'value'));

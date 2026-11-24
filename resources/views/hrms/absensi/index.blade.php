@@ -408,8 +408,19 @@
         var wrap = document.getElementById('abs-wrap');
         var selectedDay = {{ $tanggal->day }};
         var headcount = {{ $karyawans->count() }};
-        // Ringkasan Hadir / Tidak hadir selalu dari seluruh karyawan yang bisa dilihat user, tidak ikut filter.
+        // Ringkasan Hadir / Tidak hadir dari seluruh karyawan yang bisa dilihat user (tidak ikut filter), per hari kerja:
+        // grup pagi + NS di tanggal terpilih, grup malam di tanggal shift malamnya (sama seperti kartu per shift di dashboard).
         var ringkasan = {{ Js::from($ringkasanHarian) }};
+        var hariKerja = {{ Js::from($jadwalHariKerja) }};
+
+        // Sel ini ikut dihitung di ringkasan hari kerja? (Tanpa rotasi: semua karyawan di tanggal terpilih.)
+        function ikutRingkasan(cell) {
+            var date = table.dataset.month + '-' + String(cell.dataset.day).padStart(2, '0');
+            var group = cell.closest('tr').querySelector('.c-group').textContent.trim();
+            if (hariKerja.pagi === null && hariKerja.malam === null) return date === hariKerja.tanggal;
+            return (date === hariKerja.tanggal && (group === 'NS' || group === hariKerja.pagi))
+                || (date === hariKerja.tanggalMalam && group === hariKerja.malam);
+        }
 
         function setNumber(cell, value) {
             cell.textContent = value;
@@ -617,6 +628,8 @@
                     : kode ? kodes[kode].label + (menit ? ' · ' + __t(':menit menit', { menit: menit }) : '') + (ket ? ' · ' + ket : '') : (tanpaKet ? __t('Tidak masuk · belum ada keterangan') : __t('Masuk'));
                 if (Number(activeCell.dataset.day) === selectedDay) {
                     activeCell.closest('tr').querySelector('[data-ket-selected]').textContent = ket;
+                }
+                if (ikutRingkasan(activeCell)) {
                     ringkasan.tidakHadir += (isTidakHadir(activeCell) ? 1 : 0) - (sebelumnyaTidakHadir ? 1 : 0);
                 }
                 void activeCell.offsetWidth;

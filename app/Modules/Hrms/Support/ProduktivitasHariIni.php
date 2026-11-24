@@ -71,6 +71,58 @@ class ProduktivitasHariIni
         return $tidakHadir;
     }
 
+    /**
+     * Ringkasan hadir / tidak hadir satu hari kerja: Shift 1 pagi tanggal itu + Shift 2 malam sebelumnya (sama seperti kartu per shift).
+     *
+     * @return array{total: int, tidakHadir: int}
+     */
+    public static function ringkasanHariKerja(Closure $visible, Carbon $tanggal): array
+    {
+        $jumlah = self::jumlahkanShift((new self($visible, $tanggal))->perShift());
+
+        return ['total' => $jumlah['total'], 'tidakHadir' => $jumlah['total'] - $jumlah['hadir']];
+    }
+
+    /**
+     * Gabungan beberapa rekap shift jadi satu angka hari kerja.
+     *
+     * @param  list<array{total: int, hadir: int, perKategori: array<string, int>}>  $perShift
+     * @return array{total: int, hadir: int, perKategori: array<string, int>}
+     */
+    public static function jumlahkanShift(array $perShift): array
+    {
+        $perKategori = [];
+        foreach ($perShift as $shift) {
+            foreach ($shift['perKategori'] as $kategori => $jumlah) {
+                $perKategori[$kategori] = ($perKategori[$kategori] ?? 0) + $jumlah;
+            }
+        }
+
+        return [
+            'total' => array_sum(array_column($perShift, 'total')),
+            'hadir' => array_sum(array_column($perShift, 'hadir')),
+            'perKategori' => $perKategori,
+        ];
+    }
+
+    /**
+     * Grup & tanggal yang dihitung untuk satu hari kerja: grup pagi (+ NS) di tanggal itu, grup malam di tanggal shift malamnya.
+     * pagi & malam null = rotasi belum diatur (semua karyawan dihitung di tanggal itu).
+     *
+     * @return array{tanggal: string, pagi: ?string, malam: ?string, tanggalMalam: string}
+     */
+    public static function jadwalHariKerja(Carbon $tanggal): array
+    {
+        $tanggalMalam = ShiftRotasi::tanggalShiftMalam($tanggal);
+
+        return [
+            'tanggal' => $tanggal->toDateString(),
+            'pagi' => ShiftRotasi::grupPagi($tanggal),
+            'malam' => ShiftRotasi::grupMalam($tanggalMalam),
+            'tanggalMalam' => $tanggalMalam->toDateString(),
+        ];
+    }
+
     public static function build(Closure $visible): array
     {
         $hariIni = new self($visible, Carbon::today());
@@ -131,9 +183,10 @@ class ProduktivitasHariIni
      */
     private function perShift(): array
     {
-        $grupPagi = ShiftRotasi::grupPagi($this->today);
-        $kemarin = ShiftRotasi::tanggalShiftMalam($this->today);
-        $grupMalamKemarin = ShiftRotasi::grupMalam($kemarin);
+        $jadwal = self::jadwalHariKerja($this->today);
+        $grupPagi = $jadwal['pagi'];
+        $kemarin = Carbon::parse($jadwal['tanggalMalam']);
+        $grupMalamKemarin = $jadwal['malam'];
 
         if ($grupPagi === null && $grupMalamKemarin === null) {
             $grups = $this->karyawans->pluck('group')->map(fn (?string $grup) => $grup ?: '-')->unique()->sort()->values();

@@ -7,6 +7,7 @@ use App\Modules\Hrms\Models\Absensi;
 use App\Modules\Hrms\Models\AbsensiMesin;
 use App\Modules\Hrms\Models\Department;
 use App\Modules\Hrms\Models\Karyawan;
+use App\Modules\Hrms\Models\ShiftRotasi;
 use Database\Seeders\ApplicationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -247,6 +248,21 @@ class AbsensiTest extends TestCase
         $this->actingAs($this->deptAdmin($this->psd))->get(route('hrms.absensi.timeline', ['tanggal' => '2026-10-14', 'status' => 'terlambat']))
             ->assertOk()
             ->assertViewHas('ringkasanHarian', ['total' => 3, 'tidakHadir' => 2]);
+    }
+
+    public function test_ringkasan_harian_mengikuti_hari_kerja_shift(): void
+    {
+        // Minggu 12 Okt grup B pagi, jadi Rabu 14 Okt: Shift 1 = grup B + NS (14 Okt), Shift 2 = grup A malam 13 Okt.
+        ShiftRotasi::create(['tanggal_mulai' => '2026-10-12', 'grup_pagi' => 'B']);
+        $citra = Karyawan::create(['nik' => '0003', 'nama' => 'Citra B', 'department_id' => $this->psd->id, 'jenis_kelamin' => 'Perempuan', 'status' => 'Tetap', 'group' => 'B']);
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-13', 'kode' => 'S']);   // malam 13 Okt: dihitung
+        Absensi::create(['karyawan_id' => $this->andi->id, 'tanggal' => '2026-10-14', 'kode' => 'CT']);  // malam 14 Okt = hari kerja 15 Okt
+        Absensi::create(['karyawan_id' => $citra->id, 'tanggal' => '2026-10-14', 'kode' => 'I']);
+
+        $this->actingAs($this->hrmsAdmin())->get('/hrms/absensi?tanggal=2026-10-14')
+            ->assertOk()
+            ->assertViewHas('ringkasanHarian', ['total' => 3, 'tidakHadir' => 2])
+            ->assertViewHas('jadwalHariKerja', ['tanggal' => '2026-10-14', 'pagi' => 'B', 'malam' => 'A', 'tanggalMalam' => '2026-10-13']);
     }
 
     public function test_group_filter_and_access_control(): void

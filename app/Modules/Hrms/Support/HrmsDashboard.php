@@ -218,18 +218,17 @@ class HrmsDashboard
     {
         $today = Carbon::today();
         $karyawans = $visible()->get(['id', 'nik', 'group']);
-        $total = $karyawans->count();
 
         $kodes = Absensi::whereIn('karyawan_id', $karyawans->pluck('id'))
             ->whereDate('tanggal', $today->toDateString())
             ->whereIn('kode', Absensi::kodeTidakHadir())
             ->pluck('kode', 'karyawan_id');
 
-        $tanpaKeterangan = count(KomparasiAbsensi::selBelumAdaKeterangan($karyawans, $today, $today));
         // Admin input tidak hadir, padahal mesin mencatat karyawannya absen (kemungkinan salah input).
         $cekUlang = collect(KomparasiAbsensi::selHadirDiMesin($karyawans, $today, $today))
             ->keys()->filter(fn ($id) => isset($kodes[$id]))->count();
-        $hadir = max($total - $kodes->count() - $tanpaKeterangan, 0);
+        // Angka utama = gabungan kartu per shift (hari kerja: pagi hari ini + malam sebelumnya), bukan isi kolom tanggal hari ini.
+        $hariKerja = ProduktivitasHariIni::jumlahkanShift($perShift);
 
         $note = AbsensiMesin::whereDate('tanggal', $today->toDateString())->exists()
             ? ($cekUlang > 0 ? __(':count kode tidak hadir perlu dicek ulang (hadir di mesin absen).', ['count' => $cekUlang]) : __('Data mesin absen hari ini sudah diupload.'))
@@ -237,9 +236,9 @@ class HrmsDashboard
 
         return [
             'title' => __('Absensi').' '.$today->translatedFormat('d M'),
-            'value' => self::persenHadir($hadir, $total).'%',
+            'value' => $hariKerja['total'] > 0 ? self::persenHadir($hariKerja['hadir'], $hariKerja['total']).'%' : '-',
             'unit' => 'orang',
-            'segments' => self::segmenAbsensi($total, $hadir, self::tambahAlpa($kodes->countBy(fn (string $kode) => Absensi::kategori($kode))->all(), $tanpaKeterangan)),
+            'segments' => self::segmenAbsensi($hariKerja['total'], $hariKerja['hadir'], $hariKerja['perKategori']),
             'shifts' => collect($perShift)->map(fn (array $shift) => [
                 'label' => $shift['label'],
                 'sub' => $shift['sub'],
