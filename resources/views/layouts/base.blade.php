@@ -144,6 +144,7 @@
             0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, .55); }
             50% { opacity: .35; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
         }
+        .subtab-menu .menu-badge { animation: none; }
         @media (prefers-reduced-motion: reduce) { .menu-badge { animation: none; } }
         .subtab-menu a.active { background: var(--soft); color: var(--navy); font-weight: 600; }
 
