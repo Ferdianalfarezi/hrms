@@ -139,7 +139,12 @@
         .subtab-drop:hover .subtab-menu, .subtab-drop:focus-within .subtab-menu { display: block; }
         .subtab-menu a { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--text); }
         .subtab-menu a:hover { background: var(--soft-2); }
-        .menu-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
+        .menu-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; animation: menu-badge-blink 1.2s ease-in-out infinite; }
+        @keyframes menu-badge-blink {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, .55); }
+            50% { opacity: .35; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .menu-badge { animation: none; } }
         .subtab-menu a.active { background: var(--soft); color: var(--navy); font-weight: 600; }
 
         /* Komponen dasar */
